@@ -1,0 +1,39 @@
+{
+  "recommendations": [
+    // Python 개발
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "charliermarsh.ruff",
+    "njpwerner.autodocstring",
+    "KevinRose.vsc-python-indent",
+
+    // TypeScript/JavaScript 개발
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "pmneo.tsimporter",
+    "formulahendry.auto-rename-tag",
+    "dsznajder.es7-react-js-snippets",
+    "clinyong.vscode-css-modules",
+
+    // Docker & Infrastructure
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers",
+    "redhat.vscode-yaml",
+
+    // Git & 협업
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // 유틸리티
+    "rangav.vscode-thunder-client",
+    "mikestead.dotenv",
+    "EditorConfig.EditorConfig",
+    "usernamehw.errorlens",
+    "wayou.vscode-todo-highlight",
+    "aaron-bond.better-comments",
+    "christian-kohler.path-intellisense",
+    "oderwat.indent-rainbow"
+  ]
+}

@@ -18,9 +18,15 @@ build/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
+
+# VSCode - 공유 설정 제외하고 개인 설정만 무시
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # OS
 .DS_Store

@@ -1,0 +1,95 @@
+[project]
+name = "hadbetter-backend"
+version = "0.1.0"
+description = "HAD BETTER - 대중교통 경로 레이싱 서비스 백엔드"
+requires-python = ">=3.12"
+
+# Black 설정
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | migrations
+)/
+'''
+
+# isort 설정
+[tool.isort]
+profile = "black"
+line_length = 88
+known_django = ["django", "rest_framework"]
+known_first_party = ["apps", "config"]
+sections = ["FUTURE", "STDLIB", "DJANGO", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+skip = ["venv", "migrations", ".git"]
+skip_gitignore = true
+
+# Ruff 설정
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+exclude = [
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "migrations",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "DJ",     # flake8-django
+]
+ignore = [
+    "E501",   # line too long (black handles this)
+    "B008",   # do not perform function calls in argument defaults
+    "B904",   # raise without from inside except
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # unused imports in __init__.py
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+# Pylance/Pyright 설정
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/venv",
+    "**/migrations"
+]
+
+# pytest 설정 (추후 테스트 추가시 사용)
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --tb=short"
