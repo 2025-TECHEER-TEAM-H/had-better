@@ -83,6 +83,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
 
     # 타임스탬프
+    last_login_date = models.DateTimeField(null=True, blank=True, verbose_name='최근 로그인 일시')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일시')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일시')
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='삭제일시')

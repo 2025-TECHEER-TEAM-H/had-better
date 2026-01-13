@@ -1,3 +1,7 @@
+# 개발 환경용 Docker Compose
+# DB, RabbitMQ, Celery는 Docker로 실행
+# Django Backend는 로컬에서 실행 (python manage.py runserver)
+
 services:
   # PostgreSQL + PostGIS 데이터베이스
   db:
@@ -16,6 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hadbetter-network
 
   # RabbitMQ 메시지 브로커
   rabbitmq:
@@ -34,6 +40,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hadbetter-network
 
   # Celery Worker
   celery:
@@ -57,6 +65,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - hadbetter-network
 
   # Celery Beat (스케줄러)
   celery-beat:
@@ -80,6 +90,12 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - hadbetter-network
+
+networks:
+  hadbetter-network:
+    driver: bridge
 
 volumes:
   postgres_data:

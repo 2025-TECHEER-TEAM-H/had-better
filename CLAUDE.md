@@ -20,20 +20,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 개발 명령어
 
-### Docker 환경 실행
+### Docker 환경 실행 (DB, RabbitMQ, Celery)
+
 ```bash
-# 전체 서비스 시작 (DB, RabbitMQ, Celery)
+# Docker 서비스 시작
 docker-compose up -d
 
 # 서비스 상태 확인
 docker-compose ps
 
-# 로그 확인
+# Celery 로그 확인
 docker-compose logs -f celery
 
 # 서비스 중지
 docker-compose down
 ```
+
+### 개발 서비스 접속 정보
+
+| 서비스 | URL | 설명 |
+|--------|-----|------|
+| Backend API | http://localhost:8000 | Django REST API (로컬 실행) |
+| Swagger 문서 | http://localhost:8000/api/docs/ | API 문서 |
+| Frontend | http://localhost:5173 | React 개발 서버 |
+| RabbitMQ 관리 | http://localhost:15672 | guest / guest |
+| PostgreSQL | localhost:5432 | postgres / postgres |
 
 ### Backend (Django)
 ```bash
@@ -155,7 +166,7 @@ had-better/
 
 ## API 구조
 
-Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로덕션)
+Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로덕션 - Traefik 경유)
 
 ### 주요 엔드포인트
 | 리소스 | 엔드포인트 | 설명 |
