@@ -10,7 +10,8 @@ from rest_framework import serializers
 
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import PlaceSearchHistory, User
+from apps.places.models import SearchPlaceHistory
+from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -235,15 +236,7 @@ class LogoutSerializer(serializers.Serializer):
         self.token.blacklist()
 
 
-# ============================================
-# 장소 검색 기록 Serializer
-# ============================================
-# 1. ModelSerializer: PlaceSearchHistory 모델 기반 자동 직렬화
-# 2. fields: API 응답에 포함할 필드 지정
-# 3. read_only_fields: 클라이언트가 수정할 수 없는 필드 (id, 시간은 서버에서 자동 생성)
-# 4. user 필드는 제외: JWT 토큰에서 사용자 정보를 가져오므로 응답에 불필요
-# ============================================
-class PlaceSearchHistorySerializer(serializers.ModelSerializer):
+class SearchPlaceHistorySerializer(serializers.ModelSerializer):
     """
     장소 검색 기록 Serializer
 
@@ -253,14 +246,14 @@ class PlaceSearchHistorySerializer(serializers.ModelSerializer):
     {
         "id": 1,
         "keyword": "강남역",
-        "searched_at": "2026-01-12T10:00:00+09:00"
+        "created_at": "2026-01-12T10:00:00+09:00"
     }
     """
 
     class Meta:
-        model = PlaceSearchHistory
-        fields = ["id", "keyword", "searched_at"]  # user는 제외 (JWT에서 가져옴)
-        read_only_fields = ["id", "searched_at"]  # 서버에서 자동 생성되는 필드
+        model = SearchPlaceHistory
+        fields = ["id", "keyword", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 # ============================================
