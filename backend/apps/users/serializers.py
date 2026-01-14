@@ -7,6 +7,7 @@ import re
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from rest_framework import serializers
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import PlaceSearchHistory, User
@@ -19,14 +20,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'nickname', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ["id", "name", "email", "nickname", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 # ============================================
-# Claude Code 구현 - 내 정보 수정용 Serializer
+# 내 정보 수정용 Serializer
 # ============================================
-# [학습 포인트]
 # 1. ModelSerializer: Model 기반으로 자동 필드 생성
 # 2. fields: 수정 가능한 필드만 지정 (nickname만 수정 가능)
 # 3. PATCH 요청에서 partial=True와 함께 사용
@@ -45,7 +45,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['nickname']  # 수정 가능한 필드만 지정
+        fields = ["nickname"]  # 수정 가능한 필드만 지정
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -63,37 +63,26 @@ class RegisterSerializer(serializers.Serializer):
     """
 
     name = serializers.CharField(
-        max_length=50,
-        help_text='유저 ID (고유, 영문/숫자/언더스코어)'
+        max_length=50, help_text="유저 ID (고유, 영문/숫자/언더스코어)"
     )
-    email = serializers.EmailField(
-        help_text='이메일 (로그인용)'
-    )
+    email = serializers.EmailField(help_text="이메일 (로그인용)")
     password = serializers.CharField(
-        write_only=True,
-        min_length=8,
-        help_text='비밀번호 (최소 8자)'
+        write_only=True, min_length=8, help_text="비밀번호 (최소 8자)"
     )
-    password_confirm = serializers.CharField(
-        write_only=True,
-        help_text='비밀번호 확인'
-    )
-    nickname = serializers.CharField(
-        max_length=50,
-        help_text='닉네임 (표시용)'
-    )
+    password_confirm = serializers.CharField(write_only=True, help_text="비밀번호 확인")
+    nickname = serializers.CharField(max_length=50, help_text="닉네임 (표시용)")
 
     def validate_name(self, value):
         """
         name 유효성 검사: 영문, 숫자, 언더스코어만 허용
         """
-        if not re.match(r'^[a-zA-Z0-9_]+$', value):
+        if not re.match(r"^[a-zA-Z0-9_]+$", value):
             raise serializers.ValidationError(
-                '유저 ID는 영문, 숫자, 언더스코어만 사용 가능합니다.'
+                "유저 ID는 영문, 숫자, 언더스코어만 사용 가능합니다."
             )
 
         if User.objects.filter(name=value).exists():
-            raise serializers.ValidationError('이미 사용 중인 유저 ID입니다.')
+            raise serializers.ValidationError("이미 사용 중인 유저 ID입니다.")
 
         return value
 
@@ -102,7 +91,7 @@ class RegisterSerializer(serializers.Serializer):
         email 중복 검사
         """
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError('이미 등록된 이메일입니다.')
+            raise serializers.ValidationError("이미 등록된 이메일입니다.")
 
         return value
 
@@ -110,10 +99,10 @@ class RegisterSerializer(serializers.Serializer):
         """
         비밀번호 일치 검사
         """
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({
-                'password_confirm': '비밀번호가 일치하지 않습니다.'
-            })
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError(
+                {"password_confirm": "비밀번호가 일치하지 않습니다."}
+            )
 
         return attrs
 
@@ -121,23 +110,20 @@ class RegisterSerializer(serializers.Serializer):
         """
         사용자 생성 및 토큰 발급
         """
-        validated_data.pop('password_confirm')
+        validated_data.pop("password_confirm")
 
         user = User.objects.create_user(
-            name=validated_data['name'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            nickname=validated_data['nickname']
+            name=validated_data["name"],
+            email=validated_data["email"],
+            password=validated_data["password"],
+            nickname=validated_data["nickname"],
         )
 
         refresh = RefreshToken.for_user(user)
 
         return {
-            'user': user,
-            'tokens': {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh)
-            }
+            "user": user,
+            "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
         }
 
 
@@ -152,48 +138,43 @@ class LoginSerializer(serializers.Serializer):
     }
     """
 
-    name = serializers.CharField(help_text='유저 ID')
-    password = serializers.CharField(write_only=True, help_text='비밀번호')
+    name = serializers.CharField(help_text="유저 ID")
+    password = serializers.CharField(write_only=True, help_text="비밀번호")
 
     def validate(self, attrs):
         """
         인증 처리
         """
-        name = attrs.get('name')
-        password = attrs.get('password')
+        name = attrs.get("name")
+        password = attrs.get("password")
 
         user = authenticate(username=name, password=password)
 
         if user is None:
-            raise serializers.ValidationError({
-                'detail': '유저 ID 또는 비밀번호가 올바르지 않습니다.'
-            })
+            raise serializers.ValidationError(
+                {"detail": "유저 ID 또는 비밀번호가 올바르지 않습니다."}
+            )
 
         if not user.is_active:
-            raise serializers.ValidationError({
-                'detail': '비활성화된 계정입니다.'
-            })
+            raise serializers.ValidationError({"detail": "비활성화된 계정입니다."})
 
         # 로그인 시간 업데이트
         user.last_login_date = timezone.now()
-        user.save(update_fields=['last_login_date'])
+        user.save(update_fields=["last_login_date"])
 
-        attrs['user'] = user
+        attrs["user"] = user
         return attrs
 
     def create(self, validated_data):
         """
         토큰 발급
         """
-        user = validated_data['user']
+        user = validated_data["user"]
         refresh = RefreshToken.for_user(user)
 
         return {
-            'user': user,
-            'tokens': {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh)
-            }
+            "user": user,
+            "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
         }
 
 
@@ -207,19 +188,19 @@ class TokenRefreshSerializer(serializers.Serializer):
     }
     """
 
-    refresh = serializers.CharField(help_text='Refresh Token')
+    refresh = serializers.CharField(help_text="Refresh Token")
 
     def validate(self, attrs):
         """
         Refresh Token 유효성 검사 및 새 Access Token 발급
         """
         try:
-            refresh = RefreshToken(attrs['refresh'])
-            attrs['access'] = str(refresh.access_token)
+            refresh = RefreshToken(attrs["refresh"])
+            attrs["access"] = str(refresh.access_token)
         except Exception:
-            raise serializers.ValidationError({
-                'refresh': '유효하지 않거나 만료된 토큰입니다.'
-            })
+            raise serializers.ValidationError(
+                {"refresh": "유효하지 않거나 만료된 토큰입니다."}
+            )
 
         return attrs
 
@@ -234,18 +215,16 @@ class LogoutSerializer(serializers.Serializer):
     }
     """
 
-    refresh = serializers.CharField(help_text='Refresh Token')
+    refresh = serializers.CharField(help_text="Refresh Token")
 
     def validate(self, attrs):
         """
         Refresh Token 유효성 검사
         """
         try:
-            self.token = RefreshToken(attrs['refresh'])
+            self.token = RefreshToken(attrs["refresh"])
         except Exception:
-            raise serializers.ValidationError({
-                'refresh': '유효하지 않은 토큰입니다.'
-            })
+            raise serializers.ValidationError({"refresh": "유효하지 않은 토큰입니다."})
 
         return attrs
 
@@ -257,9 +236,8 @@ class LogoutSerializer(serializers.Serializer):
 
 
 # ============================================
-# Claude Code 구현 - 장소 검색 기록 Serializer
+# 장소 검색 기록 Serializer
 # ============================================
-# [학습 포인트]
 # 1. ModelSerializer: PlaceSearchHistory 모델 기반 자동 직렬화
 # 2. fields: API 응답에 포함할 필드 지정
 # 3. read_only_fields: 클라이언트가 수정할 수 없는 필드 (id, 시간은 서버에서 자동 생성)
@@ -281,5 +259,41 @@ class PlaceSearchHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PlaceSearchHistory
-        fields = ['id', 'keyword', 'searched_at']  # user는 제외 (JWT에서 가져옴)
-        read_only_fields = ['id', 'searched_at']  # 서버에서 자동 생성되는 필드
+        fields = ["id", "keyword", "searched_at"]  # user는 제외 (JWT에서 가져옴)
+        read_only_fields = ["id", "searched_at"]  # 서버에서 자동 생성되는 필드
+
+
+# ============================================
+# 경로 검색 기록 Serializer (2026-01-14)
+# ============================================
+# 1. SerializerMethodField: 커스텀 필드 생성 (departure, arrival 중첩 객체)
+# 2. source='created_at': DB 필드명과 다른 API 필드명 사용 시
+# 3. 중첩 객체 형태: { "departure": { "name": "강남역" } }
+# ============================================
+class ItineraryHistorySerializer(serializers.Serializer):
+    """
+    경로 검색 기록 Serializer
+
+    GET /api/v1/users/itinerary-history 응답에 사용
+
+    Response:
+    {
+        "id": 1,
+        "departure": { "name": "강남역" },
+        "arrival": { "name": "홍대입구역" },
+        "searched_at": "2026-01-12T10:00:00+09:00"
+    }
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    departure = serializers.SerializerMethodField()
+    arrival = serializers.SerializerMethodField()
+    searched_at = serializers.DateTimeField(source="created_at", read_only=True)
+
+    def get_departure(self, obj):
+        """출발지 정보를 중첩 객체로 반환"""
+        return {"name": obj.departure_name}
+
+    def get_arrival(self, obj):
+        """도착지 정보를 중첩 객체로 반환"""
+        return {"name": obj.arrival_name}
