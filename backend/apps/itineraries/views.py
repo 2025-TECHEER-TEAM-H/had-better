@@ -163,8 +163,8 @@ class RouteSearchView(APIView):
             search_history = SearchItineraryHistory.objects.create(
                 user=request.user,
                 route_itinerary=route_itinerary,
-                departure_name=data.get('departure_name', ''),
-                arrival_name=data.get('arrival_name', ''),
+                departure_name=data['departure_name'],
+                arrival_name=data['arrival_name'],
             )
 
         # 응답 생성
