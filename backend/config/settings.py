@@ -86,7 +86,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
-# PostgreSQL + PostGIS 설정
+# PostgreSQL 설정
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

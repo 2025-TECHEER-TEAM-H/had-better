@@ -58,3 +58,7 @@ docker-compose.override.yml
 # Claude Code
 .claude/
 tmpclaude-*
+.mcp.json
+
+# Windows
+nul

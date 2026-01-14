@@ -25,6 +25,7 @@ python-dotenv>=1.0,<2.0
 drf-spectacular>=0.28,<1.0
 
 # HTTP Requests
+# HTTP Client
 requests>=2.31,<3.0
 
 # Utilities
