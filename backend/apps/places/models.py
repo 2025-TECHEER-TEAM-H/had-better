@@ -27,9 +27,17 @@ class PoiPlace(models.Model):
 class SearchPlaceHistory(models.Model):
     """사용자의 장소 검색 기록"""
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='search_place_histories')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='search_place_histories'
+    )
     keyword = models.CharField(max_length=255)
+
+    # 타임스탬프
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'search_place_history'

@@ -9,15 +9,15 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from apps.itineraries.models import SearchItineraryHistory
+from apps.places.models import SearchPlaceHistory
 from config.responses import success_response
 
-from .models import PlaceSearchHistory
 from .serializers import (
     ItineraryHistorySerializer,
     LoginSerializer,
     LogoutSerializer,
-    PlaceSearchHistorySerializer,
     RegisterSerializer,
+    SearchPlaceHistorySerializer,
     TokenRefreshSerializer,
     UserSerializer,
     UserUpdateSerializer,
@@ -223,7 +223,7 @@ class UserMeView(APIView):
         summary="장소 검색 기록 조회",
         description="현재 로그인한 사용자의 장소 검색 기록을 조회합니다.",
         tags=["사용자"],
-        responses={200: PlaceSearchHistorySerializer(many=True)},
+        responses={200: SearchPlaceHistorySerializer(many=True)},
     ),
     delete=extend_schema(
         summary="장소 검색 기록 전체 삭제",
@@ -259,14 +259,14 @@ class PlaceHistoryListView(APIView):
             limit = 10
 
         # 현재 사용자의 검색 기록만 조회 (다른 사용자 데이터 접근 불가)
-        histories = PlaceSearchHistory.objects.filter(
+        histories = SearchPlaceHistory.objects.filter(
             user=request.user  # 보안: 본인 데이터만!
         )[
             :limit
         ]  # 슬라이싱으로 개수 제한
 
         # many=True: 여러 객체를 리스트로 직렬화
-        serializer = PlaceSearchHistorySerializer(histories, many=True)
+        serializer = SearchPlaceHistorySerializer(histories, many=True)
         return success_response(data=serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request):
@@ -276,7 +276,7 @@ class PlaceHistoryListView(APIView):
         현재 사용자의 모든 검색 기록 삭제
         """
         # 현재 사용자의 모든 검색 기록 삭제
-        PlaceSearchHistory.objects.filter(user=request.user).delete()
+        SearchPlaceHistory.objects.filter(user=request.user).delete()
         return success_response(
             data=None, status=status.HTTP_204_NO_CONTENT  # 204: 삭제 성공, 본문 없음
         )
@@ -314,12 +314,12 @@ class PlaceHistoryDetailView(APIView):
         """
         try:
             # pk와 user 둘 다 일치하는 레코드만 조회 (보안)
-            history = PlaceSearchHistory.objects.get(
+            history = SearchPlaceHistory.objects.get(
                 pk=pk, user=request.user  # 본인 데이터만 삭제 가능
             )
             history.delete()
             return success_response(data=None, status=status.HTTP_204_NO_CONTENT)
-        except PlaceSearchHistory.DoesNotExist:
+        except SearchPlaceHistory.DoesNotExist:
             # 데이터가 없거나 다른 사용자의 데이터인 경우
             return success_response(
                 data={"detail": "검색 기록을 찾을 수 없습니다."},
