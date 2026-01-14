@@ -224,3 +224,21 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 - **마커**: 3D 느낌 SVG/PNG 아이콘
 
 **참고**: 프론트엔드 디자인은 초기 세팅 이후 FIGMA MCP SERVER를 통해 수정 예정
+
+## Git 워크플로우
+
+### 브랜치 전략
+- main: 배포 버전
+- develop: 개발 버전
+- feature/*: 기능 개발
+
+### 시작하기
+1. develop에서 feature 브랜치 생성
+2. 작업 완료 후 develop으로 Pull Request
+3. 코드 리뷰 후 merge
+
+### 커밋 메시지
+- feat: 새 기능
+- fix: 버그 수정
+- refactor: 코드 정리
+- docs: 문서
