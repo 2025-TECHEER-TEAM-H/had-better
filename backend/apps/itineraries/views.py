@@ -238,10 +238,9 @@ class RouteLegDetailView(APIView):
 
     def get(self, request, route_leg_id):
         try:
+            # raw_data에서 legs 정보를 직접 가져오므로 segments prefetch 불필요
             route_leg = RouteLeg.objects.select_related(
                 'route_itinerary'
-            ).prefetch_related(
-                'segments'
             ).get(
                 id=route_leg_id,
                 deleted_at__isnull=True
