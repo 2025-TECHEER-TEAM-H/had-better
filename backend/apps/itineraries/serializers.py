@@ -42,16 +42,14 @@ class RouteSearchRequestSerializer(serializers.Serializer):
         help_text='응답 형식 (기본값: "json")'
     )
 
-    # 출발지/도착지 이름 (검색 기록용)
+    # 출발지/도착지 이름 (검색 기록용) - 필수 필드
     departure_name = serializers.CharField(
-        required=False,
-        default='',
-        help_text='출발지명 (검색 기록용)'
+        required=True,
+        help_text='출발지명 (검색 기록용, 건물명 또는 도로명 주소)'
     )
     arrival_name = serializers.CharField(
-        required=False,
-        default='',
-        help_text='도착지명 (검색 기록용)'
+        required=True,
+        help_text='도착지명 (검색 기록용, 건물명 또는 도로명 주소)'
     )
 
 
