@@ -232,7 +232,7 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 
 ## UI/UX 가이드라인
 
-- **지도 스타일**: Mapbox Studio 커스텀 'Night Racing' 테마
+- **지도 스타일**: Mapbox 기본 스타일 (추후 커스텀 테마 적용 가능)
 - **경로선**: 사용자(파란색 Neon), 봇(붉은색/노란색 Neon)
 - **마커**: 3D 느낌 SVG/PNG 아이콘
 
