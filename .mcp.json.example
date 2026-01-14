@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "figma": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-developer-mcp",
+        "--figma-api-key=여기에_Figma_API_토큰을_입력하세요"
+      ],
+      "env": {}
+    }
+  }
+}

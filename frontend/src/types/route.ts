@@ -2,7 +2,7 @@
  * 경주 및 경로 관련 타입 정의
  */
 
-import { Coordinates } from './api';
+import type { Coordinates } from './api';
 
 // 경주 상태
 export type RouteStatus = 'PENDING' | 'RUNNING' | 'FINISHED' | 'CANCELED';
