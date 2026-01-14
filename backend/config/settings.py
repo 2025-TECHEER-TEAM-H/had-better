@@ -203,13 +203,8 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30분
 
 
 # External API Keys
-<<<<<<< Updated upstream
-TMAP_API_KEY = os.getenv('TMAP_API_KEY', '여기다 본인의 TMAP API 키를 입력하시면 됩니다!')
-MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '')
-=======
 TMAP_API_KEY = os.getenv("TMAP_API_KEY", "")
 MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
->>>>>>> Stashed changes
 
 
 # Logging 설정

@@ -37,3 +37,60 @@ class SearchPlaceHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.name} - {self.keyword}"
+
+
+class SavedPlace(models.Model):
+    """사용자의 즐겨찾기 장소 (Soft Delete 방식)"""
+
+    CATEGORY_CHOICES = [
+        ('home', '집'),
+        ('work', '회사'),
+        ('school', '학교'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_places'
+    )
+    poi_place = models.ForeignKey(
+        PoiPlace,
+        on_delete=models.CASCADE,
+        related_name='saved_by_users'
+    )
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        null=True,
+        blank=True,
+        help_text='집(home), 회사(work), 학교(school) 또는 일반 즐겨찾기(null)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Soft Delete 타임스탬프'
+    )
+
+    class Meta:
+        db_table = 'saved_place'
+        ordering = ['-created_at']
+        constraints = [
+            # 같은 사용자가 같은 POI를 중복 저장 방지 (활성 상태만)
+            models.UniqueConstraint(
+                fields=['user', 'poi_place'],
+                condition=models.Q(deleted_at__isnull=True),
+                name='unique_active_saved_place'
+            ),
+            # 같은 사용자가 같은 카테고리(home/work/school)를 중복 저장 방지
+            models.UniqueConstraint(
+                fields=['user', 'category'],
+                condition=models.Q(deleted_at__isnull=True, category__isnull=False),
+                name='unique_active_category_per_user'
+            ),
+        ]
+
+    def __str__(self):
+        category_display = self.get_category_display() if self.category else '일반'
+        return f"{self.user.name} - {self.poi_place.name} ({category_display})"
