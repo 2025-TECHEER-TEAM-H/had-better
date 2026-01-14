@@ -93,6 +93,25 @@ services:
     networks:
       - hadbetter-network
 
+  # ================================================================
+  # pgAdmin - PostgreSQL 관리 도구 (시각적 DB 관리)
+  # 접속: http://localhost:5050
+  # 이메일: admin@hadbetter.com / 비밀번호: admin
+  # ================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hadbetter-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@hadbetter.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - hadbetter-network
+  # ================================================================
+
 networks:
   hadbetter-network:
     driver: bridge
