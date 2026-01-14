@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User
+from .models import PlaceSearchHistory, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -21,6 +21,31 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'name', 'email', 'nickname', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+# ============================================
+# Claude Code 구현 - 내 정보 수정용 Serializer
+# ============================================
+# [학습 포인트]
+# 1. ModelSerializer: Model 기반으로 자동 필드 생성
+# 2. fields: 수정 가능한 필드만 지정 (nickname만 수정 가능)
+# 3. PATCH 요청에서 partial=True와 함께 사용
+# ============================================
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """
+    내 정보 수정 Serializer
+
+    PATCH /api/v1/users 요청 시 사용
+
+    Request:
+    {
+        "nickname": "새로운닉네임"
+    }
+    """
+
+    class Meta:
+        model = User
+        fields = ['nickname']  # 수정 가능한 필드만 지정
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -229,3 +254,32 @@ class LogoutSerializer(serializers.Serializer):
         Refresh Token을 블랙리스트에 추가
         """
         self.token.blacklist()
+
+
+# ============================================
+# Claude Code 구현 - 장소 검색 기록 Serializer
+# ============================================
+# [학습 포인트]
+# 1. ModelSerializer: PlaceSearchHistory 모델 기반 자동 직렬화
+# 2. fields: API 응답에 포함할 필드 지정
+# 3. read_only_fields: 클라이언트가 수정할 수 없는 필드 (id, 시간은 서버에서 자동 생성)
+# 4. user 필드는 제외: JWT 토큰에서 사용자 정보를 가져오므로 응답에 불필요
+# ============================================
+class PlaceSearchHistorySerializer(serializers.ModelSerializer):
+    """
+    장소 검색 기록 Serializer
+
+    GET /api/v1/users/place-history 응답에 사용
+
+    Response:
+    {
+        "id": 1,
+        "keyword": "강남역",
+        "searched_at": "2026-01-12T10:00:00+09:00"
+    }
+    """
+
+    class Meta:
+        model = PlaceSearchHistory
+        fields = ['id', 'keyword', 'searched_at']  # user는 제외 (JWT에서 가져옴)
+        read_only_fields = ['id', 'searched_at']  # 서버에서 자동 생성되는 필드
