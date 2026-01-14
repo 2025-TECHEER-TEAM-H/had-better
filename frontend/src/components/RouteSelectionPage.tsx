@@ -1,7 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import svgPaths from "../imports/svg-zfvm8ky4hi";
-import mapSvgPaths from "../imports/svg-0mmguxc8nl";
-import imgImageFullMap from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
+import { useEffect, useRef, useState } from "react";
 
 interface RouteSelectionPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -112,14 +109,9 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
   }, [isDragging, sheetPosition]);
 
   return (
-    <div className="relative size-full overflow-hidden">
-      {/* 전체 화면 배경 지도 */}
-      <div className="absolute inset-0">
-        <img alt="" className="w-full h-full object-cover" src={imgImageFullMap} />
-      </div>
-
-      {/* 헤더 */}
-      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-30">
+    <>
+      {/* 헤더 - 독립적인 absolute 요소 */}
+      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] pointer-events-auto z-50" style={{ pointerEvents: 'auto', zIndex: 50 }}>
         <div className="flex items-center justify-between px-5 py-3">
           <p className="font-['Press_Start_2P'] text-[12px] text-black">9:41</p>
           <p className="font-['Press_Start_2P'] text-[12px] text-black">ROUTE SELECT</p>
@@ -131,18 +123,20 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
         </div>
       </div>
 
-      {/* 슬라이드 가능한 바텀 시트 */}
+      {/* 슬라이드 가능한 바텀 시트 - 독립적인 absolute 요소 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-20 transition-all"
+        className="absolute left-0 right-0 bg-yellow-400/50 rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] pointer-events-auto transition-all flex flex-col z-50"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
-          transitionDuration: isDragging ? '0ms' : '300ms'
+          transitionDuration: isDragging ? '0ms' : '300ms',
+          pointerEvents: 'auto',
+          zIndex: 50,
         }}
       >
         {/* 드래그 핸들 */}
         <div
-          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center"
+          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -152,7 +146,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
         </div>
 
         {/* 경로 선택 콘텐츠 */}
-        <div className="px-5 pb-[100px] overflow-y-auto h-[calc(100%-60px)] scrollbar-hide">
+        <div className="px-5 pb-[100px] overflow-y-auto flex-1 scrollbar-hide pointer-events-auto bg-yellow-400/50" style={{ minHeight: '100px', pointerEvents: 'auto', touchAction: 'pan-y' }}>
           <div className="flex flex-col gap-4">
             {/* 안내 텍스트 */}
             <div className="bg-[#00d9ff]/20 border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-4">
@@ -188,7 +182,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.user === 1}
                         onChange={() => handleRouteSelect(1, 'user')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-white">유저</span>
                     </label>
@@ -197,7 +191,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost1 === 1}
                         onChange={() => handleRouteSelect(1, 'ghost1')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-white">고스트1</span>
                     </label>
@@ -206,7 +200,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost2 === 1}
                         onChange={() => handleRouteSelect(1, 'ghost2')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-white">고스트2</span>
                     </label>
@@ -216,7 +210,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
             </div>
 
             {/* 경로 2 - 노란색 */}
-            <div className="bg-[#ffc107] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4">
+            <div className="bg-[#ffc107] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4 pointer-events-auto" style={{ pointerEvents: 'auto' }}>
               <div className="flex items-start gap-3">
                 <div className="bg-white border-[1.36px] border-black size-[48px] flex items-center justify-center flex-shrink-0">
                   <p className="text-[24px]">2️⃣</p>
@@ -241,7 +235,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.user === 2}
                         onChange={() => handleRouteSelect(2, 'user')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">유저</span>
                     </label>
@@ -250,7 +244,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost1 === 2}
                         onChange={() => handleRouteSelect(2, 'ghost1')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">고스트1</span>
                     </label>
@@ -259,7 +253,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost2 === 2}
                         onChange={() => handleRouteSelect(2, 'ghost2')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">고스트2</span>
                     </label>
@@ -294,7 +288,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.user === 3}
                         onChange={() => handleRouteSelect(3, 'user')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">유저</span>
                     </label>
@@ -303,7 +297,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost1 === 3}
                         onChange={() => handleRouteSelect(3, 'ghost1')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">고스트1</span>
                     </label>
@@ -312,7 +306,7 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
                         type="checkbox"
                         checked={selection.ghost2 === 3}
                         onChange={() => handleRouteSelect(3, 'ghost2')}
-                        className="w-3 h-3 accent-[#7ed321]"
+                        className="w-3 h-3 accent-[#7ed321] cursor-pointer"
                       />
                       <span className="font-['Press_Start_2P'] text-[6px] text-black">고스트2</span>
                     </label>
@@ -352,11 +346,12 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
             <button
               onClick={handleStartRace}
               disabled={!canStartRace}
-              className={`w-full h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all mb-4 ${
+              className={`w-full h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all mb-4 pointer-events-auto bg-yellow-400/50 ${
                 !canStartRace
                   ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                   : 'bg-[#ffd93d] text-black shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black]'
               }`}
+              style={{ pointerEvents: 'auto' }}
             >
               이동 시작! 🏁
             </button>
@@ -376,6 +371,6 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </>
   );
 }

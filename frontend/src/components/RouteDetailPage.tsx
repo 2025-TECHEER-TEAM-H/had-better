@@ -1,6 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import svgPaths from "../imports/svg-fsmj7doi0s";
-import imgImageFullMap from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
+import { useEffect, useRef, useState } from "react";
 
 interface RouteDetailPageProps {
   onNavigate: (page: string) => void;
@@ -150,12 +148,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
   }, [isDragging, sheetPosition]);
 
   return (
-    <div className="relative size-full overflow-hidden">
-      {/* 전체 화면 배경 지도 */}
-      <div className="absolute inset-0">
-        <img alt="" className="w-full h-full object-cover" src={imgImageFullMap} />
-      </div>
-
+    <div className="relative size-full overflow-hidden bg-transparent">
       {/* 경로 점선들 - 지도 위에 오버레이 */}
       <div className="absolute inset-0 z-[5]">
         {/* 핑크 경로 (경로 1) */}
@@ -335,29 +328,32 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
         </div>
       </div>
 
-      {/* 슬라이드 가능한 바텀 시트 - 내 경로 정보 */}
+      {/* 바텀 시트 컨테이너 - 투명 배경 (지도가 보이도록) */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-20 transition-all"
+        className="absolute left-0 right-0 z-20 transition-all bg-transparent"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
           transitionDuration: isDragging ? '0ms' : '300ms'
         }}
       >
-        {/* 드래그 핸들 */}
-        <div
-          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-        >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
+        {/* 내부 컨테이너 - 흰색 배경, 둥근 모서리, 테두리 */}
+        <div className="w-full h-full bg-white rounded-t-[24px] border-t-[3.4px] border-x-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] flex flex-col">
+          {/* 드래그 핸들 */}
+          <div
+            className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+          </div>
 
-        {/* 내 경로 콘텐츠 */}
-        <div className="px-5 pb-[80px] overflow-y-auto h-[calc(100%-60px)] scrollbar-hide">
-          <div className="flex flex-col gap-4">
+          {/* 내 경로 콘텐츠 - 스크롤 가능 */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-[80px]" style={{ minHeight: 0, pointerEvents: 'auto' }}>
+            <div className="flex flex-col gap-4">
             {/* 나의 경로 정보 */}
             <div className="bg-gradient-to-br from-[#ff6b9d] to-[#ff9ac1] border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-5">
               <div className="flex items-center gap-3 mb-4">
@@ -431,6 +427,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
             >
               {maxProgress >= 100 ? '도착 완료! 🎉' : '경주 진행중...'}
             </button>
+            </div>
           </div>
         </div>
       </div>

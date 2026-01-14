@@ -7,17 +7,18 @@ interface CoverPageProps {
 export function CoverPage({ onGetStarted }: CoverPageProps) {
   return (
     <div
-      className="relative h-screen w-full overflow-hidden"
+      className="relative h-full w-full overflow-hidden pointer-events-auto"
       style={{
         background:
           "linear-gradient(180deg, #c5e7f5 0%, #e8f4f8 50%, white 100%)",
+        pointerEvents: 'auto',
       }}
     >
       {/* 부드러운 구름들 */}
-      <div className="absolute top-16 left-8 opacity-60">
+      <div className="absolute top-16 left-8 opacity-60 pointer-events-none">
         <div className="w-32 h-16 bg-white rounded-full blur-2xl" />
       </div>
-      <div className="absolute top-24 right-12 opacity-50">
+      <div className="absolute top-24 right-12 opacity-50 pointer-events-none">
         <div className="w-40 h-20 bg-white rounded-full blur-2xl" />
       </div>
 
@@ -188,7 +189,7 @@ export function CoverPage({ onGetStarted }: CoverPageProps) {
         </div>
 
         {/* 하단 버튼들 (산 위에) */}
-        <div className="w-full max-w-[320px] relative z-20 pb-8">
+        <div className="w-full max-w-[320px] relative z-50 pb-8">
           {/* 시작하기 버튼 */}
           <button
             onClick={onGetStarted}

@@ -52,9 +52,9 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
   const details = placeDetails[placeData.name] || placeDetails['CENTRAL PARK'];
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#87ceeb] to-[#b0e5f5] overflow-hidden">
+    <div className="relative size-full bg-transparent overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* 구름들 */}
-      <div className="absolute h-[40px] left-[250.05px] top-[64px] w-[80px]">
+      <div className="absolute h-[40px] left-[250.05px] top-[64px] w-[80px] pointer-events-none">
         <div className="h-[40px] overflow-clip relative shrink-0 w-full">
           <div className="absolute inset-[40%_20%_20%_20%]">
             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 48 16">
@@ -69,7 +69,7 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
         </div>
       </div>
 
-      <div className="absolute h-[29.992px] left-[32px] top-[128px] w-[59.994px]">
+      <div className="absolute h-[29.992px] left-[32px] top-[128px] w-[59.994px] pointer-events-none">
         <div className="h-[29.997px] overflow-clip relative shrink-0 w-full">
           <div className="absolute inset-[40%_20%_20%_20%]">
             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 35.9966 11.9989">
@@ -85,11 +85,11 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
       </div>
 
       {/* 이모지들 */}
-      <div className="absolute flex items-center justify-center left-[62.4px] top-[87.19px]">
+      <div className="absolute flex items-center justify-center left-[62.4px] top-[87.19px] pointer-events-none">
         <p className="text-[30px]">🗺️</p>
       </div>
 
-      <div className="absolute flex items-center justify-center left-[274.08px] top-[142.96px]">
+      <div className="absolute flex items-center justify-center left-[274.08px] top-[142.96px] pointer-events-none">
         <p className="text-[24px]">📍</p>
       </div>
 

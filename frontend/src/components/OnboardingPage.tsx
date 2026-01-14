@@ -6,18 +6,18 @@ interface OnboardingPageProps {
 }
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const [step, setStep] = useState(1);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const scrollPercentage = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
-    setScrollProgress(scrollPercentage);
+  const handleNext = () => {
+    if (step < 5) {
+      setStep(step + 1);
+    }
   };
 
-  const rabbitPosition = Math.min(scrollProgress * 0.8, 80); // 토끼가 0-80% 위치까지 이동
+  const rabbitPosition = 20 + (step - 1) * 15; // 토끼가 step에 따라 이동
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#c5e7f5] via-white via-50% to-white overflow-hidden">
+    <div className="relative size-full bg-white overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* Skip Button */}
       <button
         onClick={onComplete}
@@ -26,24 +26,21 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         건너뛰기 →
       </button>
 
-      {/* Scrollable Content */}
-      <div 
-        className="size-full snap-y snap-mandatory scrollbar-hide"
-        style={{ overflowY: 'auto' }}
-        onScroll={handleScroll}
-      >
+      {/* Content - step에 따라 조건부 렌더링 */}
+      <div className="size-full">
         {/* Section 1: 환영 */}
-        <div className="min-h-full snap-start flex flex-col items-center justify-center px-8 relative">
+        {step === 1 && (
+        <div className="min-h-full flex flex-col items-center justify-center px-8 relative">
           {/* 왼쪽 나무 */}
-          <div className="absolute left-8 top-1/2 -translate-y-1/2 text-6xl opacity-70">
+          <div className="absolute left-8 top-1/2 -translate-y-1/2 text-6xl opacity-70 pointer-events-none">
             🌲
           </div>
-          
+
           {/* 오른쪽 나무 */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 text-6xl opacity-70">
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 text-6xl opacity-70 pointer-events-none">
             🌲
           </div>
-          
+
           <div className="text-center space-y-6">
             <div className="text-8xl animate-bounce">👋</div>
             <h2 className="font-['Press_Start_2P'] text-3xl text-[#2d5f3f] leading-relaxed">
@@ -52,12 +49,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             <p className="text-lg text-[#6b9080] leading-relaxed">
               HAD BETTER와 함께<br />더 나은 길을 찾아보세요
             </p>
-            <div className="text-4xl animate-bounce mt-8">⬇️</div>
           </div>
+          {/* 다음 버튼 */}
+          <button
+            onClick={handleNext}
+            className="mt-8 bg-gradient-to-b from-[#48d448] to-[#3db83d] px-8 py-4 rounded-3xl border-[3.4px] border-black shadow-[0px_8px_0px_0px_#2d8b2d,0px_16px_32px_0px_rgba(61,184,61,0.3)] active:translate-y-1 active:shadow-[0px_4px_0px_0px_#2d8b2d] transition-all"
+          >
+            <p className="font-['Press_Start_2P'] text-sm text-white">다음 →</p>
+          </button>
         </div>
+        )}
 
         {/* Section 2: H팀 소개 */}
-        <div className="min-h-full snap-start flex flex-col items-center justify-center px-8 relative">
+        {step === 2 && (
+        <div className="min-h-full flex flex-col items-center justify-center px-8 relative">
           <div className="absolute left-8 top-1/4 text-6xl">🌲</div>
           <div className="absolute right-8 top-1/4 text-6xl">🌲</div>
           <div className="text-center space-y-6 z-10">
@@ -69,12 +74,21 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               더 나은 경로를 찾기 위해<br />모인 열정적인 팀입니다
             </p>
           </div>
-          <div className="absolute left-12 bottom-1/4 text-6xl">🌲</div>
-          <div className="absolute right-12 bottom-1/4 text-6xl">🌲</div>
+          <div className="absolute left-12 bottom-1/4 text-6xl pointer-events-none">🌲</div>
+          <div className="absolute right-12 bottom-1/4 text-6xl pointer-events-none">🌲</div>
+          {/* 다음 버튼 */}
+          <button
+            onClick={handleNext}
+            className="mt-8 bg-gradient-to-b from-[#48d448] to-[#3db83d] px-8 py-4 rounded-3xl border-[3.4px] border-black shadow-[0px_8px_0px_0px_#2d8b2d,0px_16px_32px_0px_rgba(61,184,61,0.3)] active:translate-y-1 active:shadow-[0px_4px_0px_0px_#2d8b2d] transition-all"
+          >
+            <p className="font-['Press_Start_2P'] text-sm text-white">다음 →</p>
+          </button>
         </div>
+        )}
 
         {/* Section 3: 게임처럼 즐기는 길찾기 */}
-        <div className="min-h-full snap-start flex flex-col items-center justify-center px-8 relative">
+        {step === 3 && (
+        <div className="min-h-full flex flex-col items-center justify-center px-8 relative">
           <div className="absolute left-10 top-1/3 text-5xl">🌲</div>
           <div className="absolute right-10 top-1/3 text-5xl">🌲</div>
           <div className="text-center space-y-6 z-10">
@@ -86,12 +100,21 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               고스트와 경쟁하며<br />최적의 경로를 찾아보세요
             </p>
           </div>
-          <div className="absolute left-14 bottom-1/3 text-5xl">🌲</div>
-          <div className="absolute right-14 bottom-1/3 text-5xl">🌲</div>
+          <div className="absolute left-14 bottom-1/3 text-5xl pointer-events-none">🌲</div>
+          <div className="absolute right-14 bottom-1/3 text-5xl pointer-events-none">🌲</div>
+          {/* 다음 버튼 */}
+          <button
+            onClick={handleNext}
+            className="mt-8 bg-gradient-to-b from-[#48d448] to-[#3db83d] px-8 py-4 rounded-3xl border-[3.4px] border-black shadow-[0px_8px_0px_0px_#2d8b2d,0px_16px_32px_0px_rgba(61,184,61,0.3)] active:translate-y-1 active:shadow-[0px_4px_0px_0px_#2d8b2d] transition-all"
+          >
+            <p className="font-['Press_Start_2P'] text-sm text-white">다음 →</p>
+          </button>
         </div>
+        )}
 
         {/* Section 4: 실시간 비교 */}
-        <div className="min-h-full snap-start flex flex-col items-center justify-center px-8 relative">
+        {step === 4 && (
+        <div className="min-h-full flex flex-col items-center justify-center px-8 relative">
           <div className="absolute left-8 top-1/4 text-6xl">🌲</div>
           <div className="absolute right-8 top-1/4 text-6xl">🌲</div>
           <div className="text-center space-y-6 z-10">
@@ -103,12 +126,21 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               선택한 경로와<br />다른 경로를 실시간으로 비교
             </p>
           </div>
-          <div className="absolute left-12 bottom-1/4 text-6xl">🌲</div>
-          <div className="absolute right-12 bottom-1/4 text-6xl">🌲</div>
+          <div className="absolute left-12 bottom-1/4 text-6xl pointer-events-none">🌲</div>
+          <div className="absolute right-12 bottom-1/4 text-6xl pointer-events-none">🌲</div>
+          {/* 다음 버튼 */}
+          <button
+            onClick={handleNext}
+            className="mt-8 bg-gradient-to-b from-[#48d448] to-[#3db83d] px-8 py-4 rounded-3xl border-[3.4px] border-black shadow-[0px_8px_0px_0px_#2d8b2d,0px_16px_32px_0px_rgba(61,184,61,0.3)] active:translate-y-1 active:shadow-[0px_4px_0px_0px_#2d8b2d] transition-all"
+          >
+            <p className="font-['Press_Start_2P'] text-sm text-white">다음 →</p>
+          </button>
         </div>
+        )}
 
         {/* Section 5: 성장하는 재미 */}
-        <div className="min-h-full snap-start flex flex-col items-center justify-center px-8 relative">
+        {step === 5 && (
+        <div className="min-h-full flex flex-col items-center justify-center px-8 relative">
           <div className="absolute left-10 top-1/3 text-5xl">🌲</div>
           <div className="absolute right-10 top-1/3 text-5xl">🌲</div>
           <div className="text-center space-y-6 z-10">
@@ -129,14 +161,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <div className="absolute left-14 bottom-1/4 text-5xl">🌲</div>
           <div className="absolute right-14 bottom-1/4 text-5xl">🌲</div>
         </div>
+        )}
       </div>
 
-      {/* Walking Rabbit - 스크롤에 따라 이동 */}
-      <div 
+      {/* Walking Rabbit - step에 따라 이동 */}
+      <div
         className="fixed bottom-20 transition-all duration-300 ease-out z-30 pointer-events-none"
-        style={{ 
-          left: `${20 + rabbitPosition * 0.6}%`,
-          transform: `translateX(-50%) ${scrollProgress > 50 ? 'scaleX(-1)' : ''}`
+        style={{
+          left: `${rabbitPosition}%`,
+          transform: `translateX(-50%) ${step > 3 ? 'scaleX(-1)' : ''}`
         }}
       >
         <div className="relative">
@@ -166,11 +199,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       {/* Progress Indicator */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
         <div className="flex gap-2">
-          {[0, 1, 2, 3, 4].map((index) => (
+          {[1, 2, 3, 4, 5].map((index) => (
             <div
               key={index}
               className={`h-2 rounded-full transition-all ${
-                scrollProgress >= index * 20 && scrollProgress < (index + 1) * 20
+                step === index
                   ? "w-8 bg-[#2d5f3f]"
                   : "w-2 bg-[#6b9080]/30"
               }`}
@@ -184,15 +217,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         <div className="absolute bg-gradient-to-b from-[#3d6e50] to-[#2d5f3f] h-[60px] left-[60px] rounded-t-full top-[17px] w-[250px]" />
         <div className="absolute bg-gradient-to-b from-[#3d6e50] to-[#2d5f3f] h-[60px] left-[27px] rounded-t-full top-[17px] w-[250px]" />
         {/* 왼쪽 나무 */}
-        <p className="absolute text-4xl left-[25%] top-6 -translate-x-1/2">🌲</p>
+        <p className="absolute text-4xl left-[25%] top-6 -translate-x-1/2 pointer-events-none">🌲</p>
         {/* 오른쪽 나무 */}
-        <p className="absolute text-4xl right-[25%] top-6 translate-x-1/2">🌲</p>
+        <p className="absolute text-4xl right-[25%] top-6 translate-x-1/2 pointer-events-none">🌲</p>
       </div>
 
       {/* CSS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        
+
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }

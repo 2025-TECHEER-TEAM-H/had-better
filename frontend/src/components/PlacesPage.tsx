@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import svgPaths from "../imports/svg-2mccnqcvdk";
-import imgImageFullMap from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
 import { mapApi } from "../utils/api";
 import type { Place } from "../utils/api";
 import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
@@ -177,12 +175,7 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
   }, [isDragging, sheetPosition]);
 
   return (
-    <div className="relative size-full overflow-hidden">
-      {/* 전체 화면 배경 지도 */}
-      <div className="absolute inset-0">
-        <img alt="" className="w-full h-full object-cover" src={imgImageFullMap} />
-      </div>
-
+    <div className="relative size-full overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* 헤더 */}
       <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-30">
         <div className="flex items-center justify-between px-5 py-3">

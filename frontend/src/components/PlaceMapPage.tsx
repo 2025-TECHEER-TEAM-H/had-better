@@ -140,12 +140,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
   const details = placeDetails[placeData.name] || placeDetails['CENTRAL PARK'];
 
   return (
-    <div className="relative size-full overflow-hidden">
-      {/* 전체 화면 배경 지도 */}
-      <div className="absolute inset-0">
-        <img alt="" className="w-full h-full object-cover" src={fullMapImage} />
-      </div>
-
+    <div className="relative size-full bg-transparent overflow-hidden">
       {/* 목적지 마커 */}
       <div className="absolute left-[120px] top-[200px] z-[5]">
         <div className="relative animate-bounce">
@@ -188,7 +183,10 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
       {/* 헤더 */}
       <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-20">
         <div className="flex items-center justify-between px-5 py-3">
-          <button onClick={() => onNavigate(fromFavorites ? 'favorites' : 'places')}>
+          <button 
+            onClick={() => onNavigate(fromFavorites ? 'favorites' : 'places')}
+            className="relative z-20 pointer-events-auto"
+          >
             <p className="font-['Press_Start_2P'] text-[12px] text-black">←</p>
           </button>
           <p className="font-['Press_Start_2P'] text-[12px] text-black">LOCATION</p>
@@ -202,7 +200,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
 
       {/* 슬라이드 업 바텀 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-10 transition-all"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-20 pointer-events-auto transition-all"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
