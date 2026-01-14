@@ -185,7 +185,7 @@ export function FavoritePlacesPage({ onNavigate }: FavoritePlacesPageProps) {
   };
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#c5e7f5] to-[#b3ddf0] overflow-hidden">
+    <div className="relative size-full bg-transparent overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* 헤더 */}
       <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-10">
         <div className="flex items-center justify-between px-5 py-3">

@@ -1,19 +1,20 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CoverPage } from "./components/CoverPage";
-import { OnboardingPage } from "./components/OnboardingPage";
-import { LoginPage } from "./components/LoginPage";
-import { SignUpPage } from "./components/SignUpPage";
-import { MapPage } from "./components/MapPage";
-import { GameResultPage } from "./components/GameResultPage";
 import { DashboardPage } from "./components/DashboardPage";
-import { PlacesPage } from "./components/PlacesPage";
-import { RouteSelectionPage } from "./components/RouteSelectionPage";
-import { RouteDetailPage } from "./components/RouteDetailPage";
+import { FavoritePlacesPage } from "./components/FavoritePlacesPage";
+import { FullMapPage } from "./components/FullMapPage";
+import { GameResultPage } from "./components/GameResultPage";
+import { LoginPage } from "./components/LoginPage";
+import MapContainer, { type MapContainerHandle } from "./components/MapContainer";
+import { MapPage } from "./components/MapPage";
+import { OnboardingPage } from "./components/OnboardingPage";
 import { PlaceInfoPage } from "./components/PlaceInfoPage";
 import { PlaceMapPage } from "./components/PlaceMapPage";
-import { FullMapPage } from "./components/FullMapPage";
-import { FavoritePlacesPage } from "./components/FavoritePlacesPage";
-import { tokenManager, authApi } from "./utils/api";
+import { PlacesPage } from "./components/PlacesPage";
+import { RouteDetailPage } from "./components/RouteDetailPage";
+import { RouteSelectionPage } from "./components/RouteSelectionPage";
+import { SignUpPage } from "./components/SignUpPage";
+import { authApi, tokenManager } from "./utils/api";
 
 type Page = "cover" | "onboarding" | "login" | "signup" | "map" | "result" | "dashboard" | "places" | "route-selection" | "route-detail" | "place-info" | "place-map" | "full-map" | "favorites" | "place-detail";
 
@@ -26,6 +27,7 @@ export default function App() {
   });
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [fromFavorites, setFromFavorites] = useState(false);
+  const mapRef = useRef<MapContainerHandle>(null);
 
   // 앱 시작 시 토큰 확인 및 사용자 정보 로드
   useEffect(() => {
@@ -91,24 +93,57 @@ export default function App() {
     setCurrentPage("signup");
   };
 
+  // 지도가 보이는 페이지 목록
+  const mapVisiblePages: Page[] = ["full-map", "map", "route-selection", "place-map", "route-detail"];
+  const isMapVisible = mapVisiblePages.includes(currentPage);
+
   return (
     <div className="size-full flex items-center justify-center bg-[#1a1a2e]">
-      {/* Mobile Frame */}
-      <div className="relative w-[393px] h-[852px] bg-white rounded-[40px] overflow-hidden shadow-[0px_0px_0px_4px_#4ecca3,0px_30px_80px_0px_rgba(78,204,163,0.5),0px_0px_60px_0px_rgba(78,204,163,0.3)] border-[7.5px] border-[#1a1a2e]">
-        {currentPage === "cover" && <CoverPage onGetStarted={handleGetStarted} />}
-        {currentPage === "onboarding" && <OnboardingPage onComplete={handleOnboardingComplete} />}
-        {currentPage === "login" && <LoginPage onLogin={handleLogin} onSignUp={handleGoToSignUp} />}
-        {currentPage === "signup" && <SignUpPage onSignUp={handleSignUp} onBack={handleBackToLogin} />}
-        {currentPage === "full-map" && <FullMapPage onNavigate={handleNavigate} />}
-        {currentPage === "map" && <MapPage onNavigate={handleNavigate} />}
-        {currentPage === "result" && <GameResultPage onContinue={handleContinue} onNavigate={handleNavigate} />}
-        {currentPage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
-        {currentPage === "places" && <PlacesPage onNavigate={handleNavigate} />}
-        {currentPage === "route-selection" && <RouteSelectionPage onNavigate={handleNavigate} />}
-        {currentPage === "route-detail" && <RouteDetailPage onNavigate={handleNavigate} routeSelection={routeSelection} />}
-        {currentPage === "place-info" && <PlaceInfoPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
-        {currentPage === "place-map" && <PlaceMapPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
-        {currentPage === "favorites" && <FavoritePlacesPage onNavigate={handleNavigate} />}
+      <div className="relative w-[393px] h-[852px] bg-white rounded-[40px] overflow-hidden border-[7.5px] border-[#1a1a2e]">
+
+        {/* 1. 지도 레이어 (z-0) */}
+        <div className="absolute inset-0 z-0">
+          <MapContainer ref={mapRef} />
+        </div>
+
+        {/* 2. UI 및 배경 통합 레이어 (z-20) */}
+        <div className="absolute inset-0 z-20 pointer-events-none">
+
+          {/* 지도가 안 보이는 페이지: 여기서 배경색과 클릭 권한을 다 가집니다 */}
+          {!isMapVisible && (
+            <div className="absolute inset-0 bg-white pointer-events-auto z-[999]">
+              {/* 이제 이 안의 버튼들은 무조건 눌립니다! */}
+              {currentPage === "cover" && <CoverPage onGetStarted={handleGetStarted} />}
+              {currentPage === "onboarding" && <OnboardingPage onComplete={handleOnboardingComplete} />}
+              {currentPage === "login" && <LoginPage onLogin={handleLogin} onSignUp={handleGoToSignUp} />}
+              {currentPage === "signup" && <SignUpPage onSignUp={handleSignUp} onBack={handleBackToLogin} />}
+              {currentPage === "result" && <GameResultPage onContinue={handleContinue} onNavigate={handleNavigate} />}
+              {currentPage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
+              {currentPage === "places" && <PlacesPage onNavigate={handleNavigate} />}
+              {currentPage === "place-info" && <PlaceInfoPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
+              {currentPage === "favorites" && <FavoritePlacesPage onNavigate={handleNavigate} />}
+            </div>
+          )}
+
+          {/* 지도가 보이는 페이지: 투명하게 유지하되 내부 컴포넌트가 auto를 가짐 */}
+          {isMapVisible && (
+            <div className="absolute inset-0 pointer-events-none">
+              {currentPage === "full-map" && (
+                <FullMapPage
+                  onNavigate={handleNavigate}
+                  onZoomIn={() => mapRef.current?.zoomIn()}
+                  onZoomOut={() => mapRef.current?.zoomOut()}
+                  onRecenter={() => mapRef.current?.recenter()}
+                />
+              )}
+              {currentPage === "map" && <MapPage onNavigate={handleNavigate} />}
+              {currentPage === "route-selection" && <RouteSelectionPage onNavigate={handleNavigate} />}
+              {currentPage === "route-detail" && <RouteDetailPage onNavigate={handleNavigate} routeSelection={routeSelection} />}
+              {currentPage === "place-map" && <PlaceMapPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

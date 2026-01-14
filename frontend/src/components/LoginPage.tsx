@@ -82,20 +82,21 @@ export function LoginPage({
 
   return (
     <div
-      className="relative h-screen w-full overflow-hidden"
+      className="relative h-full w-full overflow-hidden pointer-events-auto"
       style={{
         background:
           "linear-gradient(180deg, #c5e7f5 0%, #e8f4f8 50%, white 100%)",
+        pointerEvents: 'auto',
       }}
     >
       {/* 부드러운 구름들 */}
-      <div className="absolute top-16 left-8 opacity-60">
+      <div className="absolute top-16 left-8 opacity-60 pointer-events-none">
         <div className="w-32 h-16 bg-white rounded-full blur-2xl" />
       </div>
-      <div className="absolute top-24 right-12 opacity-50">
+      <div className="absolute top-24 right-12 opacity-50 pointer-events-none">
         <div className="w-40 h-20 bg-white rounded-full blur-2xl" />
       </div>
-      <div className="absolute top-40 left-24 opacity-40">
+      <div className="absolute top-40 left-24 opacity-40 pointer-events-none">
         <div className="w-28 h-14 bg-white rounded-full blur-2xl" />
       </div>
 

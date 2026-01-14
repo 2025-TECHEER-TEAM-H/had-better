@@ -37,7 +37,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const winRate = Math.round((totalWins / totalGames) * 100);
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#c5e7f5] to-[#b3ddf0] overflow-y-auto scrollbar-hide">
+    <div className="relative size-full bg-transparent overflow-y-auto scrollbar-hide pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-b from-[#c5e7f5] to-[#b3ddf0] border-b-[3px] border-black px-4 py-4">
         <div className="flex items-center justify-between">
