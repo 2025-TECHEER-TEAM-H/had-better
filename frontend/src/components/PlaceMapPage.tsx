@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import fullMapImage from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
+import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
 
 interface PlaceMapPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -86,6 +88,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
 
   // 기본 장소 정보
   const defaultPlace = {
+    id: 1, // 기본 ID
     name: 'CENTRAL PARK',
     emoji: '🏞️',
     distance: '2.5 KM',
@@ -98,6 +101,21 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
   };
 
   const placeData = place || defaultPlace;
+
+  // 즐겨찾기 스토어
+  const { isPlaceSaved, toggleSavedPlace, fetchSavedPlaces } = useSavedPlaceStore();
+
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    fetchSavedPlaces();
+  }, [fetchSavedPlaces]);
+
+  // POI Place ID 추출 (숫자로 변환)
+  const rawId = placeData.id || placeData.poi_place_id;
+  const poiPlaceId = typeof rawId === 'string' ? parseInt(rawId) : (rawId || 0);
+  const isSaved = poiPlaceId > 0 ? isPlaceSaved(poiPlaceId) : false;
+  
+  console.log('PlaceMapPage - ID 추출:', { rawId, poiPlaceId, isSaved, placeData });
 
   // 장소별 데이터 매핑
   const placeDetails: any = {
@@ -209,7 +227,25 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
                 <p className="text-[48px]">{placeData.emoji}</p>
               </div>
               <div className="flex-1">
-                <p className="font-['Press_Start_2P'] text-[12px] text-black leading-[18px] mb-2">{placeData.name}</p>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="font-['Press_Start_2P'] text-[12px] text-black leading-[18px] flex-1">{placeData.name}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('별 클릭됨!', poiPlaceId);
+                      toggleSavedPlace(poiPlaceId || 1, undefined, placeData.name);
+                    }}
+                    className={`flex-shrink-0 w-10 h-10 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_0px_black] flex items-center justify-center hover:scale-105 active:translate-y-1 active:shadow-[2px_2px_0px_0px_black] transition-all z-[999] relative pointer-events-auto ${
+                      isSaved ? 'bg-white' : 'bg-gray-100'
+                    }`}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="text-[20px] leading-none">
+                      {isSaved ? '⭐' : '☆'}
+                    </span>
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <div className="bg-[#ffd93d] border-[2px] border-black px-3 py-1">
                     <p className="font-['Press_Start_2P'] text-[7px] text-black leading-[12px]">{placeData.distance}</p>

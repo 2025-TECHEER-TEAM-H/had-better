@@ -163,8 +163,8 @@ class RouteSearchView(APIView):
             search_history = SearchItineraryHistory.objects.create(
                 user=request.user,
                 route_itinerary=route_itinerary,
-                departure_name=data.get('departure_name', ''),
-                arrival_name=data.get('arrival_name', ''),
+                departure_name=data['departure_name'],
+                arrival_name=data['arrival_name'],
             )
 
         # 응답 생성
@@ -238,10 +238,9 @@ class RouteLegDetailView(APIView):
 
     def get(self, request, route_leg_id):
         try:
+            # raw_data에서 legs 정보를 직접 가져오므로 segments prefetch 불필요
             route_leg = RouteLeg.objects.select_related(
                 'route_itinerary'
-            ).prefetch_related(
-                'segments'
             ).get(
                 id=route_leg_id,
                 deleted_at__isnull=True

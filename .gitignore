@@ -62,3 +62,6 @@ tmpclaude-*
 
 # Windows
 nul
+
+# 더미 데이터 생성 커맨드 (테스트용)
+backend/apps/*/management/

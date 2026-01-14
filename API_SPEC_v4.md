@@ -992,7 +992,9 @@ Authorization: Bearer {access_token}
   "endY": "37.479103923078995",
   "count": 10,
   "lang": 0,
-  "format": "json"
+  "format": "json",
+  "departure_name": "강남역",
+  "arrival_name": "홍대입구역"
 }
 ```
 
@@ -1002,9 +1004,11 @@ Authorization: Bearer {access_token}
 | startY | string | ✓ | 출발지 위도 (lat) |
 | endX | string | ✓ | 도착지 경도 (lon) |
 | endY | string | ✓ | 도착지 위도 (lat) |
-| count | integer | | 경로 개수 (기본값: 10) |
+| count | integer | | 경로 개수 (기본값: 10, 최대: 20) |
 | lang | integer | | 언어 (0: 한국어, 1: 영어) |
 | format | string | | 응답 형식 (기본값: "json") |
+| departure_name | string | | 출발지명 (검색 기록 저장용) |
+| arrival_name | string | | 도착지명 (검색 기록 저장용) |
 
 **Response `201 Created`**
 
@@ -1108,11 +1112,63 @@ Authorization: Bearer {access_token}
     "route_itinerary_id": 1,
     "departure": { "name": "강남역" },
     "arrival": { "name": "홍대입구역" },
-    "legs": [],
+    "legs": [
+      {
+        "route_leg_id": 1,
+        "pathType": 1,
+        "totalTime": 1229,
+        "totalDistance": 8643,
+        "totalWalkTime": 151,
+        "totalWalkDistance": 182,
+        "transferCount": 0,
+        "fare": {
+          "regular": {
+            "totalFare": 1550,
+            "currency": {
+              "symbol": "￦",
+              "currency": "원",
+              "currencyCode": "KRW"
+            }
+          }
+        }
+      },
+      {
+        "route_leg_id": 2,
+        "pathType": 2,
+        "totalTime": 2267,
+        "totalDistance": 10116,
+        "totalWalkTime": 232,
+        "totalWalkDistance": 249,
+        "transferCount": 0,
+        "fare": {
+          "regular": {
+            "totalFare": 1500,
+            "currency": {
+              "symbol": "￦",
+              "currency": "원",
+              "currencyCode": "KRW"
+            }
+          }
+        }
+      }
+    ],
     "created_at": "2026-01-12T10:00:00+09:00"
   }
 }
 ```
+
+**Response 필드 설명 (legs 배열)**
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| route_leg_id | int | 개별 경로 ID (5.3 상세 조회용) |
+| pathType | int | 경로 종류 (1:지하철, 2:버스, 3:버스+지하철, 4:고속/시외버스, 5:기차, 6:항공, 7:해운) |
+| totalTime | int | 총 소요시간 (초) |
+| totalDistance | int | 총 이동거리 (m) |
+| totalWalkTime | int | 총 도보 소요시간 (초) |
+| totalWalkDistance | int | 총 도보 이동거리 (m) |
+| transferCount | int | 환승 횟수 |
+| fare | object | 요금 정보 |
 
 ---
 
