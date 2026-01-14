@@ -9,6 +9,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+.venv/*
+.venv/
 
 # Build outputs
 dist/
@@ -56,3 +58,7 @@ docker-compose.override.yml
 # Claude Code
 .claude/
 tmpclaude-*
+.mcp.json
+
+# Windows
+nul
