@@ -97,6 +97,58 @@ cp .env.example .env
 npm run dev
 ```
 
+### 5. Figma MCP 서버 설정 (Claude Code 사용 시)
+
+Claude Code를 사용하여 Figma 디자인과 연동하려면 다음 단계를 따르세요.
+
+#### 5.1 Figma API 토큰 생성
+
+1. [Figma](https://figma.com)에 로그인
+2. 프로필 아이콘 → **Settings** 클릭
+3. **Personal access tokens** 탭 선택
+4. **Create a new personal access token** 클릭
+5. 토큰명 입력 (예: "HAD BETTER MCP")
+6. 토큰 복사 (나중에 다시 볼 수 없음)
+
+#### 5.2 MCP 설정 파일 생성
+
+```bash
+# 프로젝트 루트에서 실행
+cp .mcp.json.example .mcp.json
+```
+
+#### 5.3 토큰 설정
+
+`.mcp.json` 파일을 열어 `FIGMA_API_TOKEN` 값을 실제 토큰으로 변경:
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-developer-mcp",
+        "--figma-api-key=${FIGMA_API_TOKEN}"
+      ],
+      "env": {
+        "FIGMA_API_TOKEN": "여기에_실제_토큰_입력"
+      }
+    }
+  }
+}
+```
+
+#### 5.4 설정 확인
+
+Claude Code에서 다음 명령 실행:
+
+```
+/mcp
+```
+
+Figma 서버가 활성화되어 있으면 성공적으로 연결된 것입니다.
+
 ## 접속 URL
 
 | 서비스 | URL | 설명 |

@@ -59,6 +59,9 @@ docker-compose.override.yml
 .claude/
 tmpclaude-*
 .mcp.json
+<<<<<<< HEAD
+=======
 
 # Windows
 nul
+>>>>>>> e26ce84e010117dd56010519de6f60f9941e5114
