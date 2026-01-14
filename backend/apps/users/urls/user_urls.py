@@ -18,13 +18,13 @@ from ..views import (
     PlaceHistoryDetailView,
     PlaceHistoryListView,
     UserMeView,
-    UserStatsView,
+    # UserStatsView,  # TODO: Route 모델 구현 후 주석 해제
 )
 
 urlpatterns = [
     # 내 정보
     path("", UserMeView.as_view(), name="user-me"),
-    path("stats", UserStatsView.as_view(), name="user-stats"),
+    # path("stats", UserStatsView.as_view(), name="user-stats"),  # TODO: Route 모델 구현 후 주석 해제
     # 장소 검색 기록
     path(
         "place-history", PlaceHistoryListView.as_view(), name="place-history-list"
