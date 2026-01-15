@@ -29,7 +29,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   console.log('🎬 RouteSelectionPage 렌더링됨');
   console.log('🎬 onNavigate prop:', onNavigate);
   console.log('🎬 onNavigate 타입:', typeof onNavigate);
-  
+
   const [selection, setSelection] = useState<RouteSelection>({
     user: null,
     ghost1: null,
@@ -37,6 +37,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   });
   const [sheetPosition, setSheetPosition] = useState(60); // 60% 높이에서 시작
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
   const startPositionRef = useRef(60);
   const activePointerIdRef = useRef<number | null>(null);
@@ -68,24 +69,24 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
     console.log('🔍 selection 상태:', selection);
     console.log('🔍 onNavigate 함수 타입:', typeof onNavigate);
     console.log('🔍 onNavigate 함수:', onNavigate);
-    
+
     if (!canStartRace) {
       console.warn('⚠️ canStartRace가 false입니다. 이동할 수 없습니다.');
       return;
     }
-    
+
     // 고스트가 선택되지 않은 경우 기본값 사용
     const routeSelectionData = {
       user: selection.user!,
       ghost1: selection.ghost1 ?? 1, // 기본값: 경로 1
       ghost2: selection.ghost2 ?? 2, // 기본값: 경로 2
     };
-    
+
     console.log('🚀 이동 시작! 경로 선택:', routeSelectionData);
     console.log('🚀 onNavigate 호출 직전');
     console.log('🚀 호출할 페이지: route-detail');
     console.log('🚀 전달할 데이터:', { routeSelection: routeSelectionData });
-    
+
     try {
       onNavigate('route-detail', {
         routeSelection: routeSelectionData,
@@ -136,12 +137,14 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
     activePointerIdRef.current = e.pointerId;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
+    isDraggingRef.current = true;
     startYRef.current = e.clientY;
     startPositionRef.current = sheetPosition;
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
+    // state 업데이트 타이밍보다 먼저 move가 올 수 있어서 ref로 판정
+    if (!isDraggingRef.current) return;
     if (activePointerIdRef.current !== e.pointerId) return;
 
     const deltaY = startYRef.current - e.clientY;
@@ -154,6 +157,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   const handlePointerUpOrCancel = (e: React.PointerEvent) => {
     if (activePointerIdRef.current !== e.pointerId) return;
     activePointerIdRef.current = null;
+    isDraggingRef.current = false;
     setIsDragging(false);
     setSheetPosition((prev) => snapSheet(prev));
   };
@@ -162,7 +166,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
     // NOTE: 이 페이지는 버튼/체크박스 등 UI 조작이 핵심이라
     // 루트에서 pointer-events 를 열어두고(z-index 포함),
     // 필요한 요소만 레이어(z)로 정렬합니다.
-    <div className="absolute inset-0 pointer-events-auto z-30">
+    <div className="absolute inset-0 pointer-events-auto z-[500]">
       {/* 헤더 - 독립적인 absolute 요소 */}
       <div className={`absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-60 ${
         (departure || destination) ? '' : ''
@@ -174,6 +178,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('[RouteSelection] back click');
                 handleBack();
               }}
               className="w-10 h-8 bg-white border-[3px] border-black rounded-[8px] shadow-[3px_3px_0px_0px_black] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] pointer-events-auto flex items-center justify-center"
@@ -191,7 +196,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
             <div className="bg-black size-[4px]" />
           </div>
         </div>
-        
+
         {/* 출발지/목적지 정보 표시 */}
         {(departure || destination) && (
           <div className="px-5 pb-3 border-t-[2px] border-black/20">
@@ -219,7 +224,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
 
       {/* 슬라이드 가능한 바텀 시트 - 독립적인 absolute 요소 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all flex flex-col z-[50] pointer-events-auto"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all flex flex-col z-[510] pointer-events-auto"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
@@ -233,7 +238,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUpOrCancel}
           onPointerCancel={handlePointerUpOrCancel}
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', pointerEvents: 'auto' }}
         >
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
@@ -495,13 +500,13 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
           handleStartRace();
         }}
         disabled={!canStartRace}
-        className={`absolute left-5 right-5 bottom-6 h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all ${
+        className={`absolute left-5 right-5 bottom-6 h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all z-[530] pointer-events-auto ${
           !canStartRace
             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
             : 'bg-[#ffd93d] text-black shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black] cursor-pointer'
         }`}
-        style={{ 
-          touchAction: 'manipulation', 
+        style={{
+          touchAction: 'manipulation',
           pointerEvents: 'auto',
           zIndex: 9999,
           position: 'absolute'

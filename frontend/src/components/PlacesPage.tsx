@@ -10,8 +10,10 @@ interface PlacesPageProps {
 export function PlacesPage({ onNavigate }: PlacesPageProps) {
   const [sheetPosition, setSheetPosition] = useState(50); // 50% 높이에서 시작
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
   const startPositionRef = useRef(50);
+  const activePointerIdRef = useRef<number | null>(null);
   const [places, setPlaces] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -102,98 +104,76 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
     { id: 8, name: 'SUPERMARKET', emoji: '🛒', distance: '1.0 KM', status: 'OPEN', bgColor: '#48dbfb', statusColor: 'white', textColor: 'black' },
   ];
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.drag-handle')) return;
-
-    setIsDragging(true);
-    startYRef.current = e.touches[0].clientY;
-    startPositionRef.current = sheetPosition;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
-
-    const deltaY = startYRef.current - e.touches[0].clientY;
-    const windowHeight = window.innerHeight;
-    const deltaPercent = (deltaY / windowHeight) * 100;
-
-    const newPosition = Math.max(10, Math.min(90, startPositionRef.current + deltaPercent));
-    setSheetPosition(newPosition);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-
+  const snapSheet = (pos: number) => {
     // 스냅 포인트: 10% (거의 닫힘), 50% (반), 90% (거의 전체)
-    if (sheetPosition < 30) {
-      setSheetPosition(10);
-    } else if (sheetPosition < 70) {
-      setSheetPosition(50);
-    } else {
-      setSheetPosition(90);
-    }
+    if (pos < 30) return 10;
+    if (pos < 70) return 50;
+    return 90;
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.drag-handle')) return;
-
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Pointer Events로 통일 (모바일/데스크톱에서 가장 안정적)
+    e.preventDefault();
+    e.stopPropagation();
+    activePointerIdRef.current = e.pointerId;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
+    isDraggingRef.current = true;
     startYRef.current = e.clientY;
     startPositionRef.current = sheetPosition;
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
+  const handlePointerMove = (e: React.PointerEvent) => {
+    // state 업데이트 타이밍보다 먼저 move가 올 수 있어서 ref로 판정
+    if (!isDraggingRef.current) return;
+    if (activePointerIdRef.current !== e.pointerId) return;
 
     const deltaY = startYRef.current - e.clientY;
-    const windowHeight = window.innerHeight;
+    const windowHeight = window.innerHeight || 1;
     const deltaPercent = (deltaY / windowHeight) * 100;
 
     const newPosition = Math.max(10, Math.min(90, startPositionRef.current + deltaPercent));
     setSheetPosition(newPosition);
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    activePointerIdRef.current = null;
+    isDraggingRef.current = false;
     setIsDragging(false);
-
-    // 스냅 포인트
-    if (sheetPosition < 30) {
-      setSheetPosition(10);
-    } else if (sheetPosition < 70) {
-      setSheetPosition(50);
-    } else {
-      setSheetPosition(90);
-    }
+    setSheetPosition((prev) => snapSheet(prev));
   };
 
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, sheetPosition]);
-
   return (
-    <>
+    <div className="absolute inset-0 z-[500] pointer-events-auto">
       {/* 빈 공간은 지도에 이벤트 통과 */}
       <div className="absolute inset-0 z-[200] pointer-events-none" />
 
       {/* 헤더 */}
-      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-[210] pointer-events-auto">
+      <div
+        className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-[520] pointer-events-auto"
+        style={{ pointerEvents: 'auto' }}
+      >
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => onNavigate("map")}
+              onPointerDown={(e) => {
+                // 스크롤/드래그로 click 이 취소되는 케이스 방지
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[PlacesPage] back pointerdown');
+                onNavigate("__back__");
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[PlacesPage] back click');
+                onNavigate("__back__");
+              }}
               className="w-10 h-8 bg-white border-[3px] border-black rounded-[8px] shadow-[3px_3px_0px_0px_black] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] pointer-events-auto flex items-center justify-center"
               aria-label="뒤로가기"
+              style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
             >
               <span className="font-['Press_Start_2P'] text-[12px] text-black leading-none">←</span>
             </button>
@@ -210,7 +190,7 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
 
       {/* 슬라이드 가능한 바텀 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-[205] transition-all pointer-events-auto"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-[510] transition-all pointer-events-auto"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
@@ -220,11 +200,11 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
         {/* 드래그 핸들 */}
         <div
           className="drag-handle w-full py-4 cursor-grab active:cursor-grabbing flex justify-center pointer-events-auto"
-          style={{ touchAction: 'none' }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
+          style={{ touchAction: 'none', pointerEvents: 'auto' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUpOrCancel}
+          onPointerCancel={handlePointerUpOrCancel}
         >
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
@@ -251,8 +231,8 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
               <div
                 key={place.id}
                 onClick={() => onNavigate('place-map', { place })}
-                className="rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-5 flex gap-3 hover:scale-105 transition-transform active:translate-y-1 cursor-pointer"
-                style={{ backgroundColor: place.bgColor }}
+                className="rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-5 flex gap-3 hover:scale-105 transition-transform active:translate-y-1 cursor-pointer pointer-events-auto"
+                style={{ backgroundColor: place.bgColor, pointerEvents: 'auto', touchAction: 'manipulation' }}
               >
                 <div className="bg-white border-[1.36px] border-black size-[64px] flex items-center justify-center">
                   <p className="text-[30px]">{place.emoji}</p>
@@ -276,7 +256,7 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
                           return isPlaceSaved(checkId) ? 'bg-white' : 'bg-gray-100';
                         })()
                       }`}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', pointerEvents: 'auto', touchAction: 'manipulation' }}
                     >
                       <span className="text-[20px] leading-none">
                         {(() => {
@@ -352,6 +332,6 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
           scrollbar-width: none;
         }
       `}</style>
-    </>
+    </div>
   );
 }
