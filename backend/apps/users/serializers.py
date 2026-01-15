@@ -11,6 +11,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.places.models import SearchPlaceHistory
+
 from .models import User
 
 
@@ -269,6 +270,7 @@ class ItineraryHistorySerializer(serializers.Serializer):
 
     GET /api/v1/users/itinerary-history 응답에 사용
 
+    #API 명세서 상 응답 방식 예시
     Response:
     {
         "id": 1,
@@ -278,15 +280,29 @@ class ItineraryHistorySerializer(serializers.Serializer):
     }
     """
 
+    # 검색 기록 ID (DB의 primary key)
     id = serializers.IntegerField(read_only=True)
+
+    # SerializerMethodField: 아래 get_departure() 메서드가 반환하는 값을 사용
+    # 결과: {"name": "강남역"} 형태의 중첩 객체
     departure = serializers.SerializerMethodField()
     arrival = serializers.SerializerMethodField()
+
+    # source="created_at": DB 필드명은 created_at이지만, API 응답에서는 searched_at으로 표시
     searched_at = serializers.DateTimeField(source="created_at", read_only=True)
 
     def get_departure(self, obj):
-        """출발지 정보를 중첩 객체로 반환"""
+        """
+        SerializerMethodField가 호출하는 메서드
+        obj: SearchItineraryHistory 모델 인스턴스
+        obj.departure_name: DB에 저장된 출발지 이름 (예: "강남역")
+        반환값: {"name": "강남역"}
+        """
         return {"name": obj.departure_name}
 
     def get_arrival(self, obj):
-        """도착지 정보를 중첩 객체로 반환"""
+        """
+        obj.arrival_name: DB에 저장된 도착지 이름 (예: "홍대입구역")
+        반환값: {"name": "홍대입구역"}
+        """
         return {"name": obj.arrival_name}

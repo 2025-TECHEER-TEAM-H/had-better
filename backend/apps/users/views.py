@@ -2,6 +2,8 @@
 사용자 및 인증 관련 View
 """
 
+from django.utils import timezone
+
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -258,12 +260,10 @@ class PlaceHistoryListView(APIView):
         except ValueError:
             limit = 10
 
-        # 현재 사용자의 검색 기록만 조회 (다른 사용자 데이터 접근 불가)
+        # 현재 사용자의 검색 기록만 조회 (삭제되지 않은 데이터만)
         histories = SearchPlaceHistory.objects.filter(
-            user=request.user  # 보안: 본인 데이터만!
-        )[
-            :limit
-        ]  # 슬라이싱으로 개수 제한
+            user=request.user, deleted_at__isnull=True
+        )[:limit]
 
         # many=True: 여러 객체를 리스트로 직렬화
         serializer = SearchPlaceHistorySerializer(histories, many=True)
@@ -271,15 +271,14 @@ class PlaceHistoryListView(APIView):
 
     def delete(self, request):
         """
-        장소 검색 기록 전체 삭제
+        장소 검색 기록 전체 삭제 (소프트 딜리트)
 
-        현재 사용자의 모든 검색 기록 삭제
+        현재 사용자의 모든 검색 기록의 deleted_at에 현재 시간 설정
         """
-        # 현재 사용자의 모든 검색 기록 삭제
-        SearchPlaceHistory.objects.filter(user=request.user).delete()
-        return success_response(
-            data=None, status=status.HTTP_204_NO_CONTENT  # 204: 삭제 성공, 본문 없음
-        )
+        SearchPlaceHistory.objects.filter(
+            user=request.user, deleted_at__isnull=True
+        ).update(deleted_at=timezone.now())
+        return success_response(data=None, status=status.HTTP_204_NO_CONTENT)
 
 
 # ============================================
@@ -307,20 +306,20 @@ class PlaceHistoryDetailView(APIView):
 
     def delete(self, request, pk):
         """
-        장소 검색 기록 개별 삭제
+        장소 검색 기록 개별 삭제 (소프트 딜리트)
 
         pk: URL에서 전달받은 검색 기록 ID
         예시: DELETE /api/v1/users/place-history/5
         """
         try:
-            # pk와 user 둘 다 일치하는 레코드만 조회 (보안)
+            # pk와 user 둘 다 일치하고 아직 삭제되지 않은 레코드만 조회
             history = SearchPlaceHistory.objects.get(
-                pk=pk, user=request.user  # 본인 데이터만 삭제 가능
+                pk=pk, user=request.user, deleted_at__isnull=True
             )
-            history.delete()
+            history.deleted_at = timezone.now()
+            history.save()
             return success_response(data=None, status=status.HTTP_204_NO_CONTENT)
         except SearchPlaceHistory.DoesNotExist:
-            # 데이터가 없거나 다른 사용자의 데이터인 경우
             return success_response(
                 data={"detail": "검색 기록을 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -375,8 +374,10 @@ class ItineraryHistoryListView(APIView):
         except ValueError:
             limit = 10
 
-        # 현재 사용자의 경로 검색 기록만 조회 (보안: 본인 데이터만)
-        histories = SearchItineraryHistory.objects.filter(user=request.user)[:limit]
+        # 현재 사용자의 경로 검색 기록만 조회 (삭제되지 않은 데이터만)
+        histories = SearchItineraryHistory.objects.filter(
+            user=request.user, deleted_at__isnull=True
+        )[:limit]
 
         # many=True: 여러 객체를 리스트로 직렬화
         serializer = ItineraryHistorySerializer(histories, many=True)
@@ -384,12 +385,13 @@ class ItineraryHistoryListView(APIView):
 
     def delete(self, request):
         """
-        경로 검색 기록 전체 삭제
+        경로 검색 기록 전체 삭제 (소프트 딜리트)
 
-        현재 사용자의 모든 경로 검색 기록 삭제
+        현재 사용자의 모든 경로 검색 기록의 deleted_at에 현재 시간 설정
         """
-        # 현재 사용자의 모든 경로 검색 기록 삭제
-        SearchItineraryHistory.objects.filter(user=request.user).delete()
+        SearchItineraryHistory.objects.filter(
+            user=request.user, deleted_at__isnull=True
+        ).update(deleted_at=timezone.now())
         return success_response(data=None, status=status.HTTP_204_NO_CONTENT)
 
 
@@ -420,20 +422,20 @@ class ItineraryHistoryDetailView(APIView):
 
     def delete(self, request, pk):
         """
-        경로 검색 기록 개별 삭제
+        경로 검색 기록 개별 삭제 (소프트 딜리트)
 
         pk: URL에서 전달받은 검색 기록 ID
         예시: DELETE /api/v1/users/itinerary-history/5
         """
         try:
-            # pk와 user 둘 다 일치하는 레코드만 조회 (보안)
+            # pk와 user 둘 다 일치하고 아직 삭제되지 않은 레코드만 조회
             history = SearchItineraryHistory.objects.get(
-                pk=pk, user=request.user  # 본인 데이터만 삭제 가능
+                pk=pk, user=request.user, deleted_at__isnull=True
             )
-            history.delete()
+            history.deleted_at = timezone.now()
+            history.save()
             return success_response(data=None, status=status.HTTP_204_NO_CONTENT)
         except SearchItineraryHistory.DoesNotExist:
-            # 데이터가 없거나 다른 사용자의 데이터인 경우
             return success_response(
                 data={"detail": "경로 검색 기록을 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND,
