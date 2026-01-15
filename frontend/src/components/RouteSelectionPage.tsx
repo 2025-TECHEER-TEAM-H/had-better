@@ -2,6 +2,19 @@ import { useRef, useState } from "react";
 
 interface RouteSelectionPageProps {
   onNavigate: (page: string, params?: any) => void;
+  departure?: {
+    lon: number;
+    lat: number;
+    name: string;
+    type?: 'current' | 'saved' | 'manual';
+  };
+  destination?: {
+    lon: number;
+    lat: number;
+    name: string;
+    address?: string;
+    type?: 'current' | 'saved' | 'manual';
+  };
 }
 
 interface RouteSelection {
@@ -12,7 +25,11 @@ interface RouteSelection {
 
 const USER_ICON_SRC = `${import.meta.env.BASE_URL}assets/user_dog.png`;
 
-export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
+export function RouteSelectionPage({ onNavigate, departure, destination }: RouteSelectionPageProps) {
+  console.log('🎬 RouteSelectionPage 렌더링됨');
+  console.log('🎬 onNavigate prop:', onNavigate);
+  console.log('🎬 onNavigate 타입:', typeof onNavigate);
+  
   const [selection, setSelection] = useState<RouteSelection>({
     user: null,
     ghost1: null,
@@ -42,20 +59,66 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
     });
   };
 
+  // 테스트를 위해 조건 완화: 유저만 선택해도 이동 가능
+  const canStartRace = selection.user !== null; // 원래: selection.user !== null && selection.ghost1 !== null && selection.ghost2 !== null;
+
   const handleStartRace = () => {
-    if (!canStartRace) return;
-    onNavigate('route-detail', {
-      routeSelection: {
-        user: selection.user!,
-        ghost1: selection.ghost1!,
-        ghost2: selection.ghost2!,
-      },
-    });
+    console.log('🔍 handleStartRace 호출됨');
+    console.log('🔍 canStartRace 값:', canStartRace);
+    console.log('🔍 selection 상태:', selection);
+    console.log('🔍 onNavigate 함수 타입:', typeof onNavigate);
+    console.log('🔍 onNavigate 함수:', onNavigate);
+    
+    if (!canStartRace) {
+      console.warn('⚠️ canStartRace가 false입니다. 이동할 수 없습니다.');
+      return;
+    }
+    
+    // 고스트가 선택되지 않은 경우 기본값 사용
+    const routeSelectionData = {
+      user: selection.user!,
+      ghost1: selection.ghost1 ?? 1, // 기본값: 경로 1
+      ghost2: selection.ghost2 ?? 2, // 기본값: 경로 2
+    };
+    
+    console.log('🚀 이동 시작! 경로 선택:', routeSelectionData);
+    console.log('🚀 onNavigate 호출 직전');
+    console.log('🚀 호출할 페이지: route-detail');
+    console.log('🚀 전달할 데이터:', { routeSelection: routeSelectionData });
+    
+    try {
+      onNavigate('route-detail', {
+        routeSelection: routeSelectionData,
+      });
+      console.log('✅ onNavigate 호출 완료 (에러 없음)');
+    } catch (error) {
+      console.error('❌ onNavigate 호출 중 에러 발생:', error);
+    }
   };
 
   const handleBack = () => {
     onNavigate('__back__');
   };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    startYRef.current = e.touches[0].clientY;
+    startPositionRef.current = sheetPosition;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+
+    const deltaY = startYRef.current - e.touches[0].clientY;
+    const windowHeight = window.innerHeight;
+    const deltaPercent = (deltaY / windowHeight) * 100;
+
+    const newPosition = Math.max(30, Math.min(90, startPositionRef.current + deltaPercent));
+    setSheetPosition(newPosition);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
 
   const canStartRace = selection.user !== null && selection.ghost1 !== null && selection.ghost2 !== null;
 
@@ -101,7 +164,9 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
     // 필요한 요소만 레이어(z)로 정렬합니다.
     <div className="absolute inset-0 pointer-events-auto z-30">
       {/* 헤더 - 독립적인 absolute 요소 */}
-      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-[60] pointer-events-auto">
+      <div className={`absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-60 ${
+        (departure || destination) ? '' : ''
+      }`}>
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-3">
             <button
@@ -126,6 +191,30 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
             <div className="bg-black size-[4px]" />
           </div>
         </div>
+        
+        {/* 출발지/목적지 정보 표시 */}
+        {(departure || destination) && (
+          <div className="px-5 pb-3 border-t-[2px] border-black/20">
+            <div className="flex flex-col gap-2 mt-2">
+              {departure && (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#48d448] rounded-full flex-shrink-0" />
+                  <p className="font-['Press_Start_2P'] text-[8px] text-black leading-[10px] flex-1">
+                    출발: {departure.name}
+                  </p>
+                </div>
+              )}
+              {destination && (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#4a7fa7] rounded-full flex-shrink-0" />
+                  <p className="font-['Press_Start_2P'] text-[8px] text-black leading-[10px] flex-1">
+                    도착: {destination.name}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 슬라이드 가능한 바텀 시트 - 독립적인 absolute 요소 */}
@@ -154,9 +243,28 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
           <div className="flex flex-col gap-4">
             {/* 안내 텍스트 */}
             <div className="bg-[#00d9ff]/20 border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-4">
-              <p className="font-['Press_Start_2P'] text-[13px] text-black leading-[15px] text-center">
+              <p className="font-['Press_Start_2P'] text-[13px] text-black leading-[15px] text-center mb-2">
                 각 플레이어의 경로를 선택하세요
               </p>
+              {departure && destination && (
+                <div className="mt-3 pt-3 border-t-[2px] border-black/30">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#48d448] rounded-full flex-shrink-0" />
+                      <p className="font-['Press_Start_2P'] text-[7px] text-black leading-[9px]">
+                        {departure.name}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#4a7fa7] rounded-full flex-shrink-0" />
+                      <p className="font-['Press_Start_2P'] text-[7px] text-black leading-[9px]">
+                        {destination.name}
+                        {destination.address && ` (${destination.address})`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 경로 카드들 */}
@@ -378,18 +486,26 @@ export function RouteSelectionPage({ onNavigate }: RouteSelectionPageProps) {
       <button
         type="button"
         onClick={(e) => {
+          console.log('🖱️ 버튼 클릭 이벤트 발생!');
+          console.log('🖱️ 이벤트 타입:', e.type);
+          console.log('🖱️ canStartRace:', canStartRace);
+          console.log('🖱️ disabled 상태:', !canStartRace);
           e.preventDefault();
           e.stopPropagation();
-          console.log('🚀 버튼 클릭!', canStartRace);
           handleStartRace();
         }}
         disabled={!canStartRace}
-        className={`absolute left-5 right-5 bottom-6 h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all z-[100] pointer-events-auto ${
+        className={`absolute left-5 right-5 bottom-6 h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all ${
           !canStartRace
             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
             : 'bg-[#ffd93d] text-black shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black] cursor-pointer'
         }`}
-        style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
+        style={{ 
+          touchAction: 'manipulation', 
+          pointerEvents: 'auto',
+          zIndex: 9999,
+          position: 'absolute'
+        }}
       >
         이동 시작! 🏁
       </button>
