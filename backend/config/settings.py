@@ -30,6 +30,9 @@ ALLOWED_HOSTS = os.getenv(
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# REST API 규칙 준수: URL 끝에 trailing slash 사용하지 않음
+APPEND_SLASH = False
+
 # Application definition
 DJANGO_APPS = [
     "django.contrib.admin",

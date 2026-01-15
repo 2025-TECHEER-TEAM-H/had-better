@@ -22,8 +22,7 @@ from ..views import (
 )
 
 urlpatterns = [
-    # 내 정보
-    path("", UserMeView.as_view(), name="user-me"),
+    # 내 정보: GET/PATCH /api/v1/users는 config/urls.py에서 직접 정의
     # path("stats", UserStatsView.as_view(), name="user-stats"),  # TODO: Route 모델 구현 후 주석 해제
     # 장소 검색 기록
     path(
