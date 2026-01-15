@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 interface RouteDetailPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
   routeSelection: {
     user: number;
     ghost1: number;
@@ -50,6 +50,16 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
   const startPositionRef = useRef(30);
+
+  // routeSelection이 변경되면 경주 진행률 초기화
+  useEffect(() => {
+    setRaceProgress({
+      user: 0,
+      ghost1: 0,
+      ghost2: 0,
+    });
+    console.log('🎮 RouteDetailPage - 경로 선택:', routeSelection);
+  }, [routeSelection.user, routeSelection.ghost1, routeSelection.ghost2]);
 
   // 실시간 경주 시뮬레이션
   useEffect(() => {

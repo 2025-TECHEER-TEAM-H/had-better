@@ -3,7 +3,7 @@ import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Map, type MapRef } from 'react-map-gl/mapbox';
 import { useSavedPlaceStore, type CategoryType } from '../stores/useSavedPlaceStore';
-import api from '../services/api';
+// import api from '../services/api'; // TODO: 백엔드 연결 시 주석 해제
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -46,11 +46,62 @@ export function PickPlacePage({ onNavigate, category }: PickPlacePageProps) {
     map.addControl(language);
   };
 
-  // 장소 검색
+  // 더미 장소 데이터 (테스트용)
+  const getMockPlaces = (): SearchPlace[] => {
+    return [
+      {
+        poi_place_id: 1001, // test-home을 숫자로 변환
+        name: '가짜 우리집',
+        address: '인천광역시 남동구 구월동 123-45',
+        category: '집',
+        coordinates: {
+          lon: 126.705,
+          lat: 37.456,
+        },
+      },
+      {
+        poi_place_id: 1002, // test-school을 숫자로 변환
+        name: '가짜 대학교',
+        address: '서울특별시 관악구 관악로 1',
+        category: '학교',
+        coordinates: {
+          lon: 126.953,
+          lat: 37.468,
+        },
+      },
+      {
+        poi_place_id: 1003, // test-work을 숫자로 변환
+        name: '가짜 회사',
+        address: '경기도 성남시 분당구 판교로 256',
+        category: '회사',
+        coordinates: {
+          lon: 127.111,
+          lat: 37.395,
+        },
+      },
+    ];
+  };
+
+  // 장소 검색 (임시: 더미 데이터 사용)
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
     setIsLoading(true);
+    
+    // 임시: 실제 API 호출 대신 더미 데이터 반환
+    // TODO: 백엔드 서버 연결 후 실제 API 호출로 복원
+    setTimeout(() => {
+      const mockPlaces = getMockPlaces();
+      setPlaces(mockPlaces);
+      // 검색 결과가 있으면 바텀 시트 열기
+      if (mockPlaces.length > 0) {
+        setSheetPosition(50);
+      }
+      setIsLoading(false);
+      console.log('🔍 더미 검색 결과:', mockPlaces);
+    }, 300); // 로딩 효과를 위한 짧은 딜레이
+
+    /* 실제 API 호출 코드 (백엔드 연결 시 사용)
     try {
       const response = await api.get<{
         status: 'success' | 'error';
@@ -86,6 +137,7 @@ export function PickPlacePage({ onNavigate, category }: PickPlacePageProps) {
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {

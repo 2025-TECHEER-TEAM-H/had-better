@@ -1,13 +1,37 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSavedPlaceStore, type CategoryType } from '../stores/useSavedPlaceStore';
 
 interface MapPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
 }
 
 export function MapPage({ onNavigate }: MapPageProps) {
   const [departure, setDeparture] = useState('');
   const [destination, setDestination] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // 카테고리별 장소 상태 구독
+  const categorizedPlaces = useSavedPlaceStore((state) => state.categorizedPlaces);
+  const fetchSavedPlaces = useSavedPlaceStore((state) => state.fetchSavedPlaces);
+  
+  // Long press 감지를 위한 refs
+  const longPressTimerRef = useRef<{ [key: string]: ReturnType<typeof setTimeout> | null }>({
+    home: null,
+    school: null,
+    work: null,
+  });
+  
+  // 기본 현재 위치 (나중에 Geolocation API로 대체 가능)
+  const defaultCurrentLocation = {
+    lon: 126.735,
+    lat: 37.489,
+    name: '현재 위치',
+  };
+
+  // 초기 로드 시 카테고리별 장소 불러오기
+  useEffect(() => {
+    fetchSavedPlaces();
+  }, [fetchSavedPlaces]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -20,6 +44,58 @@ export function MapPage({ onNavigate }: MapPageProps) {
       handleSearch();
     }
   };
+
+  // 카테고리 버튼 클릭 핸들러 (짧은 클릭)
+  const handleCategoryClick = (category: CategoryType) => {
+    const savedPlace = categorizedPlaces[category];
+    
+    if (savedPlace && savedPlace.poi_place) {
+      // 장소가 등록되어 있으면 RouteSelectionPage로 이동
+      onNavigate('route-selection', {
+        departure: {
+          ...defaultCurrentLocation,
+          type: 'current',
+        },
+        destination: {
+          lon: savedPlace.poi_place.coordinates.lon,
+          lat: savedPlace.poi_place.coordinates.lat,
+          name: savedPlace.poi_place.name || savedPlace.name || '',
+          address: savedPlace.poi_place.address || '',
+          type: 'saved',
+        },
+      });
+    } else {
+      // 장소가 없으면 PickPlacePage로 이동
+      onNavigate('pick-place', { category });
+    }
+  };
+
+  // Long press 시작
+  const handleLongPressStart = (category: CategoryType) => {
+    longPressTimerRef.current[category] = setTimeout(() => {
+      // 길게 클릭 시 항상 PickPlacePage로 이동 (수정 모드)
+      onNavigate('pick-place', { category });
+    }, 500); // 500ms 후 long press로 인식
+  };
+
+  // Long press 취소
+  const handleLongPressCancel = (category: CategoryType) => {
+    if (longPressTimerRef.current[category]) {
+      clearTimeout(longPressTimerRef.current[category]!);
+      longPressTimerRef.current[category] = null;
+    }
+  };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      Object.keys(longPressTimerRef.current).forEach((key) => {
+        if (longPressTimerRef.current[key]) {
+          clearTimeout(longPressTimerRef.current[key]!);
+        }
+      });
+    };
+  }, []);
 
   return (
     <div className="relative z-[50] h-screen w-full overflow-hidden pointer-events-auto" style={{ 
@@ -177,41 +253,86 @@ export function MapPage({ onNavigate }: MapPageProps) {
           <div className="flex gap-3">
             {/* 집 */}
             <button 
-              onClick={() => onNavigate('pick-place', { category: 'home' })}
-              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+              onClick={() => handleCategoryClick('home')}
+              onMouseDown={() => handleLongPressStart('home')}
+              onMouseUp={() => handleLongPressCancel('home')}
+              onMouseLeave={() => handleLongPressCancel('home')}
+              onTouchStart={() => handleLongPressStart('home')}
+              onTouchEnd={() => handleLongPressCancel('home')}
+              className={`flex-1 rounded-2xl p-3 hover:scale-105 transition-transform ${
+                categorizedPlaces.home
+                  ? 'bg-white border-4 border-black'
+                  : 'bg-white/50 border-3 border-black/30 grayscale opacity-50'
+              }`}
               style={{
-                boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
+                boxShadow: categorizedPlaces.home 
+                  ? '0 6px 0 rgba(0,0,0,0.3)' 
+                  : '0 4px 0 rgba(0,0,0,0.1)',
                 zIndex: 100,
                 pointerEvents: 'auto'
               }}>
-              <div className="text-2xl mb-1">🏠</div>
-              <p className="text-[8px] font-bold text-[#2d5f3f] pixel-font">집</p>
+              <div className={`text-2xl mb-1 ${categorizedPlaces.home ? '' : 'opacity-50'}`}>🏠</div>
+              <p className={`text-[8px] font-bold pixel-font ${
+                categorizedPlaces.home 
+                  ? 'text-[#2d5f3f]' 
+                  : 'text-[#6b9080]/50'
+              }`}>집</p>
             </button>
 
             {/* 학교 */}
             <button 
-              onClick={() => onNavigate('pick-place', { category: 'school' })}
-              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+              onClick={() => handleCategoryClick('school')}
+              onMouseDown={() => handleLongPressStart('school')}
+              onMouseUp={() => handleLongPressCancel('school')}
+              onMouseLeave={() => handleLongPressCancel('school')}
+              onTouchStart={() => handleLongPressStart('school')}
+              onTouchEnd={() => handleLongPressCancel('school')}
+              className={`flex-1 rounded-2xl p-3 hover:scale-105 transition-transform ${
+                categorizedPlaces.school
+                  ? 'bg-white border-4 border-black'
+                  : 'bg-white/50 border-3 border-black/30 grayscale opacity-50'
+              }`}
               style={{
-                boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
+                boxShadow: categorizedPlaces.school 
+                  ? '0 6px 0 rgba(0,0,0,0.3)' 
+                  : '0 4px 0 rgba(0,0,0,0.1)',
                 zIndex: 100,
                 pointerEvents: 'auto'
               }}>
-              <div className="text-2xl mb-1">🏫</div>
-              <p className="text-[8px] font-bold text-[#2d5f3f] pixel-font">학교</p>
+              <div className={`text-2xl mb-1 ${categorizedPlaces.school ? '' : 'opacity-50'}`}>🏫</div>
+              <p className={`text-[8px] font-bold pixel-font ${
+                categorizedPlaces.school 
+                  ? 'text-[#2d5f3f]' 
+                  : 'text-[#6b9080]/50'
+              }`}>학교</p>
             </button>
 
             {/* 회사 */}
             <button 
-              onClick={() => onNavigate('pick-place', { category: 'work' })}
-              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+              onClick={() => handleCategoryClick('work')}
+              onMouseDown={() => handleLongPressStart('work')}
+              onMouseUp={() => handleLongPressCancel('work')}
+              onMouseLeave={() => handleLongPressCancel('work')}
+              onTouchStart={() => handleLongPressStart('work')}
+              onTouchEnd={() => handleLongPressCancel('work')}
+              className={`flex-1 rounded-2xl p-3 hover:scale-105 transition-transform ${
+                categorizedPlaces.work
+                  ? 'bg-white border-4 border-black'
+                  : 'bg-white/50 border-3 border-black/30 grayscale opacity-50'
+              }`}
               style={{
-                boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
+                boxShadow: categorizedPlaces.work 
+                  ? '0 6px 0 rgba(0,0,0,0.3)' 
+                  : '0 4px 0 rgba(0,0,0,0.1)',
                 zIndex: 100,
                 pointerEvents: 'auto'
               }}>
-              <div className="text-2xl mb-1">🏢</div>
-              <p className="text-[8px] font-bold text-[#2d5f3f] pixel-font">회사</p>
+              <div className={`text-2xl mb-1 ${categorizedPlaces.work ? '' : 'opacity-50'}`}>🏢</div>
+              <p className={`text-[8px] font-bold pixel-font ${
+                categorizedPlaces.work 
+                  ? 'text-[#2d5f3f]' 
+                  : 'text-[#6b9080]/50'
+              }`}>회사</p>
             </button>
 
             {/* 추가 */}
