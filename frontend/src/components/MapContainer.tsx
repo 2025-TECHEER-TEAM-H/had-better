@@ -2,6 +2,8 @@ import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { Map, type MapRef } from 'react-map-gl/mapbox';
+import { registerNaviSprites } from './map/naviSprite';
+import { addNaviLayer, updateNaviFeature, type LngLat } from './map/naviLayer';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -14,8 +16,15 @@ export interface MapContainerHandle {
 const MapContainer = forwardRef<MapContainerHandle>((_, ref) => {
   const mapRef = useRef<MapRef>(null);
 
+  // Navi 캐릭터 초기 위치 (부평역 근처)
+  const initialNaviPosition: LngLat = [126.735, 37.489];
+
+  // 걷기 애니메이션 프레임
+  const walkFrameRef = useRef(0);
+  const animationRef = useRef<number | null>(null);
+
   // 핵심: 지도가 처음 로드될 때 플러그인을 한 번만 등록합니다.
-  const onMapLoad = useCallback(() => {
+  const onMapLoad = useCallback(async () => {
     const map = mapRef.current?.getMap();
     if (!map) return;
 
@@ -44,6 +53,24 @@ const MapContainer = forwardRef<MapContainerHandle>((_, ref) => {
     };
 
     setKoreanLabels();
+
+    // 3. Navi 스프라이트 등록 및 레이어 추가
+    try {
+      await registerNaviSprites(map);
+      addNaviLayer(map, initialNaviPosition);
+
+      // 걷기 애니메이션 시작 (테스트용)
+      const animate = () => {
+        walkFrameRef.current = (walkFrameRef.current + 1) % 4;
+        updateNaviFeature(map, initialNaviPosition, 0, walkFrameRef.current, 'walking');
+        animationRef.current = window.setTimeout(() => {
+          requestAnimationFrame(animate);
+        }, 120); // 120ms 간격으로 빠르게 프레임 변경
+      };
+      animate();
+    } catch (err) {
+      console.error('Navi 스프라이트 로드 실패:', err);
+    }
   }, []);
 
   useImperativeHandle(ref, () => ({
