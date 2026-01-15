@@ -1,11 +1,16 @@
 interface FullMapPageProps {
   onNavigate: (page: string) => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onRecenter: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onRecenter?: () => void;
 }
 
-export function FullMapPage({ onNavigate, onZoomIn, onZoomOut, onRecenter }: FullMapPageProps) {
+export function FullMapPage({
+  onNavigate,
+  onZoomIn = () => {},
+  onZoomOut = () => {},
+  onRecenter = () => {},
+}: FullMapPageProps) {
 
   return (
     <div className="relative z-[100] size-full bg-transparent overflow-hidden pointer-events-none" style={{ pointerEvents: 'none' }}>

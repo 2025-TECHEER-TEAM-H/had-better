@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import fullMapImage from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
 import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
 
 interface PlaceMapPageProps {
