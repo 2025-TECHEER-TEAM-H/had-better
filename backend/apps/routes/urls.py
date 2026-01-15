@@ -7,9 +7,7 @@ from django.urls import path
 from .views import RouteListCreateView, RouteStatusUpdateView, RouteResultView
 
 urlpatterns = [
-    # POST /api/v1/routes - 경주 생성
-    # GET /api/v1/routes - 경주 목록 조회
-    path('', RouteListCreateView.as_view(), name='route-list-create'),
+    # GET/POST /api/v1/routes는 config/urls.py에서 직접 정의
 
     # PATCH /api/v1/routes/{route_id} - 경주 상태 변경 (종료/취소)
     path('<int:route_id>', RouteStatusUpdateView.as_view(), name='route-status-update'),
