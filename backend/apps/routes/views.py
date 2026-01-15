@@ -1,3 +1,516 @@
-from django.shortcuts import render
+"""
+경주 관련 View
 
-# Create your views here.
+API 엔드포인트:
+- POST   /api/v1/routes              - 경주 생성 (시작)
+- GET    /api/v1/routes              - 경주 목록 조회
+- PATCH  /api/v1/routes/{route_id}   - 경주 상태 변경 (종료/취소)
+- GET    /api/v1/routes/{route_id}/result - 경주 결과 조회
+"""
+
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from drf_spectacular.utils import extend_schema
+
+from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
+
+from .models import Bot, Route
+from .serializers import (
+    ParticipantSerializer,
+    RouteCreateSerializer,
+    RouteStatusUpdateSerializer,
+)
+
+
+def success_response(data, status_code=status.HTTP_200_OK, meta=None):
+    """공통 성공 응답 포맷"""
+    response = {
+        "status": "success",
+        "data": data,
+    }
+    if meta:
+        response["meta"] = meta
+    return Response(response, status=status_code)
+
+
+def error_response(code, message, status_code, details=None):
+    """공통 에러 응답 포맷"""
+    response = {
+        "status": "error",
+        "error": {
+            "code": code,
+            "message": message,
+        }
+    }
+    if details:
+        response["error"]["details"] = details
+    return Response(response, status=status_code)
+
+
+class RouteListCreateView(APIView):
+    """
+    경주 목록 조회 및 생성
+
+    POST /api/v1/routes - 경주 생성 (시작)
+    GET  /api/v1/routes - 경주 목록 조회
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="경주 생성 (시작)",
+        description="""
+경주를 생성하고 시작합니다.
+
+**동작:**
+1. route_itinerary_id로 경로 탐색 결과 확인
+2. user_leg_id로 유저 경로 배정
+3. bot_leg_ids로 봇 경로 배정 (봇 자동 생성)
+4. 모든 참가자를 RUNNING 상태로 생성
+5. start_time에 현재 시간 기록
+        """,
+        request=RouteCreateSerializer,
+        responses={201: None, 400: None, 404: None},
+        tags=["Routes"],
+    )
+    def post(self, request):
+        """경주 생성 (시작)"""
+        serializer = RouteCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                code="VALIDATION_FAILED",
+                message="입력값이 올바르지 않습니다.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details=serializer.errors,
+            )
+
+        data = serializer.validated_data
+        route_itinerary_id = data["route_itinerary_id"]
+        user_leg_id = data["user_leg_id"]
+        bot_leg_ids = data["bot_leg_ids"]
+
+        # route_itinerary 확인
+        try:
+            route_itinerary = RouteItinerary.objects.get(
+                id=route_itinerary_id,
+                deleted_at__isnull=True
+            )
+        except RouteItinerary.DoesNotExist:
+            return error_response(
+                code="RESOURCE_NOT_FOUND",
+                message="해당 경로 탐색 결과를 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        # user_leg 확인
+        try:
+            user_leg = RouteLeg.objects.get(
+                id=user_leg_id,
+                route_itinerary=route_itinerary,
+                deleted_at__isnull=True
+            )
+        except RouteLeg.DoesNotExist:
+            return error_response(
+                code="RESOURCE_NOT_FOUND",
+                message="해당 유저 경로를 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        # bot_legs 확인
+        bot_legs = []
+        for bot_leg_id in bot_leg_ids:
+            try:
+                bot_leg = RouteLeg.objects.get(
+                    id=bot_leg_id,
+                    route_itinerary=route_itinerary,
+                    deleted_at__isnull=True
+                )
+                bot_legs.append(bot_leg)
+            except RouteLeg.DoesNotExist:
+                return error_response(
+                    code="RESOURCE_NOT_FOUND",
+                    message=f"해당 봇 경로(ID: {bot_leg_id})를 찾을 수 없습니다.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                )
+
+        # 봇 수 제한 (최대 2개)
+        if len(bot_legs) > 2:
+            return error_response(
+                code="ROUTE_TOO_MANY_BOTS",
+                message="봇은 최대 2개까지 배정할 수 있습니다.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 출발/도착 좌표
+        start_lat = float(route_itinerary.start_y)
+        start_lon = float(route_itinerary.start_x)
+        end_lat = float(route_itinerary.end_y)
+        end_lon = float(route_itinerary.end_x)
+
+        now = timezone.now()
+        participants = []
+
+        with transaction.atomic():
+            # 유저 Route 생성
+            user_route = Route.objects.create(
+                participant_type=Route.ParticipantType.USER,
+                user=request.user,
+                route_itinerary=route_itinerary,
+                route_leg=user_leg,
+                status=Route.Status.RUNNING,
+                start_time=now,
+                start_lat=start_lat,
+                start_lon=start_lon,
+                end_lat=end_lat,
+                end_lon=end_lon,
+            )
+            participants.append(user_route)
+
+            # 봇 타입 목록
+            bot_types = [Bot.BotType.RABBIT, Bot.BotType.CAT, Bot.BotType.DOG, Bot.BotType.MONKEY]
+
+            # 봇 Route 생성
+            for i, bot_leg in enumerate(bot_legs):
+                # 봇 생성
+                bot = Bot.objects.create(
+                    name=f"Bot {i + 1}",
+                    type=bot_types[i % len(bot_types)],
+                )
+
+                # 봇 Route 생성
+                bot_route = Route.objects.create(
+                    participant_type=Route.ParticipantType.BOT,
+                    bot=bot,
+                    route_itinerary=route_itinerary,
+                    route_leg=bot_leg,
+                    status=Route.Status.RUNNING,
+                    start_time=now,
+                    start_lat=start_lat,
+                    start_lon=start_lon,
+                    end_lat=end_lat,
+                    end_lon=end_lon,
+                )
+                participants.append(bot_route)
+
+        # 응답 생성
+        response_data = {
+            "route_itinerary_id": route_itinerary.id,
+            "participants": ParticipantSerializer(participants, many=True).data,
+            "status": Route.Status.RUNNING,
+            "start_time": now.isoformat(),
+            "created_at": now.isoformat(),
+        }
+
+        return success_response(
+            data=response_data,
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        summary="경주 목록 조회",
+        description="내가 참가한 경주 목록을 조회합니다.",
+        responses={200: None},
+        tags=["Routes"],
+    )
+    def get(self, request):
+        """경주 목록 조회"""
+        # JWT에서 user_id 추출
+        user = request.user
+
+        # 유저가 참가한 경주 목록
+        routes = Route.objects.filter(
+            user=user,
+            participant_type=Route.ParticipantType.USER,
+            deleted_at__isnull=True
+        ).select_related('route_itinerary', 'route_leg')
+
+        # 상태 필터
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            routes = routes.filter(status=status_filter)
+
+        routes_data = []
+        for route in routes:
+            routes_data.append({
+                "route_id": route.id,
+                "route_itinerary_id": route.route_itinerary.id,
+                "status": route.status,
+                "is_win": route.is_win,
+                "start_time": route.start_time.isoformat() if route.start_time else None,
+                "end_time": route.end_time.isoformat() if route.end_time else None,
+                "duration": route.duration,
+            })
+
+        return success_response(data=routes_data)
+
+
+class RouteStatusUpdateView(APIView):
+    """
+    경주 상태 변경
+
+    PATCH /api/v1/routes/{route_id} - 경주 상태 변경 (종료/취소)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="경주 상태 변경 (종료/취소)",
+        description="""
+경주 상태를 변경합니다.
+
+**종료 (FINISHED):**
+- end_time에 현재 시간 기록
+- duration = end_time - start_time 자동 계산
+
+**취소 (CANCELED):**
+- end_time에 현재 시간 기록
+- duration은 계산하지 않음
+
+**상태 전이 규칙:**
+- RUNNING → FINISHED (종료)
+- RUNNING → CANCELED (취소)
+- 이미 FINISHED/CANCELED 상태인 경우 변경 불가
+        """,
+        request=RouteStatusUpdateSerializer,
+        responses={200: None, 400: None, 404: None, 409: None},
+        tags=["Routes"],
+    )
+    def patch(self, request, route_id):
+        """경주 상태 변경"""
+        # 요청 데이터 검증
+        serializer = RouteStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                code="VALIDATION_FAILED",
+                message="입력값이 올바르지 않습니다.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details=serializer.errors,
+            )
+
+        new_status = serializer.validated_data["status"]
+
+        # 경주 조회 (본인 소유 확인)
+        try:
+            route = Route.objects.get(
+                id=route_id,
+                user=request.user,
+                participant_type=Route.ParticipantType.USER,
+                deleted_at__isnull=True
+            )
+        except Route.DoesNotExist:
+            return error_response(
+                code="ROUTE_NOT_FOUND",
+                message="해당 경주를 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 상태 전이 검증
+        if route.status != Route.Status.RUNNING:
+            if route.status == Route.Status.FINISHED:
+                return error_response(
+                    code="ROUTE_ALREADY_FINISHED",
+                    message="이미 종료된 경주입니다.",
+                    status_code=status.HTTP_409_CONFLICT,
+                )
+            elif route.status == Route.Status.CANCELED:
+                return error_response(
+                    code="ROUTE_ALREADY_CANCELED",
+                    message="이미 취소된 경주입니다.",
+                    status_code=status.HTTP_409_CONFLICT,
+                )
+            else:
+                return error_response(
+                    code="ROUTE_INVALID_STATUS_TRANSITION",
+                    message="유효하지 않은 상태 전이입니다.",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+        now = timezone.now()
+
+        # 상태 변경
+        route.status = new_status
+        route.end_time = now
+
+        # FINISHED인 경우 duration 계산
+        if new_status == Route.Status.FINISHED:
+            duration_delta = now - route.start_time
+            route.duration = int(duration_delta.total_seconds())
+
+        route.save()
+
+        # 응답 데이터 생성
+        response_data = {
+            "route_id": route.id,
+            "status": route.status,
+            "start_time": route.start_time.isoformat() if route.start_time else None,
+            "end_time": route.end_time.isoformat() if route.end_time else None,
+        }
+
+        # FINISHED인 경우에만 duration 포함
+        if new_status == Route.Status.FINISHED:
+            response_data["duration"] = route.duration
+
+        return success_response(data=response_data)
+
+
+class RouteResultView(APIView):
+    """
+    경주 결과 조회
+
+    GET /api/v1/routes/{route_id}/result - 경주 결과 조회
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="경주 결과 조회",
+        description="""
+경주 결과를 조회합니다.
+
+**응답 정보:**
+- route_info: 출발지/도착지 정보
+- rankings: 모든 참가자의 순위 (duration 오름차순)
+- user_result: 현재 유저의 결과 요약
+
+**순위 결정:**
+- duration (소요시간) 짧은 순서대로 순위 결정
+- 아직 도착하지 않은 참가자는 순위 없음
+        """,
+        responses={200: None, 404: None},
+        tags=["Routes"],
+    )
+    def get(self, request, route_id):
+        """경주 결과 조회"""
+        # 경주 조회 (본인 소유 확인)
+        try:
+            user_route = Route.objects.select_related(
+                'route_itinerary', 'route_leg', 'user'
+            ).get(
+                id=route_id,
+                user=request.user,
+                participant_type=Route.ParticipantType.USER,
+                deleted_at__isnull=True
+            )
+        except Route.DoesNotExist:
+            return error_response(
+                code="ROUTE_NOT_FOUND",
+                message="해당 경주를 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        route_itinerary = user_route.route_itinerary
+
+        # 같은 경주의 모든 참가자 조회
+        all_participants = Route.objects.select_related(
+            'user', 'bot', 'route_leg'
+        ).filter(
+            route_itinerary=route_itinerary,
+            start_time=user_route.start_time,
+            deleted_at__isnull=True
+        )
+
+        # 순위 계산 (duration 기준 오름차순, None은 마지막)
+        finished_participants = []
+        unfinished_participants = []
+
+        for p in all_participants:
+            if p.status == Route.Status.FINISHED and p.duration is not None:
+                finished_participants.append(p)
+            else:
+                unfinished_participants.append(p)
+
+        # duration 기준 정렬
+        finished_participants.sort(key=lambda x: x.duration)
+
+        # 순위 부여 및 rankings 생성
+        rankings = []
+        for rank, p in enumerate(finished_participants, start=1):
+            ranking_data = {
+                "rank": rank,
+                "route_id": p.id,
+                "type": p.participant_type,
+                "duration": p.duration,
+                "end_time": p.end_time.isoformat() if p.end_time else None,
+            }
+
+            if p.participant_type == Route.ParticipantType.USER:
+                ranking_data["user_id"] = p.user.id if p.user else None
+                ranking_data["name"] = p.user.nickname if p.user else None
+            else:
+                ranking_data["bot_id"] = p.bot.id if p.bot else None
+                ranking_data["name"] = p.bot.name if p.bot else None
+
+            rankings.append(ranking_data)
+
+        # 아직 도착하지 않은 참가자 추가 (순위 없음)
+        for p in unfinished_participants:
+            ranking_data = {
+                "rank": None,
+                "route_id": p.id,
+                "type": p.participant_type,
+                "duration": None,
+                "end_time": None,
+            }
+
+            if p.participant_type == Route.ParticipantType.USER:
+                ranking_data["user_id"] = p.user.id if p.user else None
+                ranking_data["name"] = p.user.nickname if p.user else None
+            else:
+                ranking_data["bot_id"] = p.bot.id if p.bot else None
+                ranking_data["name"] = p.bot.name if p.bot else None
+
+            rankings.append(ranking_data)
+
+        # 유저 결과 찾기
+        user_rank = None
+        is_win = None
+        for r in rankings:
+            if r["route_id"] == user_route.id:
+                user_rank = r["rank"]
+                if user_rank is not None:
+                    is_win = (user_rank == 1)
+                break
+
+        # 출발지/도착지 이름 조회 (SearchItineraryHistory에서 가져오기)
+        departure_name = None
+        arrival_name = None
+        search_history = SearchItineraryHistory.objects.filter(
+            route_itinerary=route_itinerary
+        ).first()
+        if search_history:
+            departure_name = search_history.departure_name
+            arrival_name = search_history.arrival_name
+
+        # 응답 데이터 생성
+        response_data = {
+            "route_id": user_route.id,
+            "route_itinerary_id": route_itinerary.id,
+            "status": user_route.status,
+            "start_time": user_route.start_time.isoformat() if user_route.start_time else None,
+            "end_time": user_route.end_time.isoformat() if user_route.end_time else None,
+            "route_info": {
+                "departure": {
+                    "name": departure_name,
+                    "lat": float(route_itinerary.start_y) if route_itinerary.start_y else None,
+                    "lon": float(route_itinerary.start_x) if route_itinerary.start_x else None,
+                },
+                "arrival": {
+                    "name": arrival_name,
+                    "lat": float(route_itinerary.end_y) if route_itinerary.end_y else None,
+                    "lon": float(route_itinerary.end_x) if route_itinerary.end_x else None,
+                },
+            },
+            "rankings": rankings,
+            "user_result": {
+                "rank": user_rank,
+                "is_win": is_win,
+                "duration": user_route.duration,
+            },
+        }
+
+        return success_response(data=response_data)

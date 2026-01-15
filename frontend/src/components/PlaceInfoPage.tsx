@@ -1,4 +1,6 @@
 import svgPaths from "../imports/svg-2mccnqcvdk";
+import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
+import { useEffect } from "react";
 
 interface PlaceInfoPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -18,9 +20,22 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
     hours: '매일 06:00 - 22:00',
     address: '서울시 강남구 테헤란로 123',
     phone: '02-1234-5678',
+    id: 0,
   };
 
   const placeData = place || defaultPlace;
+
+  // 즐겨찾기 스토어
+  const { isPlaceSaved, toggleSavedPlace, fetchSavedPlaces } = useSavedPlaceStore();
+
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    fetchSavedPlaces();
+  }, [fetchSavedPlaces]);
+
+  // POI Place ID 추출 (place.id 또는 place.poi_place_id)
+  const poiPlaceId = placeData.id || placeData.poi_place_id || 0;
+  const isSaved = poiPlaceId > 0 ? isPlaceSaved(poiPlaceId) : false;
 
   // 장소별 데이터 매핑
   const placeDetails: any = {
@@ -37,9 +52,9 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
   const details = placeDetails[placeData.name] || placeDetails['CENTRAL PARK'];
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#87ceeb] to-[#b0e5f5] overflow-hidden">
+    <div className="relative size-full bg-transparent overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* 구름들 */}
-      <div className="absolute h-[40px] left-[250.05px] top-[64px] w-[80px]">
+      <div className="absolute h-[40px] left-[250.05px] top-[64px] w-[80px] pointer-events-none">
         <div className="h-[40px] overflow-clip relative shrink-0 w-full">
           <div className="absolute inset-[40%_20%_20%_20%]">
             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 48 16">
@@ -54,7 +69,7 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
         </div>
       </div>
 
-      <div className="absolute h-[29.992px] left-[32px] top-[128px] w-[59.994px]">
+      <div className="absolute h-[29.992px] left-[32px] top-[128px] w-[59.994px] pointer-events-none">
         <div className="h-[29.997px] overflow-clip relative shrink-0 w-full">
           <div className="absolute inset-[40%_20%_20%_20%]">
             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 35.9966 11.9989">
@@ -70,11 +85,11 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
       </div>
 
       {/* 이모지들 */}
-      <div className="absolute flex items-center justify-center left-[62.4px] top-[87.19px]">
+      <div className="absolute flex items-center justify-center left-[62.4px] top-[87.19px] pointer-events-none">
         <p className="text-[30px]">🗺️</p>
       </div>
 
-      <div className="absolute flex items-center justify-center left-[274.08px] top-[142.96px]">
+      <div className="absolute flex items-center justify-center left-[274.08px] top-[142.96px] pointer-events-none">
         <p className="text-[24px]">📍</p>
       </div>
 
@@ -102,10 +117,25 @@ export function PlaceInfoPage({ onNavigate, place, fromFavorites }: PlaceInfoPag
           </div>
 
           {/* 장소 이름 */}
-          <div className="bg-[#7ed321] border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-5">
-            <p className="font-['Press_Start_2P'] text-[14px] text-black leading-[20px] text-center">
-              {placeData.name}
-            </p>
+          <div className="bg-[#7ed321] border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-5 relative">
+            <div className="flex items-center justify-center gap-3">
+              <p className="font-['Press_Start_2P'] text-[14px] text-black leading-[20px] text-center flex-1">
+                {placeData.name}
+              </p>
+              {poiPlaceId > 0 && (
+                <button
+                  onClick={() => toggleSavedPlace(poiPlaceId, undefined, placeData.name)}
+                  className={`flex-shrink-0 w-12 h-12 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_0px_black] flex items-center justify-center hover:scale-105 active:translate-y-1 active:shadow-[2px_2px_0px_0px_black] transition-all z-10 relative ${
+                    isSaved ? 'bg-white' : 'bg-gray-100'
+                  }`}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="text-[24px] leading-none">
+                    {isSaved ? '⭐' : '☆'}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 장소 정보 */}

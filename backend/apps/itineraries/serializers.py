@@ -42,16 +42,14 @@ class RouteSearchRequestSerializer(serializers.Serializer):
         help_text='응답 형식 (기본값: "json")'
     )
 
-    # 출발지/도착지 이름 (검색 기록용)
+    # 출발지/도착지 이름 (검색 기록용) - 필수 필드
     departure_name = serializers.CharField(
-        required=False,
-        default='',
-        help_text='출발지명 (검색 기록용)'
+        required=True,
+        help_text='출발지명 (검색 기록용, 건물명 또는 도로명 주소)'
     )
     arrival_name = serializers.CharField(
-        required=False,
-        default='',
-        help_text='도착지명 (검색 기록용)'
+        required=True,
+        help_text='도착지명 (검색 기록용, 건물명 또는 도로명 주소)'
     )
 
 
@@ -168,7 +166,7 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
     개별 경로(Leg) 상세 Serializer
 
     경로의 상세 정보 (구간별 이동수단, 정류장 목록 등)
-    세그먼트 정보를 DB에서 가져와 반환
+    raw_data에서 TMAP 원본 응답의 legs 정보를 직접 반환
     """
 
     route_leg_id = serializers.IntegerField(source='id')
@@ -180,7 +178,7 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
     totalWalkDistance = serializers.IntegerField(source='total_walk_distance')
     transferCount = serializers.IntegerField(source='transfer_count')
     fare = serializers.SerializerMethodField()
-    segments = RouteSegmentSerializer(many=True, read_only=True)
+    legs = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteLeg
@@ -194,7 +192,7 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
             'totalWalkDistance',
             'transferCount',
             'fare',
-            'segments',
+            'legs',
         ]
 
     def get_fare(self, obj):
@@ -215,6 +213,28 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
             }
 
         return fare_info
+
+    def get_legs(self, obj):
+        """
+        raw_data에서 TMAP 원본 legs 정보 반환
+
+        API 명세서에 맞게 다음 정보 포함:
+        - mode: 이동수단 (WALK, BUS, SUBWAY 등)
+        - sectionTime: 구간별 소요시간 (초)
+        - distance: 구간별 이동거리 (m)
+        - start/end: 출발/도착 정보
+        - route: 노선 명칭 (대중교통)
+        - routeId: 노선 ID
+        - routeColor: 노선 색상
+        - type: 이동수단별 노선코드
+        - service: 운행 여부
+        - passStopList: 정류장 목록 (BUS, SUBWAY)
+        - passShape: 구간 좌표
+        - steps: 도보 상세 정보 (WALK)
+        - Lane: 다중 노선 정보 (버스)
+        """
+        raw_data = obj.raw_data or {}
+        return raw_data.get('legs', [])
 
 
 class RouteSearchResponseSerializer(serializers.Serializer):

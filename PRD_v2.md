@@ -101,7 +101,6 @@
 
 - **[FR-03] Mapbox 지도 출력:**
     - **Mapbox**를 사용하여 지도를 출력.
-    - 다크 모드, 3D 건물 등 Mapbox의 스타일링 기능을 활용하여 게임 분위기 연출.
 - **[FR-04] 장소 검색:**
     - 키워드 검색(TMap API 활용) 결과를 리스트로 표시.
     - 선택된 장소 좌표로 Mapbox 카메라 이동(`flyTo`).
@@ -148,22 +147,23 @@
 | 테이블 | 설명 |
 |--------|------|
 | `user` | 사용자 정보 (이메일, 비밀번호, 닉네임, 타입, 최근로그인일자) |
-| `saved_place` | 즐겨찾기 장소 (카테고리, 이름, 주소, 위도/경도) |
-| `search_place_history` | 장소 검색 이력 |
-| `search_route_history` | 경로 검색 이력 |
+| `saved_place` | 즐겨찾기 장소 (user_id, poi_place_id, 카테고리) |
+| `search_place_history` | 장소 검색 이력 (user_id, keyword) |
+| `search_itinerary_history` | 경로 검색 이력 (user_id, route_itinerary_id, 출발지명, 도착지명) |
 
 #### 장소/POI 관련
 
 | 테이블 | 설명 |
 |--------|------|
-| `poi_place` | 장소 정보 통합 데이터 (TMap ID, 이름, 카테고리, 주소, 좌표, 전화번호 등) |
+| `poi_place` | TMap POI 캐시 데이터 (tmap_poi_id, 이름, 주소, 카테고리, 좌표) |
 
 #### 경로 관련
 
 | 테이블 | 설명 |
 |--------|------|
-| `route_itinerary` | 대중교통 경로 탐색 결과 (총 소요시간, 총 거리, 요금, 환승횟수, 경로타입) |
-| `route_leg` | 경로 상세 구간 데이터 (구간인덱스, 이동수단, 소요시간, 거리, 상세좌표, 경로지오메트리) |
+| `route_itinerary` | 경로 탐색 결과 묶음 (출발/도착 좌표) |
+| `route_leg` | 개별 경로 옵션 (경로타입, 총 소요시간, 총 거리, 환승횟수, 요금, TMAP 원본 데이터) |
+| `route_segment` | 경로 내 세부 구간 (이동수단, 소요시간, 거리, 출발/도착 정보, 노선명, 노선색상, 경로좌표) |
 
 #### 경주 관련
 
@@ -279,6 +279,9 @@
 | nickname | VARCHAR(50) | 닉네임 |
 | type | VARCHAR(20) | 사용자 유형 (일반/소셜) |
 | last_login_date | TIMESTAMP | 최근 로그인 일자 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
 
 #### `route` 테이블 (경주 세션)
 | 필드 | 타입 | 설명 |
@@ -287,7 +290,7 @@
 | user_id | BIGINT | FK → user |
 | bot_id | BIGINT | FK → bot |
 | route_leg_id | BIGINT | FK → route_leg |
-| status | VARCHAR(20) | 상태 (WAITING/RUNNING/FINISHED/CANCELLED) |
+| status | VARCHAR(20) | 상태 (PENDING/RUNNING/FINISHED/CANCELED) |
 | start_time | TIMESTAMP | 시작 시간 |
 | end_time | TIMESTAMP | 종료 시간 |
 | duration | INTEGER | 소요 시간 (초) |
@@ -295,31 +298,117 @@
 | is_win | BOOLEAN | 승리 여부 |
 | start_lat/lon | DOUBLE PRECISION | 출발 좌표 |
 | end_lat/lon | DOUBLE PRECISION | 도착 좌표 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
 
-#### `route_leg` 테이블 (경로 구간)
+#### `route_itinerary` 테이블 (경로 탐색 결과 묶음)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| route_itinerary_id | BIGINT | PK |
+| start_x | VARCHAR(50) | 출발지 경도 |
+| start_y | VARCHAR(50) | 출발지 위도 |
+| end_x | VARCHAR(50) | 도착지 경도 |
+| end_y | VARCHAR(50) | 도착지 위도 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `route_leg` 테이블 (개별 경로 옵션)
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | route_leg_id | BIGINT | PK |
 | route_itinerary_id | BIGINT | FK → route_itinerary |
-| leg_index | INT | 구간 순서 |
-| mode | VARCHAR(20) | 이동수단 (WALK/BUS/SUBWAY) |
-| section_time | INT | 구간 소요시간 (초) |
-| distance | INT | 구간 거리 (미터) |
-| path_coordinates | JSONB | 상세 좌표 리스트 |
-| path_geometry | GEOMETRY(LineString, 4326) | PostGIS 경로 지오메트리 |
+| leg_index | INT | 경로 인덱스 (같은 itinerary 내 순서) |
+| path_type | SMALLINT | 경로 타입 (1:지하철, 2:버스, 3:버스+지하철, 4:고속버스, 5:기차, 6:항공, 7:해운) |
+| total_time | INT | 총 소요시간 (초) |
+| total_distance | INT | 총 이동거리 (m) |
+| total_walk_time | INT | 총 도보 소요시간 (초) |
+| total_walk_distance | INT | 총 도보 이동거리 (m) |
+| transfer_count | SMALLINT | 환승 횟수 |
+| total_fare | INT | 총 요금 |
+| raw_data | JSONB | TMAP API 원본 응답 데이터 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `route_segment` 테이블 (경로 내 세부 구간)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| route_segment_id | BIGINT | PK |
+| route_leg_id | BIGINT | FK → route_leg |
+| segment_index | INT | 구간 인덱스 (같은 leg 내 순서) |
+| mode | VARCHAR(20) | 이동수단 (WALK/SUBWAY/BUS/EXPRESSBUS/TRAIN/AIRPLANE/FERRY) |
+| section_time | INT | 소요시간 (초) |
+| distance | INT | 이동거리 (m) |
+| start_name | VARCHAR(255) | 출발지명 |
+| start_lat | DOUBLE PRECISION | 출발지 위도 |
+| start_lon | DOUBLE PRECISION | 출발지 경도 |
+| end_name | VARCHAR(255) | 도착지명 |
+| end_lat | DOUBLE PRECISION | 도착지 위도 |
+| end_lon | DOUBLE PRECISION | 도착지 경도 |
+| route_name | VARCHAR(100) | 노선명 (대중교통인 경우) |
+| route_color | VARCHAR(10) | 노선 색상 (HEX) |
+| path_coordinates | JSONB | 경로 좌표 리스트 [[lon, lat], ...] |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `search_itinerary_history` 테이블 (경로 검색 기록)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| search_itinerary_history_id | BIGINT | PK |
+| user_id | BIGINT | FK → user |
+| route_itinerary_id | BIGINT | FK → route_itinerary |
+| departure_name | VARCHAR(255) | 출발지명 (검색 기록 표시용) |
+| arrival_name | VARCHAR(255) | 도착지명 (검색 기록 표시용) |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
 
 #### `poi_place` 테이블 (POI 정보)
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| poi_search_place_id | BIGINT | PK |
-| tmap_id | VARCHAR(100) | TMap POI ID |
+| poi_place_id | BIGINT | PK |
+| tmap_poi_id | VARCHAR(100) | TMap POI ID (UNIQUE) |
 | name | VARCHAR(255) | 장소명 |
+| address | VARCHAR(255) | 주소 |
 | category | VARCHAR(100) | 카테고리 |
-| address_road | VARCHAR(255) | 도로명 주소 |
-| address_jibun | VARCHAR(255) | 지번 주소 |
-| latitude/longitude | DOUBLE PRECISION | 중심 좌표 |
-| front_latitude/longitude | DOUBLE PRECISION | 입구 좌표 |
-| phone | VARCHAR(50) | 전화번호 |
+| coordinates | JSONB | 좌표 {lon, lat} |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `saved_place` 테이블 (즐겨찾기 장소)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| saved_place_id | BIGINT | PK |
+| user_id | BIGINT | FK → user |
+| poi_place_id | BIGINT | FK → poi_place |
+| category | VARCHAR(10) | 카테고리 (home/work/school, nullable) |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `search_place_history` 테이블 (장소 검색 기록)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| search_place_history_id | BIGINT | PK |
+| user_id | BIGINT | FK → user |
+| keyword | VARCHAR(255) | 검색 키워드 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
+
+#### `bot` 테이블 (봇 정보)
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| bot_id | BIGINT | PK |
+| name | VARCHAR(100) | 봇 이름 |
+| type | VARCHAR(20) | 봇 타입 |
+| created_at | TIMESTAMP | 생성일시 |
+| updated_at | TIMESTAMP | 수정일시 |
+| deleted_at | TIMESTAMP | 삭제일시 (Soft Delete) |
 
 ---
 
@@ -334,7 +423,7 @@
 
 ## **9. UI/UX 가이드라인**
 
-- **지도 스타일:** Mapbox Studio를 활용한 커스텀 'Night Racing' 테마 적용.
+- **지도 스타일:** Mapbox 기본 스타일 사용 (추후 커스텀 테마 적용 가능).
 - **마커:** 버스, 지하철, 사용자 아이콘을 3D 느낌의 SVG 또는 PNG로 제작하여 Mapbox Marker로 적용.
 - **경로선:** 내가 가는 길(파란색 Neon), 봇이 가는 길(붉은색/노란색 Neon)으로 구분하여 시인성 확보.
 - **브랜딩:** "HAD BETTER" 로고 및 컬러 팔레트 적용.

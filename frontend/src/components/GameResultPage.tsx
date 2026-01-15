@@ -18,7 +18,7 @@ export function GameResultPage({ onContinue, onNavigate }: GameResultPageProps) 
   const myDistance = "2.3 km";
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#c5e7f5] to-[#b3ddf0] overflow-hidden flex flex-col">
+    <div className="relative size-full bg-transparent overflow-hidden flex flex-col pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* Header */}
       <div className="bg-gradient-to-b from-[#7fb8cc] to-[#6ba9bd] border-b-[3px] border-black px-4 py-4">
         <div className="flex items-center justify-between">

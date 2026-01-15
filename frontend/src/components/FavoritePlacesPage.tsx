@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Place } from "../utils/api";
 import { mapApi } from "../utils/api";
+import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
 
 interface FavoritePlacesPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -101,64 +101,97 @@ const getDefaultFavoritePlaces = (): FavoritePlace[] => [
 export function FavoritePlacesPage({ onNavigate }: FavoritePlacesPageProps) {
   const [favoritePlaces, setFavoritePlaces] = useState<FavoritePlace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  // API에서 즐겨찾기 장소 데이터 가져오기
+  // 즐겨찾기 스토어 구독
+  const { savedPlaces, isLoading: storeLoading, fetchSavedPlaces } = useSavedPlaceStore();
+
+  // 스토어에서 즐겨찾기 목록 동기화
   useEffect(() => {
-    const fetchFavoritePlaces = async () => {
-      setIsLoading(true);
-      setError("");
-      try {
-        const response = await mapApi.getFavoritePlaces();
-        if (response.success && response.data) {
-          // API 데이터를 컴포넌트 형식에 맞게 변환
-          const transformedPlaces = response.data.map((place: Place) => ({
-            id: place.id,
-            name: place.name,
-            address: place.description || "주소 정보 없음",
-            category: place.category || "기타",
-            emoji: getEmojiByCategory(place.category || ""),
-            visits: 0, // API에 방문 횟수가 없으면 기본값
-          }));
-          setFavoritePlaces(transformedPlaces);
-        } else {
-          // API 실패 시 기본 데이터 사용
-          setFavoritePlaces(getDefaultFavoritePlaces());
-          setError(response.error || "즐겨찾기를 불러오는데 실패했습니다");
-        }
-      } catch (err) {
-        // 에러 발생 시 기본 데이터 사용
-        setFavoritePlaces(getDefaultFavoritePlaces());
-        setError("즐겨찾기를 불러오는데 실패했습니다");
-        console.error("Favorite places fetch error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    fetchSavedPlaces();
+  }, [fetchSavedPlaces]);
 
-    fetchFavoritePlaces();
-  }, []);
+  // 스토어 데이터를 컴포넌트 형식으로 변환
+  useEffect(() => {
+    if (savedPlaces.length > 0) {
+      const transformedPlaces = savedPlaces
+        .filter((sp) => !sp.deleted_at) // 삭제되지 않은 것만
+        .map((sp) => ({
+          id: sp.poi_place.poi_place_id,
+          name: sp.name || sp.poi_place.name,
+          address: sp.poi_place.address || "주소 정보 없음",
+          category: sp.poi_place.category || sp.category || "기타",
+          emoji: getEmojiByCategory(sp.poi_place.category || sp.category || ""),
+          visits: 0, // API에 방문 횟수가 없으면 기본값
+          savedPlaceId: sp.saved_place_id,
+          poiPlace: sp.poi_place,
+        }));
+      setFavoritePlaces(transformedPlaces);
+      setIsLoading(false);
+    } else if (!storeLoading && savedPlaces.length === 0) {
+      // 스토어가 로딩 중이 아니고 데이터가 없으면 빈 배열
+      setFavoritePlaces([]);
+      setIsLoading(false);
+    }
+  }, [savedPlaces, storeLoading]);
 
   const handlePlaceClick = async (place: FavoritePlace) => {
-    // 장소 상세 정보 가져오기
-    try {
-      const response = await mapApi.getPlace(place.id);
-      if (response.success && response.data) {
+    // POI Place 정보가 있으면 사용
+    const poiPlace = (place as any).poiPlace;
+    if (poiPlace) {
+      onNavigate('place-map', {
+        place: {
+          id: poiPlace.poi_place_id,
+          poi_place_id: poiPlace.poi_place_id,
+          name: place.name,
+          emoji: place.emoji,
+          distance: '1.2 KM', // 실제 거리 계산 필요
+          status: 'OPEN',
+          category: place.category,
+          coordinates: poiPlace.coordinates,
+          address: poiPlace.address,
+        },
+        fromFavorites: true,
+      });
+    } else {
+      // 장소 상세 정보 가져오기
+      try {
+        const response = await mapApi.getPlace(place.id);
+        if (response.success && response.data) {
+          onNavigate('place-map', {
+            place: {
+              ...response.data,
+              id: place.id,
+              poi_place_id: place.id,
+              name: place.name,
+              emoji: place.emoji,
+              distance: '1.2 KM',
+              status: 'OPEN',
+              category: place.category,
+            },
+            fromFavorites: true,
+          });
+        } else {
+          // API 실패 시 기본 데이터로 이동
+          onNavigate('place-map', {
+            place: {
+              id: place.id,
+              poi_place_id: place.id,
+              name: place.name,
+              emoji: place.emoji,
+              distance: '1.2 KM',
+              status: 'OPEN',
+              category: place.category,
+            },
+            fromFavorites: true,
+          });
+        }
+      } catch (err) {
+        console.error("Place fetch error:", err);
+        // 에러 발생 시 기본 데이터로 이동
         onNavigate('place-map', {
           place: {
-            ...response.data,
-            name: place.name,
-            emoji: place.emoji,
-            distance: '1.2 KM', // 실제 거리 계산 필요
-            status: 'OPEN',
-            category: place.category,
-          },
-          fromFavorites: true,
-        });
-      } else {
-        // API 실패 시 기본 데이터로 이동
-        onNavigate('place-map', {
-          place: {
+            id: place.id,
+            poi_place_id: place.id,
             name: place.name,
             emoji: place.emoji,
             distance: '1.2 KM',
@@ -168,24 +201,11 @@ export function FavoritePlacesPage({ onNavigate }: FavoritePlacesPageProps) {
           fromFavorites: true,
         });
       }
-    } catch (err) {
-      console.error("Place fetch error:", err);
-      // 에러 발생 시 기본 데이터로 이동
-      onNavigate('place-map', {
-        place: {
-          name: place.name,
-          emoji: place.emoji,
-          distance: '1.2 KM',
-          status: 'OPEN',
-          category: place.category,
-        },
-        fromFavorites: true,
-      });
     }
   };
 
   return (
-    <div className="relative size-full bg-gradient-to-b from-[#c5e7f5] to-[#b3ddf0] overflow-hidden">
+    <div className="relative size-full bg-transparent overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
       {/* 헤더 */}
       <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-10">
         <div className="flex items-center justify-between px-5 py-3">
@@ -220,12 +240,6 @@ export function FavoritePlacesPage({ onNavigate }: FavoritePlacesPageProps) {
           </div>
         )}
 
-        {/* 에러 메시지 */}
-        {error && !isLoading && (
-          <div className="bg-red-100 border-2 border-red-500 rounded-xl p-4 mb-4">
-            <p className="font-['Press_Start_2P'] text-[8px] text-red-600">{error}</p>
-          </div>
-        )}
 
         {/* 즐겨찾기 리스트 */}
         {!isLoading && (

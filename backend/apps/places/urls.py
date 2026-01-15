@@ -3,7 +3,8 @@
 """
 
 from django.urls import path  # noqa: I001
-from .views import PlaceSearchView, PlaceDetailView
+
+from .views import PlaceDetailView, PlaceSearchView
 
 urlpatterns = [
     path("search", PlaceSearchView.as_view(), name="place-search"),

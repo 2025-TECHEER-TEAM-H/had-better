@@ -12,11 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 개발 환경 버전
 
-| 도구 | 버전 |
-|------|------|
-| Python | 3.12.8 |
+| 도구    | 버전    |
+| ------- | ------- |
+| Python  | 3.12.8  |
 | Node.js | 24.12.0 |
-| Django | 6.0 |
+| Django  | 6.0     |
 
 ## 개발 명령어
 
@@ -38,15 +38,16 @@ docker-compose down
 
 ### 개발 서비스 접속 정보
 
-| 서비스 | URL | 설명 |
-|--------|-----|------|
-| Backend API | http://localhost:8000 | Django REST API (로컬 실행) |
-| Swagger 문서 | http://localhost:8000/api/docs/ | API 문서 |
-| Frontend | http://localhost:5173 | React 개발 서버 |
-| RabbitMQ 관리 | http://localhost:15672 | guest / guest |
-| PostgreSQL | localhost:5432 | postgres / postgres |
+| 서비스        | URL                             | 설명                        |
+| ------------- | ------------------------------- | --------------------------- |
+| Backend API   | http://localhost:8000           | Django REST API (로컬 실행) |
+| Swagger 문서  | http://localhost:8000/api/docs/ | API 문서                    |
+| Frontend      | http://localhost:5173           | React 개발 서버             |
+| RabbitMQ 관리 | http://localhost:15672          | guest / guest               |
+| PostgreSQL    | localhost:5432                  | postgres / postgres         |
 
 ### Backend (Django)
+
 ```bash
 cd backend
 
@@ -71,6 +72,7 @@ python manage.py createsuperuser
 ```
 
 ### Frontend (React + Vite)
+
 ```bash
 cd frontend
 
@@ -124,6 +126,7 @@ had-better/
 사용자가 실제 이동 경로와 가상 봇(실시간 대중교통 데이터 기반)이 경쟁하여 도착 순위를 겨루는 지도 기반 게임화 서비스입니다.
 
 ### 핵심 기능 (MVP)
+
 - 참가자(봇) 생성 및 경로 시뮬레이션
 - 실시간 대중교통 위치 기반 경로 이동
 - 실시간 순위 변경 및 결과 리포트
@@ -131,6 +134,7 @@ had-better/
 ## 기술 스택
 
 ### Frontend
+
 - **Framework**: React + TypeScript + Vite
 - **Map Engine**: Mapbox GL JS (3D/2D 지도 렌더링)
 - **Geo-Computation**: Turf.js (클라이언트 측 거리 계산, 경로 이탈 감지)
@@ -139,6 +143,7 @@ had-better/
 - **배포**: Vercel
 
 ### Backend
+
 - **Framework**: Django 6.0 + DRF + Uvicorn
 - **Message Broker**: RabbitMQ (비동기 Task Queue + Pub/Sub)
 - **Async Worker**: Celery (Docker 컨테이너로 실행)
@@ -147,6 +152,7 @@ had-better/
 - **배포**: AWS EC2/Docker
 
 ### External APIs
+
 - **경로 탐색**: TMap 대중교통 API
 - **실시간 위치**: 공공데이터포털/서울시 API
 - **지도 시각화**: Mapbox
@@ -154,12 +160,14 @@ had-better/
 ## 아키텍처
 
 ### 데이터 흐름
+
 1. Client → Traefik → Django (요청 처리)
 2. Django → RabbitMQ (Celery Task 생성)
 3. RabbitMQ → Celery Worker → External API (5초 주기 호출)
 4. Celery → RabbitMQ (Topic Exchange) → Django (Consumer) → Client (SSE Stream)
 
 ### 실시간 통신
+
 - SSE (Server-Sent Events)로 봇 상태 전송
 - 프론트엔드에서 Turf.js로 애니메이션 처리
 - 5초 주기 `bot_status_update` 이벤트
@@ -169,17 +177,19 @@ had-better/
 Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로덕션 - Traefik 경유)
 
 ### 주요 엔드포인트
-| 리소스 | 엔드포인트 | 설명 |
-|--------|-----------|------|
-| 인증 | `/api/v1/auth/*` | 회원가입, 로그인, 토큰 갱신 |
-| 사용자 | `/api/v1/users` | 사용자 정보, 통계, 검색 기록 |
-| 장소 | `/api/v1/places/*` | 장소 검색 (TMap API) |
-| 즐겨찾기 | `/api/v1/saved-places` | 집/회사/학교 등 저장 |
-| 경로 검색 | `/api/v1/itineraries/*` | 대중교통 경로 탐색 |
-| 경주 | `/api/v1/routes` | 경주 생성, 상태 변경, 결과 |
-| SSE | `/sse/routes/{route_id}` | 실시간 스트림 |
+
+| 리소스    | 엔드포인트               | 설명                         |
+| --------- | ------------------------ | ---------------------------- |
+| 인증      | `/api/v1/auth/*`         | 회원가입, 로그인, 토큰 갱신  |
+| 사용자    | `/api/v1/users`          | 사용자 정보, 통계, 검색 기록 |
+| 장소      | `/api/v1/places/*`       | 장소 검색 (TMap API)         |
+| 즐겨찾기  | `/api/v1/saved-places`   | 집/회사/학교 등 저장         |
+| 경로 검색 | `/api/v1/itineraries/*`  | 대중교통 경로 탐색           |
+| 경주      | `/api/v1/routes`         | 경주 생성, 상태 변경, 결과   |
+| SSE       | `/sse/routes/{route_id}` | 실시간 스트림                |
 
 ### API 설계 원칙
+
 - RESTful: 명사 복수형 URI, HTTP 메서드로 행위 표현
 - Trailing Slash 제거
 - JWT 토큰에서 사용자 식별 (URL에 user_id 미포함)
@@ -188,27 +198,30 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 
 ## 데이터베이스 스키마 (핵심 테이블)
 
-| 테이블 | 설명 |
-|--------|------|
-| `user` | 사용자 정보 |
-| `poi_place` | POI 장소 (TMap 데이터) |
-| `saved_place` | 즐겨찾기 장소 |
-| `route_itinerary` | 경로 탐색 결과 묶음 |
-| `route_leg` | 개별 경로 구간 (PostGIS LineString) |
-| `route` | 경주 세션 (유저 vs 봇) |
-| `bot` | 봇 정보 |
+| 테이블            | 설명                                |
+| ----------------- | ----------------------------------- |
+| `user`            | 사용자 정보                         |
+| `poi_place`       | POI 장소 (TMap 데이터)              |
+| `saved_place`     | 즐겨찾기 장소                       |
+| `route_itinerary` | 경로 탐색 결과 묶음                 |
+| `route_leg`       | 개별 경로 구간 (PostGIS LineString) |
+| `route`           | 경주 세션 (유저 vs 봇)              |
+| `bot`             | 봇 정보                             |
 
 ## 프론트엔드 구현 가이드
 
 ### Turf.js 활용
+
 - `turf.distance`: 목적지까지 남은 직선거리 계산
 - `turf.pointToLineDistance`: 경로 이탈 감지 (20m 기준)
 - `turf.along`: 봇 위치 보간(interpolation)
 
 ### 도착 판정
+
 - 목적지 반경 50m 이내 진입 시 `POST /routes/{id}` (status: FINISHED)
 
 ### SSE 이벤트 타입
+
 - `connected`: 연결 성공
 - `bot_status_update`: 봇 상태 (5초 주기)
 - `bot_boarding`: 봇 탑승
@@ -219,7 +232,7 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 
 ## UI/UX 가이드라인
 
-- **지도 스타일**: Mapbox Studio 커스텀 'Night Racing' 테마
+- **지도 스타일**: Mapbox 기본 스타일 (추후 커스텀 테마 적용 가능)
 - **경로선**: 사용자(파란색 Neon), 봇(붉은색/노란색 Neon)
 - **마커**: 3D 느낌 SVG/PNG 아이콘
 
@@ -228,16 +241,19 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 ## Git 워크플로우
 
 ### 브랜치 전략
+
 - main: 배포 버전
 - develop: 개발 버전
-- feature/*: 기능 개발
+- feature/\*: 기능 개발
 
 ### 시작하기
+
 1. develop에서 feature 브랜치 생성
 2. 작업 완료 후 develop으로 Pull Request
 3. 코드 리뷰 후 merge
 
 ### 커밋 메시지
+
 - feat: 새 기능
 - fix: 버그 수정
 - refactor: 코드 정리

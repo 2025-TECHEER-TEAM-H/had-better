@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import fullMapImage from "../assets/506d3ac81771f7af9c2519c77e86748254304713.png";
+import { useSavedPlaceStore } from "../stores/useSavedPlaceStore";
 
 interface PlaceMapPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -87,6 +88,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
 
   // 기본 장소 정보
   const defaultPlace = {
+    id: 1, // 기본 ID
     name: 'CENTRAL PARK',
     emoji: '🏞️',
     distance: '2.5 KM',
@@ -99,6 +101,21 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
   };
 
   const placeData = place || defaultPlace;
+
+  // 즐겨찾기 스토어
+  const { isPlaceSaved, toggleSavedPlace, fetchSavedPlaces } = useSavedPlaceStore();
+
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    fetchSavedPlaces();
+  }, [fetchSavedPlaces]);
+
+  // POI Place ID 추출 (숫자로 변환)
+  const rawId = placeData.id || placeData.poi_place_id;
+  const poiPlaceId = typeof rawId === 'string' ? parseInt(rawId) : (rawId || 0);
+  const isSaved = poiPlaceId > 0 ? isPlaceSaved(poiPlaceId) : false;
+  
+  console.log('PlaceMapPage - ID 추출:', { rawId, poiPlaceId, isSaved, placeData });
 
   // 장소별 데이터 매핑
   const placeDetails: any = {
@@ -123,12 +140,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
   const details = placeDetails[placeData.name] || placeDetails['CENTRAL PARK'];
 
   return (
-    <div className="relative size-full overflow-hidden">
-      {/* 전체 화면 배경 지도 */}
-      <div className="absolute inset-0">
-        <img alt="" className="w-full h-full object-cover" src={fullMapImage} />
-      </div>
-
+    <div className="relative size-full bg-transparent overflow-hidden">
       {/* 목적지 마커 */}
       <div className="absolute left-[120px] top-[200px] z-[5]">
         <div className="relative animate-bounce">
@@ -171,7 +183,10 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
       {/* 헤더 */}
       <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-20">
         <div className="flex items-center justify-between px-5 py-3">
-          <button onClick={() => onNavigate(fromFavorites ? 'favorites' : 'places')}>
+          <button 
+            onClick={() => onNavigate(fromFavorites ? 'favorites' : 'places')}
+            className="relative z-20 pointer-events-auto"
+          >
             <p className="font-['Press_Start_2P'] text-[12px] text-black">←</p>
           </button>
           <p className="font-['Press_Start_2P'] text-[12px] text-black">LOCATION</p>
@@ -185,7 +200,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
 
       {/* 슬라이드 업 바텀 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-10 transition-all"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-20 pointer-events-auto transition-all"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
@@ -212,7 +227,25 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
                 <p className="text-[48px]">{placeData.emoji}</p>
               </div>
               <div className="flex-1">
-                <p className="font-['Press_Start_2P'] text-[12px] text-black leading-[18px] mb-2">{placeData.name}</p>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="font-['Press_Start_2P'] text-[12px] text-black leading-[18px] flex-1">{placeData.name}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('별 클릭됨!', poiPlaceId);
+                      toggleSavedPlace(poiPlaceId || 1, undefined, placeData.name);
+                    }}
+                    className={`flex-shrink-0 w-10 h-10 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_0px_black] flex items-center justify-center hover:scale-105 active:translate-y-1 active:shadow-[2px_2px_0px_0px_black] transition-all z-[999] relative pointer-events-auto ${
+                      isSaved ? 'bg-white' : 'bg-gray-100'
+                    }`}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="text-[20px] leading-none">
+                      {isSaved ? '⭐' : '☆'}
+                    </span>
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <div className="bg-[#ffd93d] border-[2px] border-black px-3 py-1">
                     <p className="font-['Press_Start_2P'] text-[7px] text-black leading-[12px]">{placeData.distance}</p>

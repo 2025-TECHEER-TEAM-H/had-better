@@ -209,22 +209,22 @@ export function SignUpPage({ onSignUp, onBack }: SignUpPageProps) {
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden overflow-y-auto scrollbar-hide" style={{
+    <div className="relative h-screen w-full overflow-hidden overflow-y-auto scrollbar-hide pointer-events-auto" style={{
       background: 'linear-gradient(180deg, #c5e7f5 0%, #e8f4f8 50%, white 100%)'
     }}>
       {/* 부드러운 구름들 */}
-      <div className="absolute top-16 left-8 opacity-60">
+      <div className="absolute top-16 left-8 opacity-60 pointer-events-none">
         <div className="w-32 h-16 bg-white rounded-full blur-2xl" />
       </div>
-      <div className="absolute top-24 right-12 opacity-50">
+      <div className="absolute top-24 right-12 opacity-50 pointer-events-none">
         <div className="w-40 h-20 bg-white rounded-full blur-2xl" />
       </div>
-      <div className="absolute top-40 left-24 opacity-40">
+      <div className="absolute top-40 left-24 opacity-40 pointer-events-none">
         <div className="w-28 h-14 bg-white rounded-full blur-2xl" />
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="relative min-h-screen flex flex-col items-center pt-12 pb-32 px-8 z-10">
+      <div className="relative min-h-full flex flex-col items-center pt-12 pb-32 px-8 z-10">
         {/* 상단 - 로고 + 타이틀 */}
         <div className="flex flex-col items-center mb-8">
           {/* 지도 아이콘 섹션 (수정됨) */}
