@@ -166,7 +166,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
       {/* Walking Rabbit - step에 따라 이동 */}
       <div
-        className="fixed bottom-20 transition-all duration-300 ease-out z-30 pointer-events-none"
+        className="absolute bottom-20 transition-all duration-300 ease-out z-30 pointer-events-none"
         style={{
           left: `${rabbitPosition}%`,
           transform: `translateX(-50%) ${step > 3 ? 'scaleX(-1)' : ''}`
@@ -197,7 +197,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       </div>
 
       {/* Progress Indicator */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
         <div className="flex gap-2">
           {[1, 2, 3, 4, 5].map((index) => (
             <div
@@ -213,7 +213,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       </div>
 
       {/* Ground decoration */}
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-b from-[#5a9e6e] to-[#4a8d5e] border-t-[3px] border-black overflow-hidden pointer-events-none">
+      <div className="absolute bottom-0 inset-x-0 w-full h-20 bg-gradient-to-b from-[#5a9e6e] to-[#4a8d5e] border-t-[3px] border-black overflow-hidden pointer-events-none z-10">
         <div className="absolute bg-gradient-to-b from-[#3d6e50] to-[#2d5f3f] h-[60px] left-[60px] rounded-t-full top-[17px] w-[250px]" />
         <div className="absolute bg-gradient-to-b from-[#3d6e50] to-[#2d5f3f] h-[60px] left-[27px] rounded-t-full top-[17px] w-[250px]" />
         {/* 왼쪽 나무 */}

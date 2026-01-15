@@ -9,6 +9,8 @@ interface RouteDetailPageProps {
   };
 }
 
+const USER_ICON_SRC = `${import.meta.env.BASE_URL}assets/user_dog.png`;
+
 // 경로별 좌표 계산 함수 - 큰 지도 기준으로 확장
 const getRoutePosition = (progress: number, routeNum: number) => {
   const startX = 80;
@@ -209,7 +211,11 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
         }}
       >
         <div className="relative">
-          <p className="text-[32px]">🏃</p>
+          <img
+            src={USER_ICON_SRC}
+            alt="user"
+            className="w-8 h-8 [image-rendering:pixelated]"
+          />
           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-white border-[2px] border-black px-2 rounded shadow-md">
             <p className="font-['Press_Start_2P'] text-[6px] text-black whitespace-nowrap">YOU</p>
           </div>
@@ -282,7 +288,11 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
                  raceProgress.user >= Math.min(raceProgress.ghost1, raceProgress.ghost2) ? '2위' : '3위'}
               </p>
             </div>
-            <p className="text-[16px]">🏃</p>
+            <img
+              src={USER_ICON_SRC}
+              alt="user"
+              className="w-5 h-5 [image-rendering:pixelated]"
+            />
             <div className="flex-1 bg-white border-[1.36px] border-black h-4 rounded overflow-hidden">
               <div
                 className="bg-[#ff6b9d] h-full transition-all duration-200"
@@ -358,7 +368,11 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
             <div className="bg-gradient-to-br from-[#ff6b9d] to-[#ff9ac1] border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-white border-[2px] border-black size-[48px] flex items-center justify-center rounded-lg">
-                  <p className="text-[24px]">🏃</p>
+                  <img
+                    src={USER_ICON_SRC}
+                    alt="user"
+                    className="w-6 h-6 [image-rendering:pixelated]"
+                  />
                 </div>
                 <div className="flex-1">
                   <p className="font-['Press_Start_2P'] text-[10px] text-white leading-[15px] mb-1">내 경로 (경로 {routeSelection.user})</p>
