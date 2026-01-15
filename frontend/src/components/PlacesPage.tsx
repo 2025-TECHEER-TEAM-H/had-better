@@ -103,6 +103,9 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
   ];
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.drag-handle')) return;
+
     setIsDragging(true);
     startYRef.current = e.touches[0].clientY;
     startPositionRef.current = sheetPosition;
@@ -133,6 +136,9 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.drag-handle')) return;
+
     setIsDragging(true);
     startYRef.current = e.clientY;
     startPositionRef.current = sheetPosition;
@@ -175,11 +181,24 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
   }, [isDragging, sheetPosition]);
 
   return (
-    <div className="relative size-full overflow-hidden pointer-events-auto" style={{ pointerEvents: 'auto' }}>
+    <>
+      {/* 빈 공간은 지도에 이벤트 통과 */}
+      <div className="absolute inset-0 z-[200] pointer-events-none" />
+
       {/* 헤더 */}
-      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-30">
+      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-[210] pointer-events-auto">
         <div className="flex items-center justify-between px-5 py-3">
-          <p className="font-['Press_Start_2P'] text-[12px] text-black">9:41</p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate("map")}
+              className="w-10 h-8 bg-white border-[3px] border-black rounded-[8px] shadow-[3px_3px_0px_0px_black] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] pointer-events-auto flex items-center justify-center"
+              aria-label="뒤로가기"
+            >
+              <span className="font-['Press_Start_2P'] text-[12px] text-black leading-none">←</span>
+            </button>
+            <p className="font-['Press_Start_2P'] text-[12px] text-black">9:41</p>
+          </div>
           <p className="font-['Press_Start_2P'] text-[12px] text-black">MAP PLACES</p>
           <div className="flex gap-1">
             <div className="bg-black size-[4px]" />
@@ -191,16 +210,17 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
 
       {/* 슬라이드 가능한 바텀 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-20 transition-all"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] z-[205] transition-all pointer-events-auto"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
-          transitionDuration: isDragging ? '0ms' : '300ms'
+          transitionDuration: isDragging ? '0ms' : '300ms',
         }}
       >
         {/* 드래그 핸들 */}
         <div
-          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center"
+          className="drag-handle w-full py-4 cursor-grab active:cursor-grabbing flex justify-center pointer-events-auto"
+          style={{ touchAction: 'none' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -210,9 +230,24 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
         </div>
 
         {/* 장소 목록 */}
-        <div className="px-5 pb-[72px] overflow-y-auto h-[calc(100%-60px)] scrollbar-hide">
+        <div
+          className="px-5 pb-[72px] overflow-y-auto h-[calc(100%-60px)] scrollbar-hide pointer-events-auto"
+          style={{ touchAction: 'pan-y' }}
+        >
           <div className="flex flex-col gap-4">
-            {places.map(place => (
+            {isLoading && (
+              <div className="flex items-center justify-center py-10">
+                <p className="font-['Press_Start_2P'] text-[10px] text-black">Loading...</p>
+              </div>
+            )}
+
+            {error && !isLoading && (
+              <div className="bg-[#ff6b9d] border-[3.4px] border-black rounded-[10px] p-4">
+                <p className="font-['Press_Start_2P'] text-[8px] text-white text-center">{error}</p>
+              </div>
+            )}
+
+            {!isLoading && places.map(place => (
               <div
                 key={place.id}
                 onClick={() => onNavigate('place-map', { place })}
@@ -317,6 +352,6 @@ export function PlacesPage({ onNavigate }: PlacesPageProps) {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </>
   );
 }

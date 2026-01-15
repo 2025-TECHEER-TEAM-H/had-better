@@ -21,6 +21,7 @@ type Page = "cover" | "onboarding" | "login" | "signup" | "map" | "result" | "da
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("cover");
+  const [pageHistory, setPageHistory] = useState<Page[]>([]);
   const [routeSelection, setRouteSelection] = useState({
     user: 1,
     ghost1: 2,
@@ -92,6 +93,24 @@ export default function App() {
     console.log('🔄 전달된 데이터:', data);
     console.log('🔄 현재 페이지:', currentPage);
     
+    // 특수 네비게이션: 이전 화면으로 돌아가기
+    if (page === "__back__") {
+      setPageHistory((prev) => {
+        const lastPage = prev[prev.length - 1];
+        setCurrentPage(lastPage ?? "map");
+        return lastPage ? prev.slice(0, -1) : prev;
+      });
+      return;
+    }
+
+    const nextPage = page as Page;
+
+    // 현재 페이지를 히스토리에 쌓아서 "뒤로가기"가 가능하도록 함
+    setPageHistory((prev) => {
+      if (nextPage === currentPage) return prev;
+      return [...prev, currentPage];
+    });
+
     if (data?.routeSelection) {
       console.log('📍 App.tsx - routeSelection 업데이트:', data.routeSelection);
       setRouteSelection(data.routeSelection);
@@ -157,7 +176,6 @@ export default function App() {
               {currentPage === "signup" && <SignUpPage onSignUp={handleSignUp} onBack={handleBackToLogin} />}
               {currentPage === "result" && <GameResultPage onContinue={handleContinue} onNavigate={handleNavigate} />}
               {currentPage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
-              {currentPage === "places" && <PlacesPage onNavigate={handleNavigate} />}
               {currentPage === "place-info" && <PlaceInfoPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
               {currentPage === "favorites" && <FavoritePlacesPage onNavigate={handleNavigate} />}
             </div>
@@ -165,7 +183,7 @@ export default function App() {
 
           {/* 지도가 보이는 페이지: 투명하게 유지하되 내부 컴포넌트가 auto를 가짐 */}
           {isMapVisible && (
-            <div className="absolute inset-0 pointer-events-none">
+            <>
               {currentPage === "full-map" && (
                 <FullMapPage
                   onNavigate={handleNavigate}

@@ -185,6 +185,7 @@ export function PlaceMapPage({ onNavigate, place, fromFavorites }: PlaceMapPageP
           <button 
             onClick={() => onNavigate(fromFavorites ? 'favorites' : 'places')}
             className="relative z-20 pointer-events-auto"
+            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
           >
             <p className="font-['Press_Start_2P'] text-[12px] text-black">←</p>
           </button>

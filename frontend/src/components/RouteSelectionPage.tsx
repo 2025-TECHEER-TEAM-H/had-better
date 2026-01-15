@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 interface RouteSelectionPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -39,6 +39,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
   const startPositionRef = useRef(60);
+  const activePointerIdRef = useRef<number | null>(null);
 
   const handleRouteSelect = (routeNum: number, type: 'user' | 'ghost1' | 'ghost2') => {
     // 규칙: "한 경로(카드)에는 한 명만 선택" (유저/고스트 중 1명만)
@@ -96,7 +97,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   };
 
   const handleBack = () => {
-    onNavigate('map');
+    onNavigate('__back__');
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -119,63 +120,49 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
   const handleTouchEnd = () => {
     setIsDragging(false);
 
+  const canStartRace = selection.user !== null && selection.ghost1 !== null && selection.ghost2 !== null;
+
+  const snapSheet = (pos: number) => {
     // 스냅 포인트: 30% (작게), 60% (반), 90% (거의 전체)
-    if (sheetPosition < 45) {
-      setSheetPosition(30);
-    } else if (sheetPosition < 75) {
-      setSheetPosition(60);
-    } else {
-      setSheetPosition(90);
-    }
+    if (pos < 45) return 30;
+    if (pos < 75) return 60;
+    return 90;
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Pointer Events로 통일 (모바일/데스크톱에서 가장 안정적)
+    e.preventDefault();
+    e.stopPropagation();
+    activePointerIdRef.current = e.pointerId;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
     startYRef.current = e.clientY;
     startPositionRef.current = sheetPosition;
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
+    if (activePointerIdRef.current !== e.pointerId) return;
 
     const deltaY = startYRef.current - e.clientY;
-    const windowHeight = window.innerHeight;
+    const windowHeight = window.innerHeight || 1;
     const deltaPercent = (deltaY / windowHeight) * 100;
-
     const newPosition = Math.max(30, Math.min(90, startPositionRef.current + deltaPercent));
     setSheetPosition(newPosition);
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    activePointerIdRef.current = null;
     setIsDragging(false);
-
-    // 스냅 포인트
-    if (sheetPosition < 45) {
-      setSheetPosition(30);
-    } else if (sheetPosition < 75) {
-      setSheetPosition(60);
-    } else {
-      setSheetPosition(90);
-    }
+    setSheetPosition((prev) => snapSheet(prev));
   };
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, sheetPosition]);
 
   return (
     // NOTE: 이 페이지는 버튼/체크박스 등 UI 조작이 핵심이라
     // 루트에서 pointer-events 를 열어두고(z-index 포함),
     // 필요한 요소만 레이어(z)로 정렬합니다.
-    <div className="absolute inset-0 pointer-events-auto isolate z-30">
+    <div className="absolute inset-0 pointer-events-auto z-30">
       {/* 헤더 - 독립적인 absolute 요소 */}
       <div className={`absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-60 ${
         (departure || destination) ? '' : ''
@@ -184,9 +171,14 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleBack}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBack();
+              }}
               className="w-10 h-8 bg-white border-[3px] border-black rounded-[8px] shadow-[3px_3px_0px_0px_black] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] pointer-events-auto flex items-center justify-center"
               aria-label="뒤로가기"
+              style={{ touchAction: 'manipulation' }}
             >
               <span className="font-['Press_Start_2P'] text-[12px] text-black leading-none">←</span>
             </button>
@@ -227,7 +219,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
 
       {/* 슬라이드 가능한 바텀 시트 - 독립적인 absolute 요소 */}
       <div
-        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all flex flex-col z-50"
+        className="absolute left-0 right-0 bg-white rounded-t-[24px] border-t-[3.4px] border-l-[3.4px] border-r-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all flex flex-col z-[50] pointer-events-auto"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
@@ -236,11 +228,12 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
       >
         {/* 드래그 핸들 */}
         <div
-          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
+          className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0 pointer-events-auto"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUpOrCancel}
+          onPointerCancel={handlePointerUpOrCancel}
+          style={{ touchAction: 'none' }}
         >
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
         </div>
@@ -276,7 +269,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
 
             {/* 경로 카드들 */}
             {/* 경로 1 - 핑크 */}
-            <div className="bg-[#ff6b9d] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4">
+            <div className="bg-[#ff6b9d] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4 pointer-events-auto">
               <div className="flex items-start gap-3">
                 <div className="bg-white border-[1.36px] border-black size-[48px] flex items-center justify-center flex-shrink-0">
                   <p className="text-[24px]">1️⃣</p>
@@ -396,7 +389,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
             </div>
 
             {/* 경로 3 - 청록색 */}
-            <div className="bg-[#6DF3E3] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4">
+            <div className="bg-[#6DF3E3] rounded-[10px] border-[3.4px] border-black shadow-[4px_4px_0px_0px_black] p-4 pointer-events-auto">
               <div className="flex items-start gap-3">
                 <div className="bg-white border-[1.36px] border-black size-[48px] flex items-center justify-center flex-shrink-0">
                   <p className="text-[24px]">3️⃣</p>
@@ -505,7 +498,7 @@ export function RouteSelectionPage({ onNavigate, departure, destination }: Route
         className={`absolute left-5 right-5 bottom-6 h-14 rounded-[10px] border-[3.4px] border-black font-['Press_Start_2P'] text-[14px] transition-all ${
           !canStartRace
             ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            : 'bg-[#ffd93d] text-black shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black]'
+            : 'bg-[#ffd93d] text-black shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black] cursor-pointer'
         }`}
         style={{ 
           touchAction: 'manipulation', 

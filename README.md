@@ -247,3 +247,65 @@ docker-compose up -d
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+## 지도 캐릭터 변경 가이드
+
+현재 지도 위에서 움직이는 캐릭터는 3가지 색상 중 선택할 수 있습니다:
+- **Green** (초록색) - 현재 기본 설정
+- **Yellow** (노란색)
+- **Gray** (회색)
+
+### 캐릭터 변경 방법
+
+`frontend/src/components/map/naviSprite.ts` 파일의 **18번째 줄**을 수정하세요.
+
+#### Green 캐릭터 사용 (현재 설정)
+```typescript
+const base = "/assets/sprites/characters/green";
+```
+
+#### Yellow 캐릭터로 변경
+```typescript
+const base = "/assets/sprites/characters/yellow";
+```
+
+그리고 **22-25번째 줄**의 파일명을 다음과 같이 변경:
+```typescript
+loadImage(map, "navi-walk-0", `${base}/yellow1.png`),
+loadImage(map, "navi-walk-1", `${base}/yellow2.png`),
+loadImage(map, "navi-walk-2", `${base}/yellow3.png`),
+loadImage(map, "navi-walk-3", `${base}/yellow4.png`),
+// 대기 상태
+loadImage(map, "navi-idle", `${base}/yellow1.png`),
+// 도착 상태
+loadImage(map, "navi-arrive", `${base}/yellow5.png`),
+```
+
+#### Gray 캐릭터로 변경
+```typescript
+const base = "/assets/sprites/characters/gray";
+```
+
+그리고 **22-25번째 줄**의 파일명을 다음과 같이 변경:
+```typescript
+loadImage(map, "navi-walk-0", `${base}/navi-idle.png`),
+loadImage(map, "navi-walk-1", `${base}/navi-walk-1.png`),
+loadImage(map, "navi-walk-2", `${base}/navi-idle.png`),
+loadImage(map, "navi-walk-3", `${base}/navi-walk-3.png`),
+// 대기 상태
+loadImage(map, "navi-idle", `${base}/navi-idle.png`),
+// 도착 상태
+loadImage(map, "navi-arrive", `${base}/navi-arrive.png`),
+```
+
+### 캐릭터 크기 조정 (선택사항)
+
+캐릭터 크기가 너무 크거나 작다면 `frontend/src/components/map/naviLayer.ts` 파일의 **52번째 줄**을 수정하세요.
+
+```typescript
+"icon-size": 0.6,  // 0.3 ~ 1.0 사이 값으로 조정 가능
+```
+
+- 더 작게: `0.4` ~ `0.5`
+- 기본: `0.6`
+- 더 크게: `0.7` ~ `0.8`

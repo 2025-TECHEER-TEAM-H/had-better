@@ -50,6 +50,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
   const startPositionRef = useRef(30);
+  const activePointerIdRef = useRef<number | null>(null);
 
   // routeSelection이 변경되면 경주 진행률 초기화
   useEffect(() => {
@@ -87,80 +88,47 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
   const ghost1Pos = getRoutePosition(raceProgress.ghost1, routeSelection.ghost1);
   const ghost2Pos = getRoutePosition(raceProgress.ghost2, routeSelection.ghost2);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true);
-    startYRef.current = e.touches[0].clientY;
-    startPositionRef.current = sheetPosition;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
-
-    const deltaY = startYRef.current - e.touches[0].clientY;
-    const windowHeight = window.innerHeight;
-    const deltaPercent = (deltaY / windowHeight) * 100;
-
-    const newPosition = Math.max(10, Math.min(80, startPositionRef.current + deltaPercent));
-    setSheetPosition(newPosition);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-
+  const snapSheet = (pos: number) => {
     // 스냅 포인트: 10% (거의 닫힘), 30% (작게), 80% (크게)
-    if (sheetPosition < 20) {
-      setSheetPosition(10);
-    } else if (sheetPosition < 55) {
-      setSheetPosition(30);
-    } else {
-      setSheetPosition(80);
-    }
+    if (pos < 20) return 10;
+    if (pos < 55) return 30;
+    return 80;
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Pointer Events로 통일 (모바일/데스크톱에서 가장 안정적)
+    e.preventDefault();
+    e.stopPropagation();
+    activePointerIdRef.current = e.pointerId;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(true);
     startYRef.current = e.clientY;
     startPositionRef.current = sheetPosition;
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
+    if (activePointerIdRef.current !== e.pointerId) return;
 
     const deltaY = startYRef.current - e.clientY;
-    const windowHeight = window.innerHeight;
+    const windowHeight = window.innerHeight || 1;
     const deltaPercent = (deltaY / windowHeight) * 100;
 
     const newPosition = Math.max(10, Math.min(80, startPositionRef.current + deltaPercent));
     setSheetPosition(newPosition);
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    activePointerIdRef.current = null;
     setIsDragging(false);
-
-    // 스냅 포인트
-    if (sheetPosition < 20) {
-      setSheetPosition(10);
-    } else if (sheetPosition < 55) {
-      setSheetPosition(30);
-    } else {
-      setSheetPosition(80);
-    }
+    setSheetPosition((prev) => snapSheet(prev));
   };
 
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, sheetPosition]);
-
   return (
-    <div className="relative size-full overflow-hidden bg-transparent">
+    // NOTE: 상위 레이어가 pointer-events-none 이라서,
+    // 상호작용이 필요한 요소만 pointer-events-auto를 명시합니다.
+    <div className="relative size-full overflow-hidden bg-transparent pointer-events-none">
       {/* 경로 점선들 - 지도 위에 오버레이 */}
       <div className="absolute inset-0 z-[5]">
         {/* 핑크 경로 (경로 1) */}
@@ -267,7 +235,10 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
       </div>
 
       {/* 헤더 */}
-      <div className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-30">
+      <div
+        className="absolute bg-[#00d9ff] left-0 top-0 w-full border-b-[3.4px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] z-[60] pointer-events-auto"
+        style={{ pointerEvents: 'auto' }}
+      >
         <div className="flex items-center justify-between px-5 py-3">
           <p className="font-['Press_Start_2P'] text-[12px] text-black">9:41</p>
           <p className="font-['Press_Start_2P'] text-[12px] text-black">RACING...</p>
@@ -281,7 +252,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
 
       {/* 실시간 순위 팝업 - 슬라이드 업 위치에 따라 이동 */}
       <div
-        className="absolute left-5 right-5 bg-[#ffd93d] border-[3.4px] border-black rounded-[12px] shadow-[6px_6px_0px_0px_black] p-4 z-20 transition-all"
+        className="absolute left-5 right-5 bg-[#ffd93d] border-[3.4px] border-black rounded-[12px] shadow-[6px_6px_0px_0px_black] p-4 z-[40] transition-all pointer-events-auto"
         style={{
           bottom: `calc(${sheetPosition}% + 20px)`,
           transitionDuration: isDragging ? '0ms' : '300ms'
@@ -350,7 +321,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
 
       {/* 바텀 시트 컨테이너 - 투명 배경 (지도가 보이도록) */}
       <div
-        className="absolute left-0 right-0 z-20 transition-all bg-transparent"
+        className="absolute left-0 right-0 z-[50] bg-transparent transition-all pointer-events-none"
         style={{
           height: `${sheetPosition}%`,
           bottom: 0,
@@ -358,21 +329,24 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
         }}
       >
         {/* 내부 컨테이너 - 흰색 배경, 둥근 모서리, 테두리 */}
-        <div className="w-full h-full bg-white rounded-t-[24px] border-t-[3.4px] border-x-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] flex flex-col">
+        <div className="w-full h-full bg-white rounded-t-[24px] border-t-[3.4px] border-x-[3.4px] border-black shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto">
           {/* 드래그 핸들 */}
           <div
-            className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={handleMouseDown}
-            style={{ pointerEvents: 'auto' }}
+            className="w-full py-4 cursor-grab active:cursor-grabbing flex justify-center flex-shrink-0 pointer-events-auto"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUpOrCancel}
+            onPointerCancel={handlePointerUpOrCancel}
+            style={{ touchAction: 'none', pointerEvents: 'auto' }}
           >
             <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
           </div>
 
           {/* 내 경로 콘텐츠 - 스크롤 가능 */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-[80px]" style={{ minHeight: 0, pointerEvents: 'auto' }}>
+          <div
+            className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-[80px]"
+            style={{ minHeight: 0, pointerEvents: 'auto', touchAction: 'pan-y' }}
+          >
             <div className="flex flex-col gap-4">
             {/* 나의 경로 정보 */}
             <div className="bg-gradient-to-br from-[#ff6b9d] to-[#ff9ac1] border-[3.4px] border-black rounded-[10px] shadow-[4px_4px_0px_0px_black] p-5">
@@ -448,6 +422,7 @@ export function RouteDetailPage({ onNavigate, routeSelection }: RouteDetailPageP
                   ? 'bg-[#7ed321] text-white shadow-[6px_6px_0px_0px_black] active:translate-y-1 active:shadow-[3px_3px_0px_0px_black]'
                   : 'bg-gray-400 text-gray-600 cursor-not-allowed'
               }`}
+              style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
             >
               {maxProgress >= 100 ? '도착 완료! 🎉' : '경주 진행중...'}
             </button>
