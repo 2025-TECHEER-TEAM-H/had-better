@@ -20,6 +20,7 @@ type Page = "cover" | "onboarding" | "login" | "signup" | "map" | "result" | "da
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("cover");
+  const [pageHistory, setPageHistory] = useState<Page[]>([]);
   const [routeSelection, setRouteSelection] = useState({
     user: 1,
     ghost1: 2,
@@ -67,6 +68,24 @@ export default function App() {
   };
 
   const handleNavigate = (page: string, data?: any) => {
+    // 특수 네비게이션: 이전 화면으로 돌아가기
+    if (page === "__back__") {
+      setPageHistory((prev) => {
+        const lastPage = prev[prev.length - 1];
+        setCurrentPage(lastPage ?? "map");
+        return lastPage ? prev.slice(0, -1) : prev;
+      });
+      return;
+    }
+
+    const nextPage = page as Page;
+
+    // 현재 페이지를 히스토리에 쌓아서 "뒤로가기"가 가능하도록 함
+    setPageHistory((prev) => {
+      if (nextPage === currentPage) return prev;
+      return [...prev, currentPage];
+    });
+
     if (data?.routeSelection) {
       setRouteSelection(data.routeSelection);
     }
@@ -78,7 +97,7 @@ export default function App() {
     } else {
       setFromFavorites(false);
     }
-    setCurrentPage(page as Page);
+    setCurrentPage(nextPage);
   };
 
   const handleContinue = () => {
@@ -94,7 +113,14 @@ export default function App() {
   };
 
   // 지도가 보이는 페이지 목록
-  const mapVisiblePages: Page[] = ["full-map", "map", "route-selection", "place-map", "route-detail"];
+  const mapVisiblePages: Page[] = [
+    "full-map",
+    "map",
+    "route-selection",
+    "place-map",
+    "route-detail",
+    "places", // 추가!
+  ];
   const isMapVisible = mapVisiblePages.includes(currentPage);
 
   return (
@@ -119,7 +145,6 @@ export default function App() {
               {currentPage === "signup" && <SignUpPage onSignUp={handleSignUp} onBack={handleBackToLogin} />}
               {currentPage === "result" && <GameResultPage onContinue={handleContinue} onNavigate={handleNavigate} />}
               {currentPage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
-              {currentPage === "places" && <PlacesPage onNavigate={handleNavigate} />}
               {currentPage === "place-info" && <PlaceInfoPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
               {currentPage === "favorites" && <FavoritePlacesPage onNavigate={handleNavigate} />}
             </div>
@@ -127,7 +152,7 @@ export default function App() {
 
           {/* 지도가 보이는 페이지: 투명하게 유지하되 내부 컴포넌트가 auto를 가짐 */}
           {isMapVisible && (
-            <div className="absolute inset-0 pointer-events-none">
+            <>
               {currentPage === "full-map" && (
                 <FullMapPage
                   onNavigate={handleNavigate}
@@ -137,10 +162,11 @@ export default function App() {
                 />
               )}
               {currentPage === "map" && <MapPage onNavigate={handleNavigate} />}
+              {currentPage === "places" && <PlacesPage onNavigate={handleNavigate} />}
               {currentPage === "route-selection" && <RouteSelectionPage onNavigate={handleNavigate} />}
               {currentPage === "route-detail" && <RouteDetailPage onNavigate={handleNavigate} routeSelection={routeSelection} />}
               {currentPage === "place-map" && <PlaceMapPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
-            </div>
+            </>
           )}
         </div>
 
