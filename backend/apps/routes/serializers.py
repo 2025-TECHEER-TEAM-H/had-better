@@ -107,3 +107,29 @@ class RouteCreateResponseSerializer(serializers.Serializer):
     participants = ParticipantSerializer(many=True)
     status = serializers.CharField()
     created_at = serializers.DateTimeField()
+
+
+class RouteStatusUpdateSerializer(serializers.Serializer):
+    """
+    경주 상태 변경 요청 Serializer
+
+    Request:
+    {
+        "status": "FINISHED"  # 또는 "CANCELED"
+    }
+    """
+
+    status = serializers.ChoiceField(
+        choices=[Route.Status.FINISHED, Route.Status.CANCELED],
+        help_text="변경할 상태 (FINISHED 또는 CANCELED)"
+    )
+
+
+class RouteStatusUpdateResponseSerializer(serializers.Serializer):
+    """경주 상태 변경 응답 Serializer"""
+
+    route_id = serializers.IntegerField()
+    status = serializers.CharField()
+    start_time = serializers.DateTimeField(allow_null=True)
+    end_time = serializers.DateTimeField(allow_null=True)
+    duration = serializers.IntegerField(allow_null=True)
