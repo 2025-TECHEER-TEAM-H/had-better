@@ -14,9 +14,10 @@ import { PlacesPage } from "./components/PlacesPage";
 import { RouteDetailPage } from "./components/RouteDetailPage";
 import { RouteSelectionPage } from "./components/RouteSelectionPage";
 import { SignUpPage } from "./components/SignUpPage";
+import { PickPlacePage } from "./pages/PickPlacePage";
 import { authApi, tokenManager } from "./utils/api";
 
-type Page = "cover" | "onboarding" | "login" | "signup" | "map" | "result" | "dashboard" | "places" | "route-selection" | "route-detail" | "place-info" | "place-map" | "full-map" | "favorites" | "place-detail";
+type Page = "cover" | "onboarding" | "login" | "signup" | "map" | "result" | "dashboard" | "places" | "route-selection" | "route-detail" | "place-info" | "place-map" | "full-map" | "favorites" | "place-detail" | "pick-place";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("cover");
@@ -27,6 +28,7 @@ export default function App() {
   });
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [fromFavorites, setFromFavorites] = useState(false);
+  const [pickPlaceCategory, setPickPlaceCategory] = useState<'home' | 'work' | 'school' | undefined>(undefined);
   const mapRef = useRef<MapContainerHandle>(null);
 
   // 앱 시작 시 토큰 확인 및 사용자 정보 로드
@@ -78,6 +80,9 @@ export default function App() {
     } else {
       setFromFavorites(false);
     }
+    if (data?.category !== undefined) {
+      setPickPlaceCategory(data.category);
+    }
     setCurrentPage(page as Page);
   };
 
@@ -94,7 +99,7 @@ export default function App() {
   };
 
   // 지도가 보이는 페이지 목록
-  const mapVisiblePages: Page[] = ["full-map", "map", "route-selection", "place-map", "route-detail"];
+  const mapVisiblePages: Page[] = ["full-map", "map", "route-selection", "place-map", "route-detail", "pick-place"];
   const isMapVisible = mapVisiblePages.includes(currentPage);
 
   return (
@@ -140,6 +145,9 @@ export default function App() {
               {currentPage === "route-selection" && <RouteSelectionPage onNavigate={handleNavigate} />}
               {currentPage === "route-detail" && <RouteDetailPage onNavigate={handleNavigate} routeSelection={routeSelection} />}
               {currentPage === "place-map" && <PlaceMapPage onNavigate={handleNavigate} place={selectedPlace} fromFavorites={fromFavorites} />}
+              {currentPage === "pick-place" && (
+                <PickPlacePage onNavigate={handleNavigate} category={pickPlaceCategory} />
+              )}
             </div>
           )}
         </div>

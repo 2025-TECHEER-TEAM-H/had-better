@@ -176,7 +176,9 @@ export function MapPage({ onNavigate }: MapPageProps) {
           <h3 className="text-sm font-bold text-[#2d5f3f] pixel-font mb-4">자주 가는 곳</h3>
           <div className="flex gap-3">
             {/* 집 */}
-            <button className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+            <button 
+              onClick={() => onNavigate('pick-place', { category: 'home' })}
+              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
               style={{
                 boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
                 zIndex: 100,
@@ -187,7 +189,9 @@ export function MapPage({ onNavigate }: MapPageProps) {
             </button>
 
             {/* 학교 */}
-            <button className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+            <button 
+              onClick={() => onNavigate('pick-place', { category: 'school' })}
+              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
               style={{
                 boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
                 zIndex: 100,
@@ -198,7 +202,9 @@ export function MapPage({ onNavigate }: MapPageProps) {
             </button>
 
             {/* 회사 */}
-            <button className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
+            <button 
+              onClick={() => onNavigate('pick-place', { category: 'work' })}
+              className="flex-1 bg-white border-3 border-black rounded-2xl p-3 hover:scale-105 transition-transform"
               style={{
                 boxShadow: '0 4px 0 rgba(0,0,0,0.2)',
                 zIndex: 100,

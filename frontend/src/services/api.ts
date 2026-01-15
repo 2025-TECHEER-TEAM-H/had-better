@@ -21,7 +21,8 @@ export const api = axios.create({
 // 요청 인터셉터: JWT 토큰 자동 첨부
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken');
+    // utils/api.ts의 tokenManager와 동일한 키 사용
+    const token = localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,7 +41,8 @@ api.interceptors.response.use(
 
     // 401 에러이고 토큰 갱신 시도 안 한 경우
     if (error.response?.status === 401 && originalRequest) {
-      const refreshToken = localStorage.getItem('refreshToken');
+      // utils/api.ts의 tokenManager와 동일한 키 사용
+      const refreshToken = localStorage.getItem('refresh_token');
 
       if (refreshToken) {
         try {
@@ -49,8 +51,11 @@ api.interceptors.response.use(
             refresh: refreshToken,
           });
 
-          const { access } = response.data.data;
-          localStorage.setItem('accessToken', access);
+          // 백엔드 응답 형식: { status: "success", data: { access: "..." } }
+          const access = response.data.status === 'success' 
+            ? response.data.data.access 
+            : response.data.data?.access || response.data.access;
+          localStorage.setItem('access_token', access);
 
           // 원래 요청 재시도
           if (originalRequest.headers) {
@@ -59,8 +64,8 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch (refreshError) {
           // 토큰 갱신 실패 시 로그아웃 처리
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
