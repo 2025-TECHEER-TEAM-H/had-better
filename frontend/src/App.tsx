@@ -194,8 +194,8 @@ export default function App() {
               )}
               {currentPage === "map" && <MapPage onNavigate={handleNavigate} />}
               {currentPage === "route-selection" && (
-                <RouteSelectionPage 
-                  onNavigate={handleNavigate} 
+                <RouteSelectionPage
+                  onNavigate={handleNavigate}
                   departure={routeDeparture}
                   destination={routeDestination}
                 />
@@ -205,7 +205,7 @@ export default function App() {
               {currentPage === "pick-place" && (
                 <PickPlacePage onNavigate={handleNavigate} category={pickPlaceCategory} />
               )}
-            </div>
+            </>
           )}
         </div>
 

@@ -32,8 +32,8 @@ async function main() {
   // navi-*.svg 파일들을 찾음
   const svgs = await fg(["navi-*.svg"], { cwd: SRC_DIR, absolute: true });
   if (svgs.length === 0) {
-    console.error(`No SVG found in ${SRC_DIR}`);
-    process.exit(1);
+    console.log(`No SVG found in ${SRC_DIR} - skipping sprite build`);
+    return;
   }
 
   console.log(`Found ${svgs.length} SVG files`);
