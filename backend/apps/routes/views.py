@@ -6,9 +6,14 @@ API 엔드포인트:
 - GET    /api/v1/routes              - 경주 목록 조회
 - PATCH  /api/v1/routes/{route_id}   - 경주 상태 변경 (종료/취소)
 - GET    /api/v1/routes/{route_id}/result - 경주 결과 조회
+- GET    /api/v1/sse/routes/{route_itinerary_id} - SSE 스트림
 """
 
+import json
+import logging
+
 from django.db import transaction
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -25,6 +30,13 @@ from .serializers import (
     RouteCreateSerializer,
     RouteStatusUpdateSerializer,
 )
+from .services.bot_state import BotStateManager
+from .services.id_converter import PublicAPIIdConverter
+from .tasks.bot_simulation import update_bot_position
+from .utils.rabbitmq_client import rabbitmq_client
+from .utils.redis_client import redis_client
+
+logger = logging.getLogger(__name__)
 
 
 def success_response(data, status_code=status.HTTP_200_OK, meta=None):
@@ -174,7 +186,8 @@ class RouteListCreateView(APIView):
             # 봇 타입 목록
             bot_types = [Bot.BotType.RABBIT, Bot.BotType.CAT, Bot.BotType.DOG, Bot.BotType.MONKEY]
 
-            # 봇 Route 생성
+            # 봇 Route 생성 및 시뮬레이션 시작
+            bot_routes = []
             for i, bot_leg in enumerate(bot_legs):
                 # 봇 생성
                 bot = Bot.objects.create(
@@ -196,6 +209,34 @@ class RouteListCreateView(APIView):
                     end_lon=end_lon,
                 )
                 participants.append(bot_route)
+                bot_routes.append((bot_route, bot_leg, bot))
+
+        # 봇 시뮬레이션 시작 (v3)
+        for bot_route, bot_leg, bot in bot_routes:
+            try:
+                # TMAP → 공공데이터 ID 변환
+                legs = bot_leg.legs
+                public_ids = PublicAPIIdConverter.convert_legs(legs)
+                redis_client.set_public_ids(bot_route.id, public_ids)
+
+                # 봇 초기 상태 생성
+                BotStateManager.initialize(
+                    route_id=bot_route.id,
+                    bot_id=bot.id,
+                    legs=legs,
+                )
+
+                # 첫 번째 Task 즉시 실행
+                update_bot_position.apply_async(
+                    args=[bot_route.id],
+                    countdown=0,
+                )
+
+                logger.info(f"봇 시뮬레이션 시작: route_id={bot_route.id}, bot_id={bot.id}")
+
+            except Exception as e:
+                logger.error(f"봇 시뮬레이션 시작 실패: route_id={bot_route.id}, error={e}")
+                # 시뮬레이션 시작 실패해도 경주 생성은 계속 진행
 
         # 응답 생성
         response_data = {
@@ -204,6 +245,7 @@ class RouteListCreateView(APIView):
             "status": Route.Status.RUNNING,
             "start_time": now.isoformat(),
             "created_at": now.isoformat(),
+            "sse_endpoint": f"/api/v1/sse/routes/{route_itinerary.id}",
         }
 
         return success_response(
@@ -514,3 +556,100 @@ class RouteResultView(APIView):
         }
 
         return success_response(data=response_data)
+
+
+class SSEStreamView(APIView):
+    """
+    SSE 스트림 View
+
+    GET /api/v1/sse/routes/{route_itinerary_id} - 실시간 봇 상태 스트림
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="SSE 스트림",
+        description="""
+경주의 실시간 봇 상태를 SSE 스트림으로 수신합니다.
+
+**이벤트 타입:**
+- `connected`: 연결 성공
+- `bot_status_update`: 봇 상태 업데이트 (5초 주기)
+- `bot_boarding`: 봇 탑승 (버스/지하철)
+- `bot_alighting`: 봇 하차
+- `participant_finished`: 참가자 도착
+- `route_ended`: 경주 종료
+- `heartbeat`: 연결 유지 (30초 주기)
+- `error`: 에러 발생
+
+**사용 예시:**
+```javascript
+const eventSource = new EventSource('/api/v1/sse/routes/123');
+eventSource.addEventListener('bot_status_update', (e) => {
+    const data = JSON.parse(e.data);
+    console.log('Bot status:', data);
+});
+```
+        """,
+        responses={200: None, 404: None},
+        tags=["Routes"],
+    )
+    def get(self, request, route_itinerary_id):
+        """SSE 스트림 연결"""
+        # route_itinerary 확인
+        try:
+            route_itinerary = RouteItinerary.objects.get(
+                id=route_itinerary_id,
+                deleted_at__isnull=True
+            )
+        except RouteItinerary.DoesNotExist:
+            return error_response(
+                code="RESOURCE_NOT_FOUND",
+                message="해당 경로 탐색 결과를 찾을 수 없습니다.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        def event_stream():
+            """SSE 이벤트 스트림 Generator"""
+            # 연결 성공 이벤트
+            yield _format_sse_event("connected", {
+                "route_itinerary_id": route_itinerary_id,
+                "message": "SSE 연결 성공",
+            })
+
+            # RabbitMQ 구독
+            try:
+                for event in rabbitmq_client.subscribe(route_itinerary_id, timeout=30):
+                    if event is None:
+                        # Heartbeat
+                        yield _format_sse_event("heartbeat", {
+                            "route_itinerary_id": route_itinerary_id,
+                        })
+                    else:
+                        event_type = event.get("event", "unknown")
+                        data = event.get("data", {})
+                        yield _format_sse_event(event_type, data)
+
+                        # 경주 종료 시 스트림 종료
+                        if event_type == "route_ended":
+                            break
+
+            except Exception as e:
+                logger.error(f"SSE 스트림 에러: {e}")
+                yield _format_sse_event("error", {
+                    "message": "SSE 스트림 에러 발생",
+                })
+
+        response = StreamingHttpResponse(
+            event_stream(),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"  # Nginx 버퍼링 비활성화
+
+        return response
+
+
+def _format_sse_event(event_type: str, data: dict) -> str:
+    """SSE 이벤트 포맷팅"""
+    return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
