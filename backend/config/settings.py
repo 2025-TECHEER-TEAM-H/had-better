@@ -205,9 +205,31 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30분
 
 
+# Redis 설정 (봇 상태 캐시)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+
+# RabbitMQ 설정 (SSE Pub/Sub)
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
+
+
 # External API Keys
 TMAP_API_KEY = os.getenv("TMAP_API_KEY", "")
 MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
+
+# 실시간 대중교통 위치 API
+BUS_API_KEY = os.getenv("BUS_API_KEY", "")
+SUBWAY_API_KEY = os.getenv("SUBWAY_API_KEY", "")
 
 
 # Logging 설정

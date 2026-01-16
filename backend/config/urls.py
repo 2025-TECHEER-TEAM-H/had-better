@@ -11,6 +11,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from apps.users.views import UserMeView
 from apps.places.views_saved import SavedPlaceListCreateView
 from apps.routes.views import RouteListCreateView
+from apps.routes.urls import sse_urlpatterns as routes_sse_urlpatterns
 
 urlpatterns = [
     # Admin
@@ -36,6 +37,9 @@ urlpatterns = [
     # API v1 - 경주
     path('api/v1/routes', RouteListCreateView.as_view(), name='route-list'),  # GET/POST /api/v1/routes
     path('api/v1/routes/', include('apps.routes.urls')),  # 하위 경로들
+
+    # API v1 - SSE 스트림
+    path('api/v1/sse/routes/', include(routes_sse_urlpatterns)),
 
     # API 문서
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

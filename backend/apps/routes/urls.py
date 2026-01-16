@@ -4,7 +4,12 @@
 
 from django.urls import path
 
-from .views import RouteListCreateView, RouteStatusUpdateView, RouteResultView
+from .views import (
+    RouteListCreateView,
+    RouteStatusUpdateView,
+    RouteResultView,
+    SSEStreamView,
+)
 
 urlpatterns = [
     # GET/POST /api/v1/routes는 config/urls.py에서 직접 정의
@@ -14,4 +19,10 @@ urlpatterns = [
 
     # GET /api/v1/routes/{route_id}/result - 경주 결과 조회
     path('<int:route_id>/result', RouteResultView.as_view(), name='route-result'),
+]
+
+# SSE 엔드포인트 (별도 URL 패턴)
+sse_urlpatterns = [
+    # GET /api/v1/sse/routes/{route_itinerary_id} - SSE 스트림
+    path('<int:route_itinerary_id>', SSEStreamView.as_view(), name='sse-stream'),
 ]
