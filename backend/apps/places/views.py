@@ -277,7 +277,31 @@ class PlaceDetailView(APIView):
     @extend_schema(
         operation_id="places_detail",
         summary="장소 상세 조회",
-        description="특정 POI 장소의 상세 정보를 조회합니다. 로그인 사용자인 경우 즐겨찾기 여부(is_saved)도 함께 반환됩니다.",
+        description="""
+특정 POI 장소의 상세 정보를 조회합니다.
+
+**거리 계산:**
+- lat, lon 파라미터를 제공하면 해당 위치에서 장소까지의 거리(미터)를 계산합니다.
+- 거리는 Haversine 공식을 사용하여 계산됩니다.
+- 파라미터를 제공하지 않으면 distance_meters는 null로 반환됩니다.
+
+**즐겨찾기:**
+- 로그인 사용자인 경우 즐겨찾기 여부(is_saved)도 함께 반환됩니다.
+        """,
+        parameters=[
+            OpenApiParameter(
+                name="lat",
+                description="현재 위치 위도 (거리 계산용, 선택)",
+                required=False,
+                type=OpenApiTypes.FLOAT,
+            ),
+            OpenApiParameter(
+                name="lon",
+                description="현재 위치 경도 (거리 계산용, 선택)",
+                required=False,
+                type=OpenApiTypes.FLOAT,
+            ),
+        ],
         responses={
             200: PoiPlaceDetailSerializer(),
             404: {"description": "장소를 찾을 수 없음"},
@@ -286,8 +310,8 @@ class PlaceDetailView(APIView):
     )
     def get(self, request, poi_place_id):
         """
-        GET /api/v1/places/{poi_place_id}
-        장소 상세 조회
+        GET /api/v1/places/{poi_place_id}?lat={lat}&lon={lon}
+        장소 상세 조회 (거리 계산 포함)
         """
         try:
             poi_place = PoiPlace.objects.get(id=poi_place_id)
@@ -303,6 +327,24 @@ class PlaceDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = PoiPlaceDetailSerializer(poi_place, context={"request": request})
+        # 현재 위치 (선택적)
+        current_lat = request.query_params.get("lat")
+        current_lon = request.query_params.get("lon")
+
+        # Serializer context 생성
+        context = {
+            "request": request,
+        }
+
+        # 현재 위치가 제공되면 context에 추가
+        if current_lat and current_lon:
+            try:
+                context["current_lat"] = float(current_lat)
+                context["current_lon"] = float(current_lon)
+            except (ValueError, TypeError):
+                # 잘못된 좌표 형식이면 무시
+                pass
+
+        serializer = PoiPlaceDetailSerializer(poi_place, context=context)
 
         return success_response(serializer.data)
