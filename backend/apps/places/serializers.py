@@ -1,5 +1,38 @@
+import math
 from rest_framework import serializers
 from .models import PoiPlace, SavedPlace, SearchPlaceHistory
+
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """
+    Haversine 공식을 사용하여 두 지점 간 거리를 미터 단위로 계산
+
+    Args:
+        lat1, lon1: 첫 번째 지점의 위도, 경도
+        lat2, lon2: 두 번째 지점의 위도, 경도
+
+    Returns:
+        float: 거리 (미터)
+    """
+    # 지구의 반지름 (미터)
+    R = 6371000
+
+    # 위도/경도를 라디안으로 변환
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    # Haversine 공식
+    a = math.sin(delta_phi / 2) ** 2 + \
+        math.cos(phi1) * math.cos(phi2) * \
+        math.sin(delta_lambda / 2) ** 2
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    distance = R * c
+
+    return round(distance, 2)  # 소수점 2자리까지
 
 
 class PoiPlaceSerializer(serializers.ModelSerializer):
@@ -17,10 +50,11 @@ class PoiPlaceDetailSerializer(serializers.ModelSerializer):
 
     poi_place_id = serializers.IntegerField(source='id', read_only=True)
     is_saved = serializers.SerializerMethodField()
+    distance_meters = serializers.SerializerMethodField()
 
     class Meta:
         model = PoiPlace
-        fields = ['poi_place_id', 'tmap_poi_id', 'name', 'address', 'category', 'coordinates', 'is_saved']
+        fields = ['poi_place_id', 'tmap_poi_id', 'name', 'address', 'category', 'coordinates', 'is_saved', 'distance_meters']
 
     def get_is_saved(self, obj):
         """해당 사용자가 이 장소를 즐겨찾기했는지 확인"""
@@ -33,6 +67,36 @@ class PoiPlaceDetailSerializer(serializers.ModelSerializer):
             return SavedPlace.objects.filter(user=request.user, poi_place=obj, deleted_at__isnull=True).exists()
         except (ImportError, AttributeError):  # SavedPlace 미구현 또는 필터링 오류
             return False
+
+    def get_distance_meters(self, obj):
+        """현재 위치에서 해당 장소까지의 거리 계산 (미터)"""
+        # context에서 현재 위치 정보 가져오기
+        current_lat = self.context.get('current_lat')
+        current_lon = self.context.get('current_lon')
+
+        # 현재 위치가 제공되지 않았으면 None 반환
+        if current_lat is None or current_lon is None:
+            return None
+
+        # 장소의 좌표
+        place_lat = obj.coordinates.get('lat')
+        place_lon = obj.coordinates.get('lon')
+
+        # 좌표가 없으면 None 반환
+        if place_lat is None or place_lon is None:
+            return None
+
+        try:
+            # Haversine 공식으로 거리 계산
+            distance = calculate_distance(
+                float(current_lat),
+                float(current_lon),
+                float(place_lat),
+                float(place_lon)
+            )
+            return distance
+        except (ValueError, TypeError):
+            return None
 
 
 class SearchPlaceHistorySerializer(serializers.ModelSerializer):
