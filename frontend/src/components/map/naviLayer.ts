@@ -49,11 +49,10 @@ export function addNaviLayer(map: MapboxMap, initial: LngLat): void {
             "navi-walk-3",
           ],
         ],
-        "icon-size": 0.6, // Green 캐릭터에 맞춘 크기
+        "icon-size": 0.6,
         "icon-anchor": "bottom",
         "icon-allow-overlap": true,
-        "icon-rotate": ["get", "bearing"],
-        "icon-rotation-alignment": "map",
+        // icon-rotate 제거: 캐릭터가 항상 위를 향함
       },
     });
   }
@@ -68,7 +67,10 @@ export function updateNaviFeature(
   state: NaviState = "walking"
 ): void {
   const src = map.getSource("navi") as GeoJSONSource | undefined;
-  if (!src) return;
+  if (!src) {
+    console.warn('⚠️ updateNaviFeature: navi 소스를 찾을 수 없음');
+    return;
+  }
 
   src.setData({
     type: "FeatureCollection",
