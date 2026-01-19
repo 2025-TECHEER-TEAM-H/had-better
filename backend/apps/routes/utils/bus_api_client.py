@@ -2,18 +2,19 @@
 서울시 버스 API 클라이언트
 
 역할:
-- 버스 노선 ID 조회 (getBusRouteList)
-- 정류소 ID 조회 (getStationByName)
-- 버스 도착정보 조회 (getArrInfoByRouteAll)
-- 버스 실시간 위치 조회 (getBusPosByVehId)
+- 버스 노선 ID 조회 (getBusRouteList) -> API 호출
+- 정류소 ID 조회 (getStationByName) -> API 호출
+- 버스 도착정보 조회 (getArrInfoByRouteAll) -> API 호출
+- 버스 실시간 위치 조회 (getBusPosByVehId) -> API 호출
 
 API 문서:
-- https://www.data.go.kr (서울특별시_정류소정보조회 서비스)
+- https://www.data.go.kr (서울특별시_노선정보조회 서비스, 서울특별시_정류소정보조회 서비스)
 """
 
 import logging
 import xml.etree.ElementTree as ET
 from typing import Optional
+from urllib.parse import unquote
 
 import requests
 from django.conf import settings
@@ -27,7 +28,9 @@ class SeoulBusAPIClient:
     BASE_URL = "http://ws.bus.go.kr/api/rest"
 
     def __init__(self):
-        self.api_key = getattr(settings, "BUS_API_KEY", "")
+        # API 키가 URL 인코딩되어 있으면 디코딩 (requests가 자동으로 인코딩하므로)
+        raw_key = getattr(settings, "BUS_API_KEY", "")
+        self.api_key = unquote(raw_key)
         self.timeout = 10
 
     def _parse_xml_response(self, response_text: str) -> list[dict]:
@@ -80,13 +83,13 @@ class SeoulBusAPIClient:
 
     def get_bus_route_list(self, bus_number: str) -> list[dict]:
         """
-        버스 노선 목록 조회
+        버스 노선 목록 조회 (API 호출)
 
         Args:
             bus_number: 버스 번호 (예: "6625")
 
         Returns:
-            노선 목록 [{ busRouteId, busRouteNm, routeType, ... }]
+            노선 목록 [{ busRouteId, busRouteNm, ... }]
         """
         url = f"{self.BASE_URL}/busRouteInfo/getBusRouteList"
         params = {"serviceKey": self.api_key, "strSrch": bus_number}
@@ -102,12 +105,12 @@ class SeoulBusAPIClient:
 
             return self._parse_xml_response(response.text)
         except requests.RequestException as e:
-            logger.error(f"버스 노선 조회 API 요청 실패: {e}")
+            logger.error(f"버스 노선 API 요청 실패: {e}")
             return []
 
     def get_station_by_name(self, station_name: str) -> list[dict]:
         """
-        정류소 목록 조회 (이름 검색)
+        정류소 목록 조회 (API 호출)
 
         부분 일치 검색이므로 여러 결과가 반환될 수 있습니다.
         좌표 기반으로 가장 가까운 정류소를 선택해야 합니다.
@@ -132,7 +135,7 @@ class SeoulBusAPIClient:
 
             return self._parse_xml_response(response.text)
         except requests.RequestException as e:
-            logger.error(f"정류소 조회 API 요청 실패: {e}")
+            logger.error(f"정류소 API 요청 실패: {e}")
             return []
 
     def get_arrival_info(

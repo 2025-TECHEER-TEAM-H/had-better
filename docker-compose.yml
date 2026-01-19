@@ -23,6 +23,22 @@ services:
     networks:
       - hadbetter-network
 
+  # Redis (봇 상태 캐시)
+  redis:
+    image: redis:7-alpine
+    container_name: hadbetter-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hadbetter-network
+
   # RabbitMQ 메시지 브로커
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -53,6 +69,11 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=hadbetter
@@ -64,6 +85,8 @@ services:
       db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - hadbetter-network
@@ -78,6 +101,11 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=hadbetter
@@ -89,6 +117,8 @@ services:
       db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - hadbetter-network
@@ -119,3 +149,4 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
+  redis_data:

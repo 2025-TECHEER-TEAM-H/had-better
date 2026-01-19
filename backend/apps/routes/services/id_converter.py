@@ -69,6 +69,8 @@ class PublicAPIIdConverter:
         예시:
         - "수도권2호선" → "2호선"
         - "수도권경의중앙선" → "경의중앙선"
+        - "수도권9호선(급행)" → "9호선"
+        - "9호선(일반)" → "9호선"
 
         Args:
             tmap_route: TMAP route 필드 값
@@ -76,9 +78,17 @@ class PublicAPIIdConverter:
         Returns:
             호선명
         """
-        if tmap_route.startswith("수도권"):
-            return tmap_route[3:]  # "수도권" 제거
-        return tmap_route
+        result = tmap_route
+
+        # "수도권" prefix 제거
+        if result.startswith("수도권"):
+            result = result[3:]
+
+        # "(급행)", "(일반)" 등 suffix 제거
+        if "(" in result:
+            result = result.split("(")[0]
+
+        return result
 
     @staticmethod
     def get_bus_route_id(bus_number: str) -> Optional[str]:

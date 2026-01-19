@@ -17,10 +17,13 @@ SSE 이벤트 발행 서비스 (v3)
 - 같은 경주의 모든 참가자가 동일한 Exchange를 구독합니다.
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 
 from ..utils.rabbitmq_client import rabbitmq_client
+
+logger = logging.getLogger(__name__)
 
 
 class SSEPublisher:
@@ -59,11 +62,16 @@ class SSEPublisher:
         if bot_state.get("current_position"):
             data["position"] = bot_state["current_position"]
 
-        rabbitmq_client.publish(
+        logger.info(
+            f"SSE 발행: route_itinerary_id={route_itinerary_id}, "
+            f"event=bot_status_update, route_id={data['route_id']}"
+        )
+        result = rabbitmq_client.publish(
             route_itinerary_id=route_itinerary_id,
             event_type="bot_status_update",
             data=data,
         )
+        logger.info(f"SSE 발행 결과: {result}")
 
     @staticmethod
     def publish_bot_boarding(

@@ -9,6 +9,7 @@ API 엔드포인트:
 - GET    /api/v1/sse/routes/{route_itinerary_id} - SSE 스트림
 """
 
+import asyncio
 import json
 import logging
 
@@ -215,7 +216,7 @@ class RouteListCreateView(APIView):
         for bot_route, bot_leg, bot in bot_routes:
             try:
                 # TMAP → 공공데이터 ID 변환
-                legs = bot_leg.legs
+                legs = bot_leg.raw_data.get("legs", [])
                 public_ids = PublicAPIIdConverter.convert_legs(legs)
                 redis_client.set_public_ids(bot_route.id, public_ids)
 
@@ -609,25 +610,70 @@ eventSource.addEventListener('bot_status_update', (e) => {
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        def event_stream():
-            """SSE 이벤트 스트림 Generator"""
-            # 연결 성공 이벤트
+        async def event_stream():
+            """SSE 이벤트 스트림 비동기 Generator (ASGI 호환)"""
+            # 연결 성공 이벤트 (즉시 전송)
+            logger.info(f"SSE connected 이벤트 전송: route_itinerary_id={route_itinerary_id}")
             yield _format_sse_event("connected", {
                 "route_itinerary_id": route_itinerary_id,
                 "message": "SSE 연결 성공",
             })
 
-            # RabbitMQ 구독
+            # 테스트용: 1초 대기 후 heartbeat 전송
+            await asyncio.sleep(1)
+            logger.info(f"SSE heartbeat 이벤트 전송: route_itinerary_id={route_itinerary_id}")
+            yield _format_sse_event("heartbeat", {
+                "route_itinerary_id": route_itinerary_id,
+            })
+
+            # RabbitMQ 구독 (동기 함수를 별도 스레드에서 실행)
             try:
-                for event in rabbitmq_client.subscribe(route_itinerary_id, timeout=30):
-                    if event is None:
-                        # Heartbeat
-                        yield _format_sse_event("heartbeat", {
-                            "route_itinerary_id": route_itinerary_id,
-                        })
+                # subscribe generator를 스레드에서 실행
+                def get_next_event(gen):
+                    try:
+                        return next(gen)
+                    except StopIteration:
+                        return "STOP"
+
+                # subscribe generator 생성
+                subscribe_gen = rabbitmq_client.subscribe(route_itinerary_id, timeout=30)
+
+                # 경주 상태 확인 함수 (DB 조회)
+                def check_route_status():
+                    """모든 참가자가 종료되었는지 확인"""
+                    active_count = Route.objects.filter(
+                        route_itinerary_id=route_itinerary_id,
+                        status="RUNNING",
+                    ).count()
+                    return active_count == 0
+
+                while True:
+                    # 이벤트 수신 (blocking 호출을 스레드에서)
+                    event = await asyncio.to_thread(get_next_event, subscribe_gen)
+
+                    if event == "STOP":
+                        break
+                    elif event is None:
+                        # Heartbeat (타임아웃) - 경주 상태 확인
+                        is_ended = await asyncio.to_thread(check_route_status)
+
+                        if is_ended:
+                            # 모든 참가자 종료 → route_ended 이벤트 발행 후 종료
+                            logger.info(f"SSE 경주 종료 감지: route_itinerary_id={route_itinerary_id}")
+                            yield _format_sse_event("route_ended", {
+                                "route_itinerary_id": route_itinerary_id,
+                                "reason": "all_finished",
+                            })
+                            break
+                        else:
+                            # 진행 중 → heartbeat 전송
+                            yield _format_sse_event("heartbeat", {
+                                "route_itinerary_id": route_itinerary_id,
+                            })
                     else:
                         event_type = event.get("event", "unknown")
                         data = event.get("data", {})
+                        logger.info(f"SSE 이벤트 수신: type={event_type}")
                         yield _format_sse_event(event_type, data)
 
                         # 경주 종료 시 스트림 종료
