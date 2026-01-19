@@ -386,6 +386,29 @@ class RouteStatusUpdateView(APIView):
 
         route.save()
 
+        # CANCELED인 경우 같은 경주의 봇 Route도 취소 처리 및 봇 상태 정리
+        if new_status == Route.Status.CANCELED:
+            # 같은 경주의 봇 Route 조회 (같은 route_itinerary, 같은 start_time)
+            bot_routes = Route.objects.filter(
+                route_itinerary=route.route_itinerary,
+                start_time=route.start_time,
+                participant_type=Route.ParticipantType.BOT,
+                status=Route.Status.RUNNING,
+                deleted_at__isnull=True
+            )
+
+            for bot_route in bot_routes:
+                # 봇 Route 상태 변경
+                bot_route.status = Route.Status.CANCELED
+                bot_route.end_time = now
+                bot_route.save()
+
+                # 봇 상태 정리 (Redis 캐시 삭제)
+                # 다음 Celery Task 실행 시 상태 체크로 인해 자동 종료되지만
+                # 즉시 정리하여 리소스 확보
+                BotStateManager.delete(bot_route.id)
+                logger.info(f"봇 시뮬레이션 중단: route_id={bot_route.id} (경주 취소)")
+
         # 응답 데이터 생성
         response_data = {
             "route_id": route.id,

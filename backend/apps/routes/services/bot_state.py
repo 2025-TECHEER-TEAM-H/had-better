@@ -76,7 +76,9 @@ class BotStateManager:
     @staticmethod
     def update(route_id: int, **kwargs) -> Optional[dict]:
         """
-        봇 상태 부분 업데이트
+        봇 상태 부분 업데이트 (원자적 업데이트)
+
+        분산 락을 사용하여 동시성 문제를 방지합니다.
 
         Args:
             route_id: 경주 ID
@@ -85,11 +87,7 @@ class BotStateManager:
         Returns:
             업데이트된 봇 상태 또는 None
         """
-        state = redis_client.get_bot_state(route_id)
-        if state:
-            state.update(kwargs)
-            redis_client.set_bot_state(route_id, state)
-        return state
+        return redis_client.update_bot_state_atomic(route_id, **kwargs)
 
     @staticmethod
     def delete(route_id: int) -> None:

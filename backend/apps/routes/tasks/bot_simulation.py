@@ -16,12 +16,13 @@ import logging
 from datetime import datetime
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from django.utils import timezone
 
 from ..models import Route
 from ..services.bot_state import BotStateManager, BotStatus
 from ..services.sse_publisher import SSEPublisher
-from ..utils.redis_client import redis_client
+from ..utils.redis_client import redis_client, RedisConnectionError
 from ..utils.bus_api_client import bus_api_client
 from ..utils.subway_api_client import subway_api_client
 from ..utils.geo_utils import calculate_distance
@@ -29,7 +30,13 @@ from ..utils.geo_utils import calculate_distance
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    soft_time_limit=60,  # 소프트 타임아웃: 60초 (경고 발생)
+    time_limit=90,  # 하드 타임아웃: 90초 (Task 강제 종료)
+    acks_late=True,  # 작업 완료 후 ACK (실패 시 재시도 가능)
+)
 def update_bot_position(self, route_id: int) -> dict:
     """
     봇 위치 업데이트 Task (v3 - 동적 주기)
@@ -45,6 +52,19 @@ def update_bot_position(self, route_id: int) -> dict:
         실행 결과 딕셔너리
     """
     try:
+        # 0. 경주 상태 확인 (CANCELED/FINISHED 체크) - Task 조기 종료
+        try:
+            route_check = Route.objects.only("id", "status").get(id=route_id)
+            if route_check.status in ["CANCELED", "FINISHED"]:
+                logger.info(f"경주 종료됨 (Task 중단): route_id={route_id}, status={route_check.status}")
+                # 봇 상태 정리
+                BotStateManager.delete(route_id)
+                return {"status": "route_ended", "route_id": route_id, "reason": route_check.status}
+        except Route.DoesNotExist:
+            logger.warning(f"경주를 찾을 수 없음 (Task 중단): route_id={route_id}")
+            BotStateManager.delete(route_id)
+            return {"status": "route_not_found", "route_id": route_id}
+
         # 1. 봇 상태 조회
         bot_state = BotStateManager.get(route_id)
         if not bot_state:
@@ -119,6 +139,18 @@ def update_bot_position(self, route_id: int) -> dict:
             "route_id": route_id,
             "next_interval": next_interval,
         }
+
+    except SoftTimeLimitExceeded:
+        # 소프트 타임아웃: Task가 너무 오래 걸림 (60초 초과)
+        logger.warning(f"봇 위치 업데이트 타임아웃: route_id={route_id}")
+        # 다음 Task는 예약하고 현재 Task는 종료
+        update_bot_position.apply_async(args=[route_id], countdown=30)
+        return {"status": "timeout", "route_id": route_id}
+
+    except RedisConnectionError as e:
+        # Redis 연결 오류: 재시도
+        logger.warning(f"Redis 연결 오류 (재시도 예정): route_id={route_id}, error={e}")
+        raise self.retry(exc=e, countdown=10, max_retries=5)
 
     except Exception as e:
         logger.exception(f"봇 위치 업데이트 실패: route_id={route_id}, error={e}")
