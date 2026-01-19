@@ -269,3 +269,36 @@ class BotStateManager:
             route_id,
             current_position={"lon": lon, "lat": lat},
         )
+
+    @staticmethod
+    def update_retry_count(route_id: int, count: int) -> Optional[dict]:
+        """
+        API 재시도 카운터 업데이트
+
+        Args:
+            route_id: 경주 ID
+            count: 재시도 횟수
+
+        Returns:
+            업데이트된 봇 상태
+        """
+        return BotStateManager.update(
+            route_id,
+            api_retry_count=count,
+        )
+
+    @staticmethod
+    def reset_retry_count(route_id: int) -> Optional[dict]:
+        """
+        API 재시도 카운터 리셋
+
+        Args:
+            route_id: 경주 ID
+
+        Returns:
+            업데이트된 봇 상태
+        """
+        return BotStateManager.update(
+            route_id,
+            api_retry_count=0,
+        )

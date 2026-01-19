@@ -29,6 +29,42 @@ from ..utils.geo_utils import calculate_distance
 
 logger = logging.getLogger(__name__)
 
+# API 재시도 설정
+MAX_API_RETRIES = 3  # API 재시도 횟수
+API_RETRY_INTERVAL = 10  # 10초 간격
+
+
+def is_night_time() -> bool:
+    """심야 시간대 확인 (00:00~05:00)"""
+    hour = timezone.now().hour
+    return 0 <= hour < 5
+
+
+def _estimate_current_station(
+    elapsed: float, section_time: int, pass_stops: list
+) -> str | None:
+    """
+    경과 시간 기반 현재 역/정류장 추정
+
+    Args:
+        elapsed: 탑승 후 경과 시간 (초)
+        section_time: 전체 소요 시간 (초)
+        pass_stops: 경유 정류장/역 목록 (문자열 리스트)
+
+    Returns:
+        현재 추정 역/정류장명 또는 None
+    """
+    if not pass_stops or len(pass_stops) < 2:
+        return None
+
+    if section_time <= 0:
+        return pass_stops[0]
+
+    progress = min(elapsed / section_time, 1.0)  # 0.0 ~ 1.0
+    index = int(progress * (len(pass_stops) - 1))
+
+    return pass_stops[min(index, len(pass_stops) - 1)]
+
 
 def _calculate_total_progress(
     legs: list,
@@ -324,6 +360,37 @@ def _handle_riding_bus_fallback(
 
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 600)
+    distance = current_leg.get("distance", 0)
+
+    # 짧은 구간 감지: 500m 미만이고 30초 경과 시 즉시 하차
+    if distance < 500 and elapsed >= 30:
+        logger.warning(
+            f"짧은 버스 구간 감지 (fallback 즉시 하차): "
+            f"route_id={route_id}, distance={distance}m, elapsed={elapsed}s"
+        )
+        SSEPublisher.publish_bot_alighting(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("end_station", {}).get("name", ""),
+        )
+
+        next_leg_index = bot_state["current_leg_index"] + 1
+
+        if next_leg_index >= len(legs):
+            _finish_bot(route_id, route_itinerary_id, bot_state)
+            return 30
+
+        next_leg = legs[next_leg_index]
+
+        if next_leg["mode"] == "WALK":
+            BotStateManager.transition_to_walking(route_id, next_leg_index)
+        elif next_leg["mode"] == "SUBWAY":
+            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+        elif next_leg["mode"] == "BUS":
+            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+
+        return 30
 
     # 전체 경로 기준 진행률 계산
     progress_percent = _calculate_total_progress(
@@ -356,7 +423,10 @@ def _handle_riding_bus_fallback(
 
         return 30
 
-    # 탑승 중 SSE 발행
+    # 탑승 중 SSE 발행 (현재 정류장 추정 추가)
+    pass_stops = public_leg.get("pass_stops", [])
+    current_station = _estimate_current_station(elapsed, section_time, pass_stops)
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**bot_state, "progress_percent": progress_percent},
@@ -364,6 +434,8 @@ def _handle_riding_bus_fallback(
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
             "vehId": "fallback",
+            "currentStation": current_station,  # 추정된 현재 정류장
+            "tracking_mode": "estimated",  # 추적 모드 명시
             "position": None,
             "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
         },
@@ -448,6 +520,37 @@ def _handle_riding_subway_fallback(
 
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 600)
+    distance = current_leg.get("distance", 0)
+
+    # 짧은 구간 감지: 500m 미만이고 30초 경과 시 즉시 하차
+    if distance < 500 and elapsed >= 30:
+        logger.warning(
+            f"짧은 지하철 구간 감지 (fallback 즉시 하차): "
+            f"route_id={route_id}, distance={distance}m, elapsed={elapsed}s"
+        )
+        SSEPublisher.publish_bot_alighting(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("end_station", ""),
+        )
+
+        next_leg_index = bot_state["current_leg_index"] + 1
+
+        if next_leg_index >= len(legs):
+            _finish_bot(route_id, route_itinerary_id, bot_state)
+            return 30
+
+        next_leg = legs[next_leg_index]
+
+        if next_leg["mode"] == "WALK":
+            BotStateManager.transition_to_walking(route_id, next_leg_index)
+        elif next_leg["mode"] == "BUS":
+            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+        elif next_leg["mode"] == "SUBWAY":
+            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+
+        return 30
 
     # 전체 경로 기준 진행률 계산
     progress_percent = _calculate_total_progress(
@@ -480,7 +583,10 @@ def _handle_riding_subway_fallback(
 
         return 30
 
-    # 탑승 중 SSE 발행
+    # 탑승 중 SSE 발행 (현재 역 추정 추가)
+    pass_stops = public_leg.get("pass_stops", [])
+    current_station = _estimate_current_station(elapsed, section_time, pass_stops)
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**bot_state, "progress_percent": progress_percent},
@@ -488,6 +594,8 @@ def _handle_riding_subway_fallback(
             "type": "SUBWAY",
             "route": public_leg.get("subway_line"),
             "trainNo": "fallback",
+            "currentStation": current_station,  # 추정된 현재 역
+            "tracking_mode": "estimated",  # 추적 모드 명시
             "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
         },
         next_update_in=30,
@@ -522,16 +630,59 @@ def _handle_waiting_bus(
     arrival_info = bus_api_client.get_arrival_info(st_id, bus_route_id)
 
     if not arrival_info:
-        SSEPublisher.publish_bot_status_update(
-            route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
-            next_update_in=30,
-        )
-        return 30
+        # API 재시도 로직
+        retry_count = bot_state.get("api_retry_count", 0)
 
+        if retry_count < MAX_API_RETRIES:
+            # 재시도
+            BotStateManager.update_retry_count(route_id, retry_count + 1)
+            logger.info(
+                f"버스 API 재시도 ({retry_count + 1}/{MAX_API_RETRIES}): "
+                f"route_id={route_id}, st_id={st_id}, bus_route_id={bus_route_id}"
+            )
+
+            # 심야 시간대 대기 시간 증가
+            wait_multiplier = 2.0 if is_night_time() else 1.0
+            retry_interval = int(API_RETRY_INTERVAL * wait_multiplier)
+
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**bot_state, "arrival_time": None},
+                vehicle_info={
+                    "type": "BUS",
+                    "route": public_leg.get("bus_route_name"),
+                    "status": "searching",  # API 재시도 중
+                },
+                next_update_in=retry_interval,
+            )
+            return retry_interval
+        else:
+            # 최대 재시도 초과 → fallback 전환
+            logger.warning(
+                f"버스 API 최대 재시도 초과 → fallback 전환: route_id={route_id}"
+            )
+            BotStateManager.reset_retry_count(route_id)
+            return _handle_waiting_bus_fallback(
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+            )
+
+    # API 성공 → 재시도 카운터 리셋
+    BotStateManager.reset_retry_count(route_id)
+
+    # 첫 번째 버스 확인
     veh_id = arrival_info.get("vehId1")
     tra_time = int(arrival_info.get("traTime1", 0) or 0)
     arrmsg = arrival_info.get("arrmsg1", "")
+
+    # vehId1이 없으면 두 번째 버스 확인
+    if not veh_id or veh_id == "0":
+        veh_id = arrival_info.get("vehId2")
+        tra_time = int(arrival_info.get("traTime2", 0) or 0)
+        arrmsg = arrival_info.get("arrmsg2", "")
+        logger.info(
+            f"첫 번째 버스 없음, 두 번째 버스 대기: route_id={route_id}, "
+            f"vehId2={veh_id}, traTime2={tra_time}, arrmsg2={arrmsg}"
+        )
 
     # 버스 위치 조회 (vehId가 있을 때)
     bus_position = None
@@ -549,7 +700,22 @@ def _handle_waiting_bus(
 
     # 탑승 여부 확인
     if tra_time <= 0 or "도착" in arrmsg:
+        # vehId가 유효한지 확인 (vehId1, vehId2 모두 없는 경우)
+        if not veh_id or veh_id == "0":
+            logger.warning(
+                f"버스 배차 없음 (시간 기반 fallback 전환): route_id={route_id}, "
+                f"tra_time={tra_time}, arrmsg={arrmsg}"
+            )
+            # fallback 모드로 전환
+            return _handle_waiting_bus_fallback(
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+            )
+
         # 탑승!
+        logger.info(
+            f"버스 탑승 판정: route_id={route_id}, veh_id={veh_id}, "
+            f"tra_time={tra_time}, arrmsg={arrmsg}"
+        )
         BotStateManager.transition_to_riding_bus(route_id, veh_id)
 
         SSEPublisher.publish_bot_boarding(
@@ -568,13 +734,16 @@ def _handle_waiting_bus(
     # 대기 중 - 동적 주기 결정
     next_interval = BotStateManager.update_arrival_time(route_id, tra_time)
 
+    # vehId가 "0"이면 None으로 표시 (버스 배차 없음)
+    display_veh_id = veh_id if veh_id and veh_id != "0" else None
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**bot_state, "arrival_time": tra_time},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
-            "vehId": veh_id,
+            "vehId": display_veh_id,
             "arrival_message": arrmsg,
             "position": bus_position,
         },
@@ -755,24 +924,60 @@ def _handle_waiting_subway(
         arrivals, subway_line_id, end_station, pass_stops
     )
 
-    # 열차를 찾지 못하면 fallback 사용
+    # 열차를 찾지 못하면 재시도 또는 fallback 사용
     if not target_train:
-        logger.warning(
-            f"지하철 열차 없음 (시간 기반 fallback): route_id={route_id}, "
-            f"start_station={start_station}, end_station={end_station}"
-        )
-        return _handle_waiting_subway_fallback(
-            route_id, route_itinerary_id, bot_state, current_leg, public_leg
-        )
+        # API 재시도 로직
+        retry_count = bot_state.get("api_retry_count", 0)
+
+        if retry_count < MAX_API_RETRIES:
+            # 재시도
+            BotStateManager.update_retry_count(route_id, retry_count + 1)
+            logger.info(
+                f"지하철 API 재시도 ({retry_count + 1}/{MAX_API_RETRIES}): "
+                f"route_id={route_id}, station={start_station}, line={subway_line}"
+            )
+
+            # 심야 시간대 대기 시간 증가
+            wait_multiplier = 2.0 if is_night_time() else 1.0
+            retry_interval = int(API_RETRY_INTERVAL * wait_multiplier)
+
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**bot_state, "arrival_time": None},
+                vehicle_info={
+                    "type": "SUBWAY",
+                    "route": subway_line,
+                    "status": "searching",  # API 재시도 중
+                },
+                next_update_in=retry_interval,
+            )
+            return retry_interval
+        else:
+            # 최대 재시도 초과 → fallback 전환
+            logger.warning(
+                f"지하철 API 최대 재시도 초과 → fallback 전환: route_id={route_id}"
+            )
+            BotStateManager.reset_retry_count(route_id)
+            return _handle_waiting_subway_fallback(
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+            )
+
+    # API 성공 → 재시도 카운터 리셋
+    BotStateManager.reset_retry_count(route_id)
 
     train_no = target_train.get("btrainNo")
     arrival_time = int(target_train.get("barvlDt", 0) or 0)
     arvl_msg = target_train.get("arvlMsg2", "")
     arvl_msg3 = target_train.get("arvlMsg3", "")
+    arvl_cd = int(target_train.get("arvlCd", 99) or 99)  # 도착코드 (0:진입, 1:도착)
 
-    # 탑승 여부 확인
-    if arrival_time <= 0 or arvl_msg == "도착":
-        # 탑승!
+    # 탑승 여부 확인 (arvlCd 기반)
+    if arvl_cd in [0, 1] or arrival_time <= 30:
+        # 0 = 진입, 1 = 도착, 또는 30초 이내면 탑승
+        logger.info(
+            f"지하철 탑승 판정: route_id={route_id}, train_no={train_no}, "
+            f"arvl_cd={arvl_cd}, arrival_time={arrival_time}, arvl_msg={arvl_msg}"
+        )
         BotStateManager.transition_to_riding_subway(route_id, train_no)
 
         SSEPublisher.publish_bot_boarding(

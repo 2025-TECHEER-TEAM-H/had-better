@@ -62,6 +62,7 @@ tmpclaude-*
 
 # Windows
 nul
+.bat
 
 # Docs 내 제외 폴더
 backend/docs/api-specs/

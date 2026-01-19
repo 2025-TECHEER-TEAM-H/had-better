@@ -79,14 +79,26 @@ class SeoulSubwayAPIClient:
                     return []
 
             if "realtimeArrivalList" in data:
-                return data["realtimeArrivalList"]
+                result_list = data["realtimeArrivalList"]
+
+                # API 응답 로깅 강화
+                logger.info(
+                    f"지하철 API 응답: station={station_name}, "
+                    f"result_count={len(result_list)}"
+                )
+
+                return result_list
 
             return []
         except requests.RequestException as e:
-            logger.error(f"지하철 도착정보 API 요청 실패: {e}")
+            logger.error(
+                f"지하철 도착정보 API 요청 실패: station={station_name}, error={e}"
+            )
             return []
         except (ValueError, KeyError) as e:
-            logger.error(f"지하철 도착정보 응답 파싱 실패: {e}")
+            logger.error(
+                f"지하철 도착정보 응답 파싱 실패: station={station_name}, error={e}"
+            )
             return []
 
     def get_train_position(self, subway_line: str) -> list[dict]:

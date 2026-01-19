@@ -134,7 +134,17 @@ class RouteListCreateView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        # bot_legs 확인
+        # user_leg 경로 검증
+        from apps.itineraries.views import validate_route_segments
+        is_valid, error_message = validate_route_segments(user_leg)
+        if not is_valid:
+            return error_response(
+                code="INVALID_ROUTE",
+                message=error_message,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # bot_legs 확인 및 검증
         bot_legs = []
         for bot_leg_id in bot_leg_ids:
             try:
@@ -143,6 +153,16 @@ class RouteListCreateView(APIView):
                     route_itinerary=route_itinerary,
                     deleted_at__isnull=True
                 )
+
+                # bot_leg 경로 검증
+                is_valid, error_message = validate_route_segments(bot_leg)
+                if not is_valid:
+                    return error_response(
+                        code="INVALID_ROUTE",
+                        message=f"봇 경로(ID: {bot_leg_id}) 검증 실패: {error_message}",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 bot_legs.append(bot_leg)
             except RouteLeg.DoesNotExist:
                 return error_response(

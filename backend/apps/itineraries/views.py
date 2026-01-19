@@ -25,6 +25,44 @@ from .services import TmapAPIError, TmapTransitService
 logger = logging.getLogger(__name__)
 
 
+def validate_route_segments(route_leg) -> tuple[bool, str]:
+    """
+    경로 구간 validation
+
+    Args:
+        route_leg: RouteLeg 인스턴스
+
+    Returns:
+        (is_valid, error_message) 튜플
+    """
+    segments = RouteSegment.objects.filter(route_leg=route_leg).order_by('segment_index')
+
+    for seg in segments:
+        # 대중교통 구간 검증
+        if seg.mode in ['BUS', 'SUBWAY']:
+            # 1. 거리가 너무 짧은 경우
+            if seg.distance < 500:
+                logger.warning(
+                    f"짧은 대중교통 구간 감지: route_leg_id={route_leg.id}, "
+                    f"mode={seg.mode}, distance={seg.distance}m"
+                )
+                return False, f"{seg.mode} 구간이 너무 짧습니다 ({seg.distance}m). 다른 경로를 선택해주세요."
+
+            # 2. passStopList 검증 (raw_data에서)
+            if route_leg.raw_data and 'legs' in route_leg.raw_data:
+                leg_data = route_leg.raw_data['legs'][seg.segment_index]
+                pass_stops = leg_data.get('passStopList', {}).get('stations', [])
+
+                if len(pass_stops) <= 2:
+                    logger.warning(
+                        f"passStopList 부족: route_leg_id={route_leg.id}, "
+                        f"mode={seg.mode}, stops={len(pass_stops)}"
+                    )
+                    return False, f"{seg.mode} 경로의 정류장/역 정보가 부족합니다. 다른 경로를 선택해주세요."
+
+    return True, ""
+
+
 def parse_linestring_to_coordinates(linestring_str: str) -> list:
     """
     TMAP linestring 문자열을 좌표 리스트로 변환
