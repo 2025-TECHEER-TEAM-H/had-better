@@ -191,11 +191,10 @@ class SeoulSubwayAPIClient:
         pass_stops: list[str] = None,
     ) -> Optional[dict]:
         """
-        방향으로 열차 필터링 (외부코드 기반)
+        방향으로 열차 필터링 (pass_stops 기반)
 
-        외부코드를 사용해 상행/하행을 판단하고 updnLine으로 필터링합니다.
-        - 외부코드 감소 = 하행 (또는 2호선 외선)
-        - 외부코드 증가 = 상행 (또는 2호선 내선)
+        pass_stops의 외부코드 변화를 분석하여 실제 이동 방향을 판단하고
+        updnLine으로 필터링합니다.
 
         Args:
             arrivals: 도착 열차 목록
@@ -210,18 +209,22 @@ class SeoulSubwayAPIClient:
             logger.warning("pass_stops가 없거나 부족합니다")
             return None
 
-        # 출발역/도착역
-        start_station = pass_stops[0]
-        end_station = pass_stops[-1]
-
-        # 외부코드 기반 방향 판단
-        target_direction = subway_station_cache.get_direction(
-            start_station, end_station, subway_line_id
+        # pass_stops 기반 방향 판단 (TMAP 경로의 실제 방향)
+        target_direction = subway_station_cache.get_direction_from_pass_stops(
+            pass_stops, subway_line_id
         )
+
+        # fallback: 출발역/도착역만으로 판단
+        if not target_direction:
+            start_station = pass_stops[0]
+            end_station = pass_stops[-1]
+            target_direction = subway_station_cache.get_direction(
+                start_station, end_station, subway_line_id
+            )
 
         if target_direction:
             logger.info(
-                f"외부코드 기반 방향 판단: {start_station} → {end_station} = {target_direction}"
+                f"방향 판단: pass_stops[0]={pass_stops[0]} → pass_stops[-1]={pass_stops[-1]} = {target_direction}"
             )
 
             # updnLine으로 필터링
@@ -232,13 +235,13 @@ class SeoulSubwayAPIClient:
                 updn_line = arrival.get("updnLine", "")
                 if updn_line == target_direction:
                     logger.info(
-                        f"방향 매칭 성공 (외부코드): updnLine={updn_line}, "
+                        f"방향 매칭 성공 (updnLine): updnLine={updn_line}, "
                         f"trainLineNm={arrival.get('trainLineNm')}"
                     )
                     return arrival
 
             logger.warning(
-                f"외부코드 방향({target_direction})에 맞는 열차 없음, "
+                f"updnLine 방향({target_direction})에 맞는 열차 없음, "
                 f"trainLineNm 기반 fallback 시도"
             )
 
@@ -269,16 +272,18 @@ class SeoulSubwayAPIClient:
         # 다음 정차역들만 추출 (승차역 제외)
         next_stops = normalized_stops[1:] if len(normalized_stops) > 1 else []
 
-        for arrival in arrivals:
-            # 같은 호선인지 확인
-            if arrival.get("subwayId") != subway_line_id:
-                continue
+        # 같은 호선 열차만 필터링
+        same_line_arrivals = [
+            a for a in arrivals if a.get("subwayId") == subway_line_id
+        ]
 
+        if not same_line_arrivals:
+            logger.warning(f"같은 호선({subway_line_id}) 열차 없음")
+            return None
+
+        # 1단계: 경유역이 trainLineNm에 포함된 열차 찾기
+        for arrival in same_line_arrivals:
             train_line_nm = arrival.get("trainLineNm", "")
-            bstatn_nm = arrival.get("bstatnNm", "")
-            bstatn_normalized = self._normalize_station_name(bstatn_nm)
-
-            # 1. 다음 정차역들 중 하나라도 trainLineNm에 포함되면 맞는 방향
             for stop in next_stops:
                 if stop and stop in train_line_nm:
                     logger.info(
@@ -286,14 +291,19 @@ class SeoulSubwayAPIClient:
                     )
                     return arrival
 
-            # 2. 목적지가 trainLineNm에 포함되어 있는지 확인
+        # 2단계: 목적지가 trainLineNm에 포함된 열차 찾기
+        for arrival in same_line_arrivals:
+            train_line_nm = arrival.get("trainLineNm", "")
             if dest_normalized and dest_normalized in train_line_nm:
                 logger.info(
                     f"방향 매칭 성공 (목적지): dest={dest_normalized} in trainLineNm={train_line_nm}"
                 )
                 return arrival
 
-            # 3. 종착역이 경유역 목록에 있는지 확인
+        # 3단계: 종착역이 경유역 목록에 있는 열차 찾기
+        for arrival in same_line_arrivals:
+            bstatn_nm = arrival.get("bstatnNm", "")
+            bstatn_normalized = self._normalize_station_name(bstatn_nm)
             if bstatn_normalized and bstatn_normalized in normalized_stops:
                 logger.info(
                     f"방향 매칭 성공 (종착역): bstatnNm={bstatn_nm} in pass_stops"

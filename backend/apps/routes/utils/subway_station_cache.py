@@ -52,7 +52,7 @@ class SubwayStationService:
         start_station: str, end_station: str, line: str
     ) -> Optional[str]:
         """
-        출발역/도착역으로 상행/하행 판단
+        출발역/도착역으로 상행/하행 판단 (기본 버전)
 
         Args:
             start_station: 출발역명
@@ -66,6 +66,29 @@ class SubwayStationService:
             return SubwayStation.get_direction(start_station, end_station, line)
         except Exception as e:
             logger.error(f"지하철 방향 판단 실패: {e}")
+            return None
+
+    @staticmethod
+    def get_direction_from_pass_stops(
+        pass_stops: list[str], line: str
+    ) -> Optional[str]:
+        """
+        경유역 목록(pass_stops)을 기반으로 실제 이동 방향 판단
+
+        TMAP이 제공한 경로의 실제 방향을 판단합니다.
+        2호선 순환선 등에서 더 정확한 방향 판단이 가능합니다.
+
+        Args:
+            pass_stops: 경유역 목록 (예: ["시청", "을지로입구", "을지로3가", ...])
+            line: 호선
+
+        Returns:
+            방향 ("상행", "하행", "내선", "외선") 또는 None
+        """
+        try:
+            return SubwayStation.get_direction_from_pass_stops(pass_stops, line)
+        except Exception as e:
+            logger.error(f"지하철 방향 판단 실패 (pass_stops): {e}")
             return None
 
 

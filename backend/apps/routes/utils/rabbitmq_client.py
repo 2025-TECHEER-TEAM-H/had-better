@@ -105,12 +105,13 @@ class RabbitMQClient:
                     exchange_name = self._get_exchange_name(route_itinerary_id)
 
                     # Fanout Exchange 선언
-                    # durable=True: RabbitMQ 재시작 시에도 Exchange 유지
+                    # durable=False: 메모리에만 유지 (개발 환경용)
+                    # auto_delete=True: 마지막 Queue 언바인딩 시 자동 삭제
                     channel.exchange_declare(
                         exchange=exchange_name,
                         exchange_type="fanout",
-                        durable=True,
-                        auto_delete=False,  # 명시적 삭제 전까지 유지
+                        durable=False,
+                        auto_delete=True,
                     )
 
                     message = {"event": event_type, "data": data}
@@ -181,12 +182,12 @@ class RabbitMQClient:
 
                     exchange_name = self._get_exchange_name(route_itinerary_id)
 
-                    # Exchange 선언 (durable=True로 변경)
+                    # Exchange 선언 (개발 환경용)
                     channel.exchange_declare(
                         exchange=exchange_name,
                         exchange_type="fanout",
-                        durable=True,
-                        auto_delete=False,
+                        durable=False,
+                        auto_delete=True,
                     )
 
                     # 임시 Queue 생성 (클라이언트별 독립)

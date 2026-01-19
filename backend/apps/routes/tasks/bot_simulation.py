@@ -30,6 +30,42 @@ from ..utils.geo_utils import calculate_distance
 logger = logging.getLogger(__name__)
 
 
+def _calculate_total_progress(
+    legs: list,
+    current_leg_index: int,
+    leg_elapsed_seconds: float,
+    current_leg_section_time: int,
+) -> float:
+    """
+    전체 경로 기준 진행률 계산
+
+    Args:
+        legs: 전체 경로 legs 배열
+        current_leg_index: 현재 leg 인덱스
+        leg_elapsed_seconds: 현재 leg에서 경과한 시간(초)
+        current_leg_section_time: 현재 leg의 예상 소요 시간(초)
+
+    Returns:
+        전체 진행률 (0~100)
+    """
+    # 전체 예상 시간 계산
+    total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+    if total_time <= 0:
+        return 0
+
+    # 완료된 leg들의 시간 합산
+    completed_time = sum(legs[i].get("sectionTime", 0) for i in range(current_leg_index))
+
+    # 현재 leg의 진행 시간 (sectionTime을 초과하지 않도록)
+    current_leg_progress_time = min(leg_elapsed_seconds, current_leg_section_time)
+
+    # 전체 진행률
+    total_elapsed = completed_time + current_leg_progress_time
+    progress = (total_elapsed / total_time) * 100
+
+    return min(progress, 100)
+
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -176,8 +212,10 @@ def _handle_walking(
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 0)
 
-    # 진행률 계산
-    progress_percent = min((elapsed / section_time) * 100, 100) if section_time > 0 else 100
+    # 전체 경로 기준 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], elapsed, section_time
+    )
 
     # SSE 발행
     SSEPublisher.publish_bot_status_update(
@@ -287,7 +325,10 @@ def _handle_riding_bus_fallback(
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 600)
 
-    progress_percent = min((elapsed / section_time) * 100, 100) if section_time > 0 else 100
+    # 전체 경로 기준 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], elapsed, section_time
+    )
 
     if elapsed >= section_time:
         # 하차 처리
@@ -408,7 +449,10 @@ def _handle_riding_subway_fallback(
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 600)
 
-    progress_percent = min((elapsed / section_time) * 100, 100) if section_time > 0 else 100
+    # 전체 경로 기준 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], elapsed, section_time
+    )
 
     if elapsed >= section_time:
         # 하차 처리
@@ -560,12 +604,33 @@ def _handle_riding_bus(
             route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs, public_ids
         )
 
+    # 시간 계산
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+    section_time = current_leg.get("sectionTime", 600)
+
+    # leg 기준 진행률 (하차 판정용)
+    leg_progress = min((elapsed / section_time) * 100, 100) if section_time > 0 else 0
+
+    # 전체 경로 기준 진행률 (SSE용)
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], elapsed, section_time
+    )
+
     # 버스 위치 조회
     pos = bus_api_client.get_bus_position(veh_id)
     if not pos:
+        # API 응답 없을 때 시간 기반 하차 판정 (leg 기준 100%)
+        if leg_progress >= 100:
+            return _alight_from_bus(
+                route_id, route_itinerary_id, bot_state, public_leg, legs
+            )
+
         SSEPublisher.publish_bot_status_update(
             route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
+            bot_state={**bot_state, "progress_percent": progress_percent},
             next_update_in=30,
         )
         return 30
@@ -577,44 +642,34 @@ def _handle_riding_bus(
     except (ValueError, TypeError):
         return 30
 
-    # 하차 정류소 도착 확인
+    # 하차 정류소 도착 확인 (좌표 기반 + 시간 기반 보조)
     end_station = public_leg.get("end_station", {})
+    should_alight = False
+
     if end_station:
         end_lon = end_station.get("lon", 0)
         end_lat = end_station.get("lat", 0)
 
-        distance = calculate_distance(bus_lat, bus_lon, end_lat, end_lon)
+        if end_lon and end_lat:
+            distance = calculate_distance(bus_lat, bus_lon, end_lat, end_lon)
+            if distance < 100:  # 100m 이내면 하차 (50m → 100m로 완화)
+                should_alight = True
+                logger.info(f"버스 하차 판정 (거리): distance={distance}m")
 
-        if distance < 50:  # 50m 이내면 하차
-            # 하차 처리
-            SSEPublisher.publish_bot_alighting(
-                route_itinerary_id=route_itinerary_id,
-                route_id=route_id,
-                bot_id=bot_state["bot_id"],
-                station_name=end_station.get("name", ""),
-            )
+    # 시간 기반 보조 하차 판정: leg 기준 90% 경과 시 하차
+    if not should_alight and leg_progress >= 90:
+        should_alight = True
+        logger.info(f"버스 하차 판정 (시간): leg_progress={leg_progress}%")
 
-            next_leg_index = bot_state["current_leg_index"] + 1
-
-            if next_leg_index >= len(legs):
-                _finish_bot(route_id, route_itinerary_id, bot_state)
-                return 30
-
-            next_leg = legs[next_leg_index]
-
-            if next_leg["mode"] == "WALK":
-                BotStateManager.transition_to_walking(route_id, next_leg_index)
-            elif next_leg["mode"] == "SUBWAY":
-                BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
-            elif next_leg["mode"] == "BUS":
-                BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
-
-            return 30
+    if should_alight:
+        return _alight_from_bus(
+            route_id, route_itinerary_id, bot_state, public_leg, legs
+        )
 
     # 탑승 중 SSE 발행
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state=bot_state,
+        bot_state={**bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
@@ -625,6 +680,40 @@ def _handle_riding_bus(
         },
         next_update_in=30,
     )
+
+    return 30
+
+
+def _alight_from_bus(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    public_leg: dict,
+    legs: list,
+) -> int:
+    """버스 하차 처리 공통 함수"""
+    end_station = public_leg.get("end_station", {})
+    SSEPublisher.publish_bot_alighting(
+        route_itinerary_id=route_itinerary_id,
+        route_id=route_id,
+        bot_id=bot_state["bot_id"],
+        station_name=end_station.get("name", "") if end_station else "",
+    )
+
+    next_leg_index = bot_state["current_leg_index"] + 1
+
+    if next_leg_index >= len(legs):
+        _finish_bot(route_id, route_itinerary_id, bot_state)
+        return 30
+
+    next_leg = legs[next_leg_index]
+
+    if next_leg["mode"] == "WALK":
+        BotStateManager.transition_to_walking(route_id, next_leg_index)
+    elif next_leg["mode"] == "SUBWAY":
+        BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+    elif next_leg["mode"] == "BUS":
+        BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
 
     return 30
 
@@ -730,6 +819,30 @@ def _handle_waiting_subway(
     return next_interval
 
 
+def _normalize_station_name(name: str) -> str:
+    """역명 정규화 (홍대입구역 → 홍대입구)"""
+    if not name:
+        return ""
+    name = name.strip()
+    if name.endswith("역"):
+        return name[:-1]
+    return name
+
+
+def _stations_match(station1: str, station2: str) -> bool:
+    """두 역명이 같은지 비교 (정규화된 비교)"""
+    return _normalize_station_name(station1) == _normalize_station_name(station2)
+
+
+def _find_station_index(station_name: str, pass_stops: list[str]) -> int:
+    """pass_stops에서 역명의 인덱스를 찾음 (정규화된 비교)"""
+    normalized_name = _normalize_station_name(station_name)
+    for i, stop in enumerate(pass_stops):
+        if _normalize_station_name(stop) == normalized_name:
+            return i
+    return -1
+
+
 def _handle_riding_subway(
     route_id: int,
     route_itinerary_id: int,
@@ -754,14 +867,35 @@ def _handle_riding_subway(
             route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs, public_ids
         )
 
+    # 시간 계산
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+    section_time = current_leg.get("sectionTime", 600)
+
+    # leg 기준 진행률 (하차 판정용)
+    leg_progress = min((elapsed / section_time) * 100, 100) if section_time > 0 else 0
+
+    # 전체 경로 기준 진행률 (SSE용)
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], elapsed, section_time
+    )
+
     # 열차 위치 조회
     positions = subway_api_client.get_train_position(subway_line)
     pos = subway_api_client.filter_by_train_no(positions, train_no)
 
     if not pos:
+        # API 응답 없을 때 시간 기반 하차 판정 (leg 기준 100%)
+        if leg_progress >= 100:
+            return _alight_from_subway(
+                route_id, route_itinerary_id, bot_state, end_station, legs
+            )
+
         SSEPublisher.publish_bot_status_update(
             route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
+            bot_state={**bot_state, "progress_percent": progress_percent},
             next_update_in=30,
         )
         return 30
@@ -769,53 +903,92 @@ def _handle_riding_subway(
     current_station = pos.get("statnNm")
     train_status = pos.get("trainSttus")
 
-    # 하차역 도착 확인
-    if current_station == end_station:
-        # 하차!
-        SSEPublisher.publish_bot_alighting(
-            route_itinerary_id=route_itinerary_id,
-            route_id=route_id,
-            bot_id=bot_state["bot_id"],
-            station_name=end_station,
+    # 하차역 도착 확인 (정규화된 역명 비교)
+    should_alight = False
+    current_idx = _find_station_index(current_station, pass_stops)
+    end_idx = _find_station_index(end_station, pass_stops)
+
+    # 1. 정확히 하차역에 도착
+    if _stations_match(current_station, end_station):
+        should_alight = True
+        logger.info(f"지하철 하차 판정 (역명 일치): current={current_station}, end={end_station}")
+
+    # 2. 하차역을 지나쳤는지 확인 (pass_stops 인덱스 기반)
+    elif current_idx >= 0 and end_idx >= 0 and current_idx >= end_idx:
+        should_alight = True
+        logger.info(
+            f"지하철 하차 판정 (인덱스): current_idx={current_idx}, end_idx={end_idx}, "
+            f"current={current_station}, end={end_station}"
         )
 
-        next_leg_index = bot_state["current_leg_index"] + 1
+    # 3. 시간 기반 보조 하차 판정: leg 기준 95% 경과 시 하차
+    elif leg_progress >= 95:
+        should_alight = True
+        logger.info(f"지하철 하차 판정 (시간): leg_progress={leg_progress}%")
 
-        if next_leg_index >= len(legs):
-            _finish_bot(route_id, route_itinerary_id, bot_state)
-            return 30
+    if should_alight:
+        return _alight_from_subway(
+            route_id, route_itinerary_id, bot_state, end_station, legs
+        )
 
-        next_leg = legs[next_leg_index]
-
-        if next_leg["mode"] == "WALK":
-            BotStateManager.transition_to_walking(route_id, next_leg_index)
-        elif next_leg["mode"] == "BUS":
-            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
-        elif next_leg["mode"] == "SUBWAY":
-            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
-
-        return 30
-
-    # 현재 역 인덱스 계산
-    current_idx = 0
-    if current_station in pass_stops:
-        current_idx = pass_stops.index(current_station)
+    # 역 기반 진행률을 전체 경로에 반영
+    if current_idx >= 0 and len(pass_stops) > 1:
+        # 현재 leg 내에서의 역 기반 진행률
+        station_leg_progress = (current_idx / (len(pass_stops) - 1)) * section_time
+        # 전체 경로 기준으로 재계산 (역 기반이 더 정확한 경우)
+        station_based_total = _calculate_total_progress(
+            legs, bot_state["current_leg_index"], station_leg_progress, section_time
+        )
+        progress_percent = max(progress_percent, station_based_total)
 
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state=bot_state,
+        bot_state={**bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "SUBWAY",
             "route": subway_line,
             "trainNo": train_no,
             "current_station": current_station,
-            "current_station_index": current_idx,
+            "current_station_index": current_idx if current_idx >= 0 else 0,
             "total_stations": len(pass_stops),
             "train_status": train_status,
             "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
         },
         next_update_in=30,
     )
+
+    return 30
+
+
+def _alight_from_subway(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    end_station: str,
+    legs: list,
+) -> int:
+    """지하철 하차 처리 공통 함수"""
+    SSEPublisher.publish_bot_alighting(
+        route_itinerary_id=route_itinerary_id,
+        route_id=route_id,
+        bot_id=bot_state["bot_id"],
+        station_name=end_station or "",
+    )
+
+    next_leg_index = bot_state["current_leg_index"] + 1
+
+    if next_leg_index >= len(legs):
+        _finish_bot(route_id, route_itinerary_id, bot_state)
+        return 30
+
+    next_leg = legs[next_leg_index]
+
+    if next_leg["mode"] == "WALK":
+        BotStateManager.transition_to_walking(route_id, next_leg_index)
+    elif next_leg["mode"] == "BUS":
+        BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+    elif next_leg["mode"] == "SUBWAY":
+        BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
 
     return 30
 

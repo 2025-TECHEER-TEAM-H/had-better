@@ -247,7 +247,7 @@ class SubwayStation(models.Model):
         cls, start_station: str, end_station: str, line: str
     ) -> str | None:
         """
-        출발역/도착역으로 상행/하행 판단
+        출발역/도착역으로 상행/하행 판단 (2개 역만 사용하는 기본 버전)
 
         Args:
             start_station: 출발역명
@@ -256,6 +256,10 @@ class SubwayStation(models.Model):
 
         Returns:
             방향 ("상행", "하행", "내선", "외선") 또는 None
+
+        Note:
+            2호선 순환선의 경우 pass_stops를 활용하는 get_direction_from_pass_stops()를
+            사용하는 것이 더 정확합니다.
         """
         start_code = cls.get_external_code(start_station, line)
         end_code = cls.get_external_code(end_station, line)
@@ -270,15 +274,87 @@ class SubwayStation(models.Model):
             numbers = re.findall(r"\d+", str(line))
             line_num = int(numbers[0]) if numbers else None
 
-        # 2호선 순환선은 내선/외선
+        # 2호선은 내선/외선
         if line_num == 2:
-            if end_code < start_code:
-                return "외선"  # 시계방향
+            # 단순 비교 (pass_stops가 없을 때 fallback)
+            if end_code > start_code:
+                return "내선"  # 반시계방향 (외부코드 증가)
             else:
-                return "내선"  # 반시계방향
+                return "외선"  # 시계방향 (외부코드 감소)
 
         # 일반 노선
         if end_code < start_code:
+            return "하행"
+        else:
+            return "상행"
+
+    @classmethod
+    def get_direction_from_pass_stops(
+        cls, pass_stops: list[str], line: str
+    ) -> str | None:
+        """
+        경유역 목록(pass_stops)을 기반으로 실제 이동 방향 판단
+
+        TMAP이 제공한 경로의 실제 방향을 판단합니다.
+        처음 2~3개 역의 외부코드 변화를 보고 방향을 결정합니다.
+
+        Args:
+            pass_stops: 경유역 목록 (예: ["시청", "을지로입구", "을지로3가", ...])
+            line: 호선
+
+        Returns:
+            방향 ("상행", "하행", "내선", "외선") 또는 None
+        """
+        if not pass_stops or len(pass_stops) < 2:
+            return None
+
+        # 호선 번호 추출
+        if line.startswith("100"):
+            line_num = int(line[-1]) if line[-1] != "0" else int(line[-2:])
+        else:
+            numbers = re.findall(r"\d+", str(line))
+            line_num = int(numbers[0]) if numbers else None
+
+        # 처음 몇 개 역의 외부코드를 수집
+        codes = []
+        for station in pass_stops[:4]:  # 최대 4개역 확인
+            code = cls.get_external_code(station, line)
+            if code is not None:
+                codes.append(code)
+
+        if len(codes) < 2:
+            # 코드를 2개 이상 찾지 못하면 기본 방식으로 fallback
+            return cls.get_direction(pass_stops[0], pass_stops[-1], line)
+
+        # 외부코드 변화 방향 판단
+        # 증가하는 경우가 더 많으면 상행/내선, 감소하면 하행/외선
+        increases = 0
+        decreases = 0
+
+        for i in range(len(codes) - 1):
+            diff = codes[i + 1] - codes[i]
+            # 2호선 순환선의 경우 큰 점프(예: 243 → 201)는 실제로는 연속
+            if line_num == 2 and abs(diff) > 20:
+                # 순환 경계를 넘는 경우 방향 반전
+                if diff > 0:
+                    decreases += 1  # 243 → 201은 실제로 외선(감소) 방향
+                else:
+                    increases += 1  # 201 → 243은 실제로 내선(증가) 방향
+            else:
+                if diff > 0:
+                    increases += 1
+                elif diff < 0:
+                    decreases += 1
+
+        # 2호선은 내선/외선
+        if line_num == 2:
+            if increases > decreases:
+                return "내선"  # 반시계방향 (외부코드 증가)
+            else:
+                return "외선"  # 시계방향 (외부코드 감소)
+
+        # 일반 노선
+        if decreases > increases:
             return "하행"
         else:
             return "상행"
