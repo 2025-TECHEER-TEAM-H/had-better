@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
 
 // 인증 관련 타입
 export interface LoginRequest {
-  email: string;
+  name: string;
   password: string;
 }
 

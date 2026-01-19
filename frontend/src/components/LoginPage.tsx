@@ -28,8 +28,8 @@ export function LoginPage({
     setError("");
 
     try {
-      // API는 email을 받지만, username을 email 필드에 넣어서 호출 (임시)
-      const response = await authApi.login({ email: username, password });
+      // 백엔드 로직에 맞춰 name으로 로그인 요청
+      const response = await authApi.login({ name: username, password });
 
       if (response.success && response.data) {
         // 토큰 저장
