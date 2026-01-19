@@ -65,7 +65,7 @@ def update_bot_position(self, route_id: int) -> dict:
         # 4. 경로 데이터 조회
         try:
             route = Route.objects.select_related("route_leg").get(id=route_id)
-            legs = route.route_leg.legs
+            legs = route.route_leg.raw_data.get("legs", [])
             route_itinerary_id = route.route_itinerary_id
         except Route.DoesNotExist:
             logger.error(f"경주를 찾을 수 없음: route_id={route_id}")
@@ -174,6 +174,252 @@ def _handle_walking(
     return 30
 
 
+def _handle_waiting_bus_fallback(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    current_leg: dict,
+    public_leg: dict,
+) -> int:
+    """
+    WAITING_BUS 시간 기반 fallback 처리
+
+    공공데이터 API를 사용할 수 없는 경우 (경기버스 등)
+    TMAP 예상 시간의 20%를 대기 시간으로 사용
+    """
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+
+    # TMAP 예상 시간의 20%를 대기 시간으로 사용 (최소 60초, 최대 300초)
+    section_time = current_leg.get("sectionTime", 300)
+    wait_time = max(60, min(section_time * 0.2, 300))
+
+    if elapsed >= wait_time:
+        # 대기 완료 → 탑승 처리
+        BotStateManager.transition_to_riding_bus(route_id, "fallback")
+
+        SSEPublisher.publish_bot_boarding(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("start_station", {}).get("name", ""),
+            vehicle={
+                "type": "BUS",
+                "route": public_leg.get("bus_route_name"),
+                "vehId": "fallback",
+            },
+        )
+        return 30
+
+    # 대기 중 - 남은 시간 계산
+    remaining = int(wait_time - elapsed)
+
+    SSEPublisher.publish_bot_status_update(
+        route_itinerary_id=route_itinerary_id,
+        bot_state={**bot_state, "arrival_time": remaining},
+        vehicle_info={
+            "type": "BUS",
+            "route": public_leg.get("bus_route_name"),
+            "vehId": None,
+            "arrival_message": f"약 {remaining}초 후 도착 (예상)",
+            "position": None,
+        },
+        next_update_in=30,
+    )
+
+    return 30
+
+
+def _handle_riding_bus_fallback(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    current_leg: dict,
+    public_leg: dict,
+    legs: list,
+    public_ids: dict,
+) -> int:
+    """
+    RIDING_BUS 시간 기반 fallback 처리
+
+    공공데이터 API를 사용할 수 없는 경우
+    TMAP 예상 시간을 기반으로 하차 처리
+    """
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+    section_time = current_leg.get("sectionTime", 600)
+
+    progress_percent = min((elapsed / section_time) * 100, 100) if section_time > 0 else 100
+
+    if elapsed >= section_time:
+        # 하차 처리
+        SSEPublisher.publish_bot_alighting(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("end_station", {}).get("name", ""),
+        )
+
+        next_leg_index = bot_state["current_leg_index"] + 1
+
+        if next_leg_index >= len(legs):
+            _finish_bot(route_id, route_itinerary_id, bot_state)
+            return 30
+
+        next_leg = legs[next_leg_index]
+
+        if next_leg["mode"] == "WALK":
+            BotStateManager.transition_to_walking(route_id, next_leg_index)
+        elif next_leg["mode"] == "SUBWAY":
+            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+        elif next_leg["mode"] == "BUS":
+            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+
+        return 30
+
+    # 탑승 중 SSE 발행
+    SSEPublisher.publish_bot_status_update(
+        route_itinerary_id=route_itinerary_id,
+        bot_state={**bot_state, "progress_percent": progress_percent},
+        vehicle_info={
+            "type": "BUS",
+            "route": public_leg.get("bus_route_name"),
+            "vehId": "fallback",
+            "position": None,
+            "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
+        },
+        next_update_in=30,
+    )
+
+    return 30
+
+
+def _handle_waiting_subway_fallback(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    current_leg: dict,
+    public_leg: dict,
+) -> int:
+    """
+    WAITING_SUBWAY 시간 기반 fallback 처리
+
+    공공데이터 API를 사용할 수 없는 경우
+    고정 대기 시간 (120초) 사용
+    """
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+    wait_time = 120  # 2분 대기
+
+    if elapsed >= wait_time:
+        # 탑승 처리
+        BotStateManager.transition_to_riding_subway(route_id, "fallback")
+
+        SSEPublisher.publish_bot_boarding(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("start_station", ""),
+            vehicle={
+                "type": "SUBWAY",
+                "route": public_leg.get("subway_line"),
+                "trainNo": "fallback",
+            },
+        )
+        return 30
+
+    remaining = int(wait_time - elapsed)
+
+    SSEPublisher.publish_bot_status_update(
+        route_itinerary_id=route_itinerary_id,
+        bot_state={**bot_state, "arrival_time": remaining},
+        vehicle_info={
+            "type": "SUBWAY",
+            "route": public_leg.get("subway_line"),
+            "trainNo": None,
+            "arrival_message": f"약 {remaining}초 후 도착 (예상)",
+        },
+        next_update_in=30,
+    )
+
+    return 30
+
+
+def _handle_riding_subway_fallback(
+    route_id: int,
+    route_itinerary_id: int,
+    bot_state: dict,
+    current_leg: dict,
+    public_leg: dict,
+    legs: list,
+    public_ids: dict,
+) -> int:
+    """
+    RIDING_SUBWAY 시간 기반 fallback 처리
+
+    공공데이터 API를 사용할 수 없는 경우
+    TMAP 예상 시간을 기반으로 하차 처리
+    """
+    leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
+    if leg_started_at.tzinfo is None:
+        leg_started_at = timezone.make_aware(leg_started_at)
+
+    elapsed = (timezone.now() - leg_started_at).total_seconds()
+    section_time = current_leg.get("sectionTime", 600)
+
+    progress_percent = min((elapsed / section_time) * 100, 100) if section_time > 0 else 100
+
+    if elapsed >= section_time:
+        # 하차 처리
+        SSEPublisher.publish_bot_alighting(
+            route_itinerary_id=route_itinerary_id,
+            route_id=route_id,
+            bot_id=bot_state["bot_id"],
+            station_name=public_leg.get("end_station", ""),
+        )
+
+        next_leg_index = bot_state["current_leg_index"] + 1
+
+        if next_leg_index >= len(legs):
+            _finish_bot(route_id, route_itinerary_id, bot_state)
+            return 30
+
+        next_leg = legs[next_leg_index]
+
+        if next_leg["mode"] == "WALK":
+            BotStateManager.transition_to_walking(route_id, next_leg_index)
+        elif next_leg["mode"] == "BUS":
+            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+        elif next_leg["mode"] == "SUBWAY":
+            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+
+        return 30
+
+    # 탑승 중 SSE 발행
+    SSEPublisher.publish_bot_status_update(
+        route_itinerary_id=route_itinerary_id,
+        bot_state={**bot_state, "progress_percent": progress_percent},
+        vehicle_info={
+            "type": "SUBWAY",
+            "route": public_leg.get("subway_line"),
+            "trainNo": "fallback",
+            "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
+        },
+        next_update_in=30,
+    )
+
+    return 30
+
+
 def _handle_waiting_bus(
     route_id: int,
     route_itinerary_id: int,
@@ -186,17 +432,15 @@ def _handle_waiting_bus(
     start_station = public_leg.get("start_station", {})
     st_id = start_station.get("stId") if start_station else None
 
+    # 버스 정보가 없으면 시간 기반 fallback 사용
     if not bus_route_id or not st_id:
         logger.warning(
-            f"버스 정보 부족: route_id={route_id}, "
+            f"버스 정보 부족 (시간 기반 fallback): route_id={route_id}, "
             f"bus_route_id={bus_route_id}, st_id={st_id}"
         )
-        SSEPublisher.publish_bot_status_update(
-            route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
-            next_update_in=30,
+        return _handle_waiting_bus_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg
         )
-        return 30
 
     # 도착정보 조회
     arrival_info = bus_api_client.get_arrival_info(st_id, bus_route_id)
@@ -278,6 +522,12 @@ def _handle_riding_bus(
     if not veh_id:
         return 30
 
+    # fallback 모드인 경우 시간 기반 처리
+    if veh_id == "fallback":
+        return _handle_riding_bus_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs, public_ids
+        )
+
     # 버스 위치 조회
     pos = bus_api_client.get_bus_position(veh_id)
     if not pos:
@@ -339,6 +589,7 @@ def _handle_riding_bus(
             "vehId": veh_id,
             "position": {"lon": bus_lon, "lat": bus_lat},
             "stopFlag": stop_flag,
+            "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
         },
         next_update_in=30,
     )
@@ -359,29 +610,39 @@ def _handle_waiting_subway(
     subway_line = public_leg.get("subway_line")
     subway_line_id = public_leg.get("subway_line_id")
 
-    if not start_station:
-        SSEPublisher.publish_bot_status_update(
-            route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
-            next_update_in=30,
+    # subway_line_id가 없으면 fallback 사용
+    if not subway_line_id:
+        logger.warning(
+            f"지하철 호선 ID 없음 (시간 기반 fallback): route_id={route_id}, "
+            f"subway_line={subway_line}"
         )
-        return 30
+        return _handle_waiting_subway_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg
+        )
+
+    if not start_station:
+        return _handle_waiting_subway_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg
+        )
 
     # 도착정보 조회
     arrivals = subway_api_client.get_arrival_info(start_station)
 
-    # 방향 필터링
+    # 방향 필터링 (pass_stops 활용)
+    pass_stops = public_leg.get("pass_stops", [])
     target_train = subway_api_client.filter_by_direction(
-        arrivals, subway_line_id, end_station
+        arrivals, subway_line_id, end_station, pass_stops
     )
 
+    # 열차를 찾지 못하면 fallback 사용
     if not target_train:
-        SSEPublisher.publish_bot_status_update(
-            route_itinerary_id=route_itinerary_id,
-            bot_state=bot_state,
-            next_update_in=30,
+        logger.warning(
+            f"지하철 열차 없음 (시간 기반 fallback): route_id={route_id}, "
+            f"start_station={start_station}, end_station={end_station}"
         )
-        return 30
+        return _handle_waiting_subway_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg
+        )
 
     train_no = target_train.get("btrainNo")
     arrival_time = int(target_train.get("barvlDt", 0) or 0)
@@ -455,6 +716,12 @@ def _handle_riding_subway(
     if not train_no or not subway_line:
         return 30
 
+    # fallback 모드인 경우 시간 기반 처리
+    if train_no == "fallback":
+        return _handle_riding_subway_fallback(
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs, public_ids
+        )
+
     # 열차 위치 조회
     positions = subway_api_client.get_train_position(subway_line)
     pos = subway_api_client.filter_by_train_no(positions, train_no)
@@ -513,6 +780,7 @@ def _handle_riding_subway(
             "current_station_index": current_idx,
             "total_stations": len(pass_stops),
             "train_status": train_status,
+            "pass_shape": public_leg.get("pass_shape"),  # 경로 보간용
         },
         next_update_in=30,
     )

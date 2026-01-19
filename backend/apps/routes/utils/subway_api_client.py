@@ -11,6 +11,12 @@ API 문서:
 주의사항:
 - 일일 트래픽 제한: 1000회
 - recptnDt(수신시간)와 현재시간의 차이만큼 열차가 더 진행한 것으로 보정 필요
+
+상행/하행 구분:
+- 외부코드 기반 판단 (subway_station_cache 사용)
+  - 외부코드 감소 = 하행 (또는 2호선 외선)
+  - 외부코드 증가 = 상행 (또는 2호선 내선)
+- updnLine 필드로 열차 필터링: "상행"/"하행" 또는 "내선"/"외선"(2호선)
 """
 
 import logging
@@ -18,6 +24,8 @@ from typing import Optional
 
 import requests
 from django.conf import settings
+
+from .subway_station_cache import subway_station_cache
 
 logger = logging.getLogger(__name__)
 
@@ -147,41 +155,156 @@ class SeoulSubwayAPIClient:
                 return pos
         return None
 
+    @staticmethod
+    def _normalize_station_name(name: str) -> str:
+        """
+        역명 정규화 ("홍대입구역" → "홍대입구")
+        """
+        if not name:
+            return ""
+        if name.endswith("역"):
+            return name[:-1]
+        return name
+
+    @staticmethod
+    def _extract_destination_from_train_line_nm(train_line_nm: str) -> str:
+        """
+        trainLineNm에서 종착역 추출
+
+        예시:
+        - "개화행 - 삼성방면" → "개화"
+        - "성수행 - 합정방면" → "성수"
+        - "중앙보훈병원행 - 언주방면" → "중앙보훈병원"
+        """
+        if not train_line_nm:
+            return ""
+        # "행" 앞부분이 종착역
+        if "행" in train_line_nm:
+            return train_line_nm.split("행")[0].strip()
+        return ""
+
     def filter_by_direction(
         self,
         arrivals: list[dict],
         subway_line_id: str,
         destination_station: str,
+        pass_stops: list[str] = None,
     ) -> Optional[dict]:
         """
-        방향으로 열차 필터링
+        방향으로 열차 필터링 (외부코드 기반)
 
-        목적지(하차역) 방향으로 가는 열차 중 가장 빨리 도착하는 열차를 선택합니다.
+        외부코드를 사용해 상행/하행을 판단하고 updnLine으로 필터링합니다.
+        - 외부코드 감소 = 하행 (또는 2호선 외선)
+        - 외부코드 증가 = 상행 (또는 2호선 내선)
 
         Args:
             arrivals: 도착 열차 목록
             subway_line_id: 호선 ID (예: "1002")
             destination_station: 하차역명
+            pass_stops: 경유역 목록 (예: ["신논현", "고속터미널", ..., "여의도"])
 
         Returns:
             해당 방향 첫 번째 열차 또는 None
         """
+        if not pass_stops or len(pass_stops) < 2:
+            logger.warning("pass_stops가 없거나 부족합니다")
+            return None
+
+        # 출발역/도착역
+        start_station = pass_stops[0]
+        end_station = pass_stops[-1]
+
+        # 외부코드 기반 방향 판단
+        target_direction = subway_station_cache.get_direction(
+            start_station, end_station, subway_line_id
+        )
+
+        if target_direction:
+            logger.info(
+                f"외부코드 기반 방향 판단: {start_station} → {end_station} = {target_direction}"
+            )
+
+            # updnLine으로 필터링
+            for arrival in arrivals:
+                if arrival.get("subwayId") != subway_line_id:
+                    continue
+
+                updn_line = arrival.get("updnLine", "")
+                if updn_line == target_direction:
+                    logger.info(
+                        f"방향 매칭 성공 (외부코드): updnLine={updn_line}, "
+                        f"trainLineNm={arrival.get('trainLineNm')}"
+                    )
+                    return arrival
+
+            logger.warning(
+                f"외부코드 방향({target_direction})에 맞는 열차 없음, "
+                f"trainLineNm 기반 fallback 시도"
+            )
+
+        # Fallback: 기존 trainLineNm 기반 매칭
+        return self._filter_by_train_line_nm(
+            arrivals, subway_line_id, destination_station, pass_stops
+        )
+
+    def _filter_by_train_line_nm(
+        self,
+        arrivals: list[dict],
+        subway_line_id: str,
+        destination_station: str,
+        pass_stops: list[str],
+    ) -> Optional[dict]:
+        """
+        trainLineNm 기반 방향 필터링 (fallback)
+
+        다음 순서로 방향을 판단합니다:
+        1. pass_stops(경유역)가 trainLineNm에 포함되면 맞는 방향
+        2. 목적지가 trainLineNm에 포함되면 맞는 방향
+        3. 종착역(bstatnNm)이 pass_stops에 있으면 맞는 방향
+        """
+        # 경유역 정규화 (역 suffix 제거)
+        normalized_stops = [self._normalize_station_name(s) for s in pass_stops]
+        dest_normalized = self._normalize_station_name(destination_station)
+
+        # 다음 정차역들만 추출 (승차역 제외)
+        next_stops = normalized_stops[1:] if len(normalized_stops) > 1 else []
+
         for arrival in arrivals:
             # 같은 호선인지 확인
             if arrival.get("subwayId") != subway_line_id:
                 continue
 
-            # trainLineNm에 하차역이 포함되어 있는지 확인
-            # 예: "성수행 - 홍대입구방면" → "홍대입구"가 포함됨
             train_line_nm = arrival.get("trainLineNm", "")
-            if destination_station in train_line_nm:
-                return arrival
-
-            # 종착역이 하차역 방향인지 확인 (순환선 등)
             bstatn_nm = arrival.get("bstatnNm", "")
-            if destination_station == bstatn_nm:
+            bstatn_normalized = self._normalize_station_name(bstatn_nm)
+
+            # 1. 다음 정차역들 중 하나라도 trainLineNm에 포함되면 맞는 방향
+            for stop in next_stops:
+                if stop and stop in train_line_nm:
+                    logger.info(
+                        f"방향 매칭 성공 (경유역): stop={stop} in trainLineNm={train_line_nm}"
+                    )
+                    return arrival
+
+            # 2. 목적지가 trainLineNm에 포함되어 있는지 확인
+            if dest_normalized and dest_normalized in train_line_nm:
+                logger.info(
+                    f"방향 매칭 성공 (목적지): dest={dest_normalized} in trainLineNm={train_line_nm}"
+                )
                 return arrival
 
+            # 3. 종착역이 경유역 목록에 있는지 확인
+            if bstatn_normalized and bstatn_normalized in normalized_stops:
+                logger.info(
+                    f"방향 매칭 성공 (종착역): bstatnNm={bstatn_nm} in pass_stops"
+                )
+                return arrival
+
+        # 매칭 실패 → None 반환 (bot_simulation에서 시간 기반 fallback 사용)
+        logger.warning(
+            f"지하철 방향 매칭 실패: dest={destination_station}, "
+            f"line_id={subway_line_id}, pass_stops={pass_stops[:3]}..."
+        )
         return None
 
 
