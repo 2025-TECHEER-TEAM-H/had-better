@@ -177,7 +177,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
 
   // 노선도 마우스 휠로 줌
   const handleSubwayWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setSubwayZoom((prev) => Math.max(0.5, Math.min(3, prev + delta)));
   };
