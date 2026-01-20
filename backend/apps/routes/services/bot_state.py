@@ -16,6 +16,11 @@ from django.utils import timezone
 from ..utils.redis_client import redis_client
 
 
+def get_seoul_timestamp() -> str:
+    """서울 시간대 타임스탬프 반환"""
+    return timezone.localtime(timezone.now()).isoformat()
+
+
 class BotStatus(str, Enum):
     """봇 상태 Enum (v3 확장)"""
 
@@ -52,7 +57,7 @@ class BotStateManager:
             "status": initial_status,
             "current_leg_index": 0,
             "total_legs": len(legs),
-            "leg_started_at": timezone.now().isoformat(),
+            "leg_started_at": get_seoul_timestamp(),
             "vehicle_id": None,
             "arrival_time": None,  # v3: 도착 예정 시간 (초)
             "next_poll_interval": 30,  # v3: 다음 폴링 간격
@@ -120,7 +125,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_BUS.value,
             current_leg_index=leg_index,
-            leg_started_at=timezone.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -162,7 +167,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_SUBWAY.value,
             current_leg_index=leg_index,
-            leg_started_at=timezone.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -204,7 +209,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WALKING.value,
             current_leg_index=leg_index,
-            leg_started_at=timezone.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,

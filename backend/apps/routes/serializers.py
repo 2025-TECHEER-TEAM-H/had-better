@@ -2,9 +2,17 @@
 경주 관련 Serializer
 """
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import Bot, Route
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
 
 
 class RouteCreateSerializer(serializers.Serializer):
@@ -106,7 +114,12 @@ class RouteCreateResponseSerializer(serializers.Serializer):
     route_itinerary_id = serializers.IntegerField()
     participants = ParticipantSerializer(many=True)
     status = serializers.CharField()
-    created_at = serializers.DateTimeField()
+    created_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get('created_at'))
+        return to_seoul_time(getattr(obj, 'created_at', None))
 
 
 class RouteStatusUpdateSerializer(serializers.Serializer):
@@ -130,6 +143,16 @@ class RouteStatusUpdateResponseSerializer(serializers.Serializer):
 
     route_id = serializers.IntegerField()
     status = serializers.CharField()
-    start_time = serializers.DateTimeField(allow_null=True)
-    end_time = serializers.DateTimeField(allow_null=True)
+    start_time = serializers.SerializerMethodField()
+    end_time = serializers.SerializerMethodField()
     duration = serializers.IntegerField(allow_null=True)
+
+    def get_start_time(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get('start_time'))
+        return to_seoul_time(getattr(obj, 'start_time', None))
+
+    def get_end_time(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get('end_time'))
+        return to_seoul_time(getattr(obj, 'end_time', None))

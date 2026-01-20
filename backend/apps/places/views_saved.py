@@ -29,6 +29,13 @@ from .serializers import (
 )
 
 
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
+
+
 def success_response(data, status_code=status.HTTP_200_OK, meta=None):
     """공통 성공 응답 포맷"""
     response = {
@@ -270,7 +277,7 @@ class SavedPlaceDetailView(APIView):
         return success_response(
             data={
                 "saved_place_id": saved_place.id,
-                "deleted_at": saved_place.deleted_at.isoformat(),
+                "deleted_at": to_seoul_time(saved_place.deleted_at),
             },
             status_code=status.HTTP_200_OK,
         )

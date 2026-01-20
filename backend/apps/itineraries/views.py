@@ -5,6 +5,7 @@
 import logging
 
 from django.db import transaction
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.exceptions import NotFound
@@ -13,7 +14,10 @@ from rest_framework.views import APIView
 
 from config.responses import success_response
 
+
 from .models import RouteItinerary, RouteLeg, RouteSegment, SearchItineraryHistory
+
+
 from .serializers import (
     RouteLegDetailSerializer,
     RouteLegSummarySerializer,
@@ -23,6 +27,13 @@ from .serializers import (
 from .services import TmapAPIError, TmapTransitService
 
 logger = logging.getLogger(__name__)
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
 
 
 def validate_route_segments(route_leg) -> tuple[bool, str]:
@@ -214,7 +225,7 @@ class RouteSearchView(APIView):
                 'route_itinerary_id': route_itinerary.id,
                 'requestParameters': request_parameters,
                 'legs': RouteLegSummarySerializer(legs, many=True).data,
-                'created_at': search_history.created_at.isoformat(),
+                'created_at': to_seoul_time(search_history.created_at),
             },
             status=status.HTTP_201_CREATED
         )

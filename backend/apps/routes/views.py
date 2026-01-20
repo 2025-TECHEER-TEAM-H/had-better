@@ -21,6 +21,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
+
 from drf_spectacular.utils import extend_schema
 
 from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
@@ -342,8 +349,8 @@ class RouteListCreateView(APIView):
             "route_itinerary_id": route_itinerary.id,
             "participants": ParticipantSerializer(participants, many=True).data,
             "status": Route.Status.RUNNING,
-            "start_time": now.isoformat(),
-            "created_at": now.isoformat(),
+            "start_time": to_seoul_time(now),
+            "created_at": to_seoul_time(now),
             "sse_endpoint": f"/api/v1/sse/routes/{route_itinerary.id}",
         }
 
@@ -382,8 +389,8 @@ class RouteListCreateView(APIView):
                 "route_itinerary_id": route.route_itinerary.id,
                 "status": route.status,
                 "is_win": route.is_win,
-                "start_time": route.start_time.isoformat() if route.start_time else None,
-                "end_time": route.end_time.isoformat() if route.end_time else None,
+                "start_time": to_seoul_time(route.start_time),
+                "end_time": to_seoul_time(route.end_time),
                 "duration": route.duration,
             })
 
@@ -511,8 +518,8 @@ class RouteStatusUpdateView(APIView):
         response_data = {
             "route_id": route.id,
             "status": route.status,
-            "start_time": route.start_time.isoformat() if route.start_time else None,
-            "end_time": route.end_time.isoformat() if route.end_time else None,
+            "start_time": to_seoul_time(route.start_time),
+            "end_time": to_seoul_time(route.end_time),
         }
 
         # FINISHED인 경우에만 duration 포함
@@ -599,7 +606,7 @@ class RouteResultView(APIView):
                 "route_id": p.id,
                 "type": p.participant_type,
                 "duration": p.duration,
-                "end_time": p.end_time.isoformat() if p.end_time else None,
+                "end_time": to_seoul_time(p.end_time),
             }
 
             if p.participant_type == Route.ParticipantType.USER:
@@ -655,8 +662,8 @@ class RouteResultView(APIView):
             "route_id": user_route.id,
             "route_itinerary_id": route_itinerary.id,
             "status": user_route.status,
-            "start_time": user_route.start_time.isoformat() if user_route.start_time else None,
-            "end_time": user_route.end_time.isoformat() if user_route.end_time else None,
+            "start_time": to_seoul_time(user_route.start_time),
+            "end_time": to_seoul_time(user_route.end_time),
             "route_info": {
                 "departure": {
                     "name": departure_name,

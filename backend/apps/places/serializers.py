@@ -1,6 +1,14 @@
 import math
+from django.utils import timezone
 from rest_framework import serializers
 from .models import PoiPlace, SavedPlace, SearchPlaceHistory
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -101,10 +109,14 @@ class PoiPlaceDetailSerializer(serializers.ModelSerializer):
 
 class SearchPlaceHistorySerializer(serializers.ModelSerializer):
     """장소 검색 기록 시리얼라이저"""
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchPlaceHistory
         fields = ['id', 'keyword', 'created_at']
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
 
 
 # =============================================
@@ -126,10 +138,14 @@ class SavedPlaceListSerializer(serializers.ModelSerializer):
 
     saved_place_id = serializers.IntegerField(source='id', read_only=True)
     poi_place = PoiPlaceNestedSerializer(read_only=True)
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = SavedPlace
         fields = ['saved_place_id', 'category', 'poi_place', 'created_at']
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
 
 
 class SavedPlaceCreateSerializer(serializers.Serializer):
@@ -164,14 +180,31 @@ class SavedPlaceResponseSerializer(serializers.ModelSerializer):
     saved_place_id = serializers.IntegerField(source='id', read_only=True)
     poi_place_id = serializers.IntegerField(source='poi_place.id', read_only=True)
     name = serializers.CharField(source='poi_place.name', read_only=True)
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+    deleted_at = serializers.SerializerMethodField()
 
     class Meta:
         model = SavedPlace
         fields = ['saved_place_id', 'poi_place_id', 'category', 'name', 'created_at', 'updated_at', 'deleted_at']
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
+
+    def get_updated_at(self, obj):
+        return to_seoul_time(obj.updated_at)
+
+    def get_deleted_at(self, obj):
+        return to_seoul_time(obj.deleted_at)
 
 
 class SavedPlaceDeleteResponseSerializer(serializers.Serializer):
     """즐겨찾기 삭제 응답용 시리얼라이저"""
 
     saved_place_id = serializers.IntegerField()
-    deleted_at = serializers.DateTimeField()
+    deleted_at = serializers.SerializerMethodField()
+
+    def get_deleted_at(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get('deleted_at'))
+        return to_seoul_time(getattr(obj, 'deleted_at', None))

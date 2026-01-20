@@ -27,6 +27,11 @@ from ..utils.rabbitmq_client import rabbitmq_client
 logger = logging.getLogger(__name__)
 
 
+def get_seoul_timestamp() -> str:
+    """서울 시간대 타임스탬프 반환"""
+    return timezone.localtime(timezone.now()).isoformat()
+
+
 class SSEPublisher:
     """SSE 이벤트 발행 서비스 (v3)"""
 
@@ -54,7 +59,7 @@ class SSEPublisher:
             "progress_percent": bot_state.get("progress_percent"),
             "arrival_time": bot_state.get("arrival_time"),
             "next_update_in": next_update_in,
-            "timestamp": timezone.now().isoformat(),
+            "timestamp": get_seoul_timestamp(),
         }
 
         if vehicle_info:
@@ -105,7 +110,7 @@ class SSEPublisher:
                 "bot_id": bot_id,
                 "station_name": station_name,
                 "vehicle": vehicle,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )
 
@@ -133,7 +138,7 @@ class SSEPublisher:
                 "bot_id": bot_id,
                 "station_name": station_name,
                 "next_action": "WALKING",
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )
 
@@ -164,7 +169,7 @@ class SSEPublisher:
                 "participant": participant,
                 "rank": rank,
                 "duration": duration,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )
 
@@ -186,7 +191,7 @@ class SSEPublisher:
             data={
                 "route_itinerary_id": route_itinerary_id,
                 "reason": reason,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )
 
@@ -205,7 +210,7 @@ class SSEPublisher:
             event_type="heartbeat",
             data={
                 "route_itinerary_id": route_itinerary_id,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )
 
@@ -230,6 +235,6 @@ class SSEPublisher:
                 "route_itinerary_id": route_itinerary_id,
                 "error_code": error_code,
                 "error_message": error_message,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": get_seoul_timestamp(),
             },
         )

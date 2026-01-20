@@ -2,9 +2,17 @@
 경로 검색 관련 Serializer
 """
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import RouteItinerary, RouteLeg, RouteSegment, SearchItineraryHistory
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
 
 
 class RouteSearchRequestSerializer(serializers.Serializer):
@@ -255,7 +263,12 @@ class RouteSearchResponseSerializer(serializers.Serializer):
     route_itinerary_id = serializers.IntegerField()
     requestParameters = serializers.DictField()
     legs = RouteLegSummarySerializer(many=True)
-    created_at = serializers.DateTimeField()
+    created_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get('created_at'))
+        return to_seoul_time(getattr(obj, 'created_at', None))
 
 
 class SearchItineraryHistorySerializer(serializers.ModelSerializer):
@@ -267,6 +280,7 @@ class SearchItineraryHistorySerializer(serializers.ModelSerializer):
 
     departure = serializers.SerializerMethodField()
     arrival = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchItineraryHistory
@@ -277,6 +291,9 @@ class SearchItineraryHistorySerializer(serializers.ModelSerializer):
 
     def get_arrival(self, obj):
         return {'name': obj.arrival_name}
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
 
 
 class SearchItineraryHistoryDetailSerializer(serializers.ModelSerializer):
@@ -289,6 +306,7 @@ class SearchItineraryHistoryDetailSerializer(serializers.ModelSerializer):
     departure = serializers.SerializerMethodField()
     arrival = serializers.SerializerMethodField()
     legs = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchItineraryHistory
@@ -311,3 +329,6 @@ class SearchItineraryHistoryDetailSerializer(serializers.ModelSerializer):
         """연결된 RouteItinerary의 legs 반환"""
         legs = obj.route_itinerary.legs.all()
         return RouteLegSummarySerializer(legs, many=True).data
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)

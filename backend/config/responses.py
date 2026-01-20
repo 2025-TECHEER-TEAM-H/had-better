@@ -23,7 +23,7 @@ def success_response(data=None, status=200, meta=None):
         'status': 'success',
         'data': data,
         'meta': {
-            'timestamp': timezone.now().isoformat(),
+            'timestamp': timezone.localtime(timezone.now()).isoformat(),
             **(meta or {})
         }
     }
