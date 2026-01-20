@@ -1,21 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useLocation } from "react-router-dom";
 
 type PageType = "map" | "search" | "favorites" | "subway";
 
 interface MapViewProps {
   onNavigate?: (page: PageType) => void;
+  /**
+   * 현재 페이지(선택)
+   * - 호출부 수정 없이도 동작하도록 optional로 두고,
+   * - 값이 없으면 내부에서 location 기반으로 판단합니다.
+   */
+  currentPage?: PageType;
 }
 
 // Mapbox Access Token 설정
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "";
 
-export function MapView({ onNavigate }: MapViewProps = {}) {
+export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
+  const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
+  const resolvedCurrentPage: PageType =
+    currentPage ??
+    (location.pathname === "/map"
+      ? "map"
+      : location.pathname === "/subway"
+        ? "subway"
+        : location.pathname === "/search"
+          ? "search"
+          : "favorites");
 
   // 서울 시청 좌표 (기본값)
   const defaultCenter: [number, number] = [126.9780, 37.5665];
@@ -187,72 +205,77 @@ export function MapView({ onNavigate }: MapViewProps = {}) {
 
       {/* 지도 컨트롤 버튼들 */}
       <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-10">
-        {/* 네비게이션 버튼들 - 모바일에서만 표시 */}
-        {onNavigate && (
+        {/* 지도 페이지에서만 컨트롤 표시 */}
+        {resolvedCurrentPage === "map" && (
           <>
-            <button
-              onClick={() => onNavigate("map")}
-              className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-              title="지도"
-            >
-              <span className="text-[20px]">🗺️</span>
-            </button>
+            {/* 네비게이션 버튼들 - 모바일에서만 표시 */}
+            {onNavigate && (
+              <>
+                <button
+                  onClick={() => onNavigate("map")}
+                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+                  title="지도"
+                >
+                  <span className="text-[20px]">🗺️</span>
+                </button>
 
-            <button
-              onClick={() => onNavigate("search")}
-              className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-              title="검색"
-            >
-              <span className="text-[20px]">🔍</span>
-            </button>
+                <button
+                  onClick={() => onNavigate("search")}
+                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+                  title="검색"
+                >
+                  <span className="text-[20px]">🔍</span>
+                </button>
 
+                <button
+                  onClick={() => onNavigate("favorites")}
+                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+                  title="MY"
+                >
+                  <span className="text-[20px]">⭐</span>
+                </button>
+              </>
+            )}
+
+            {/* 줌 컨트롤 */}
+            <div className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black overflow-hidden w-[48px]">
+              <button
+                onClick={handleZoomIn}
+                className="w-full h-[48px] border-b-2 border-[#e5e7eb] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+                title="줌 인"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 3V13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="w-full h-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+                title="줌 아웃"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* 현재 위치 버튼 */}
             <button
-              onClick={() => onNavigate("favorites")}
-              className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-              title="MY"
+              onClick={handleMyLocation}
+              className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              title="내 위치로 이동"
             >
-              <span className="text-[20px]">⭐</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="#2D5F3F" strokeWidth="2"/>
+                <path d="M12 2V6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </button>
           </>
         )}
-
-        {/* 줌 컨트롤 */}
-        <div className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black overflow-hidden w-[48px]">
-          <button
-            onClick={handleZoomIn}
-            className="w-full h-[48px] border-b-2 border-[#e5e7eb] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-            title="줌 인"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M8 3V13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <button
-            onClick={handleZoomOut}
-            className="w-full h-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-            title="줌 아웃"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* 현재 위치 버튼 */}
-        <button
-          onClick={handleMyLocation}
-          className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-          title="내 위치로 이동"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="#2D5F3F" strokeWidth="2"/>
-            <path d="M12 2V6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M12 18V22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M2 12H6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M18 12H22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
       </div>
     </div>
   );
