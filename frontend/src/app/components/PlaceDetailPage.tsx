@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import svgPaths from "@/imports/svg-ssz04r2x38";
-import imgImage from "@/assets/image-placeholder.png";
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
+import { MapView } from "./MapView";
 
 interface PlaceDetailPageProps {
   isOpen: boolean;
@@ -13,6 +12,7 @@ interface PlaceDetailPageProps {
     distance: string;
     icon: string;
     isFavorited?: boolean;
+    coordinates?: { lon: number; lat: number };
   } | null;
   onToggleFavorite?: (placeId: string) => void;
   onStartNavigation?: () => void;
@@ -203,15 +203,29 @@ export function PlaceDetailPage({
     </div>
   );
 
+  // 지도 좌표 및 마커 설정
+  const targetLocation: [number, number] | null = place?.coordinates
+    ? [place.coordinates.lon, place.coordinates.lat]
+    : null;
+
+  const markers = place?.coordinates
+    ? [
+        {
+          id: place.id,
+          coordinates: [place.coordinates.lon, place.coordinates.lat] as [number, number],
+          name: place.name,
+          icon: place.icon,
+        },
+      ]
+    : [];
+
   // 지도 컨텐츠 (모바일과 웹에서 공통으로 사용)
   const mapContent = (
-    <>
-      <img 
-        alt="Map" 
-        className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" 
-        src={imgImage} 
-      />
-    </>
+    <MapView
+      currentPage="search"
+      targetLocation={targetLocation}
+      markers={markers}
+    />
   );
 
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)

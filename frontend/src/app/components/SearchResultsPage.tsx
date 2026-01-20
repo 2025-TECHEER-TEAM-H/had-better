@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import imgImage from "@/assets/image-placeholder.png";
+import { MapView } from "./MapView";
+import placeService, { type PlaceSearchResult } from "@/services/placeService";
 
+// UI용 검색 결과 타입
 interface SearchResult {
   id: string;
   name: string;
@@ -9,7 +11,43 @@ interface SearchResult {
   status: string;
   backgroundColor: string;
   isFavorited?: boolean;
+  coordinates?: {
+    lon: number;
+    lat: number;
+  };
 }
+
+// 카테고리별 아이콘 매핑
+const getCategoryIcon = (category: string): string => {
+  const iconMap: Record<string, string> = {
+    "카페": "☕",
+    "음식점": "🍽️",
+    "편의점": "🏪",
+    "병원": "🏥",
+    "약국": "💊",
+    "공원": "🏞️",
+    "학교": "🏫",
+    "은행": "🏦",
+    "주유소": "⛽",
+    "주차장": "🅿️",
+    "지하철": "🚇",
+    "버스": "🚌",
+    "호텔": "🏨",
+    "마트": "🛒",
+    "백화점": "🏬",
+  };
+  // 카테고리에 포함된 키워드로 아이콘 찾기
+  for (const [key, icon] of Object.entries(iconMap)) {
+    if (category.includes(key)) return icon;
+  }
+  return "📍"; // 기본 아이콘
+};
+
+// 카테고리별 배경색 매핑
+const getCategoryColor = (category: string, index: number): string => {
+  const colors = ["#7ed321", "#00d9ff", "white", "#ffc107", "#ff9ff3", "#54a0ff"];
+  return colors[index % colors.length];
+};
 
 interface SearchResultsPageProps {
   isOpen: boolean;
@@ -26,43 +64,69 @@ export function SearchResultsPage({
   onPlaceClick,
   onToggleFavorite,
 }: SearchResultsPageProps) {
-  const [sheetHeight, setSheetHeight] = useState(60); // 초기 높이 60%
+  const [sheetHeight, setSheetHeight] = useState(35); // 초기 높이 35% (컨테이너 2개 보이는 정도)
   const [isDragging, setIsDragging] = useState(false);
   const [startY, setStartY] = useState(0);
-  const [startHeight, setStartHeight] = useState(60);
+  const [startHeight, setStartHeight] = useState(35);
   const [isWebView, setIsWebView] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // 검색 결과 상태 관리 (즐겨찾기 토글을 위해)
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([
-    {
-      id: '1',
-      name: 'CENTRAL PARK',
-      icon: '🏞️',
-      distance: '',
-      status: '',
-      backgroundColor: '#7ed321',
-      isFavorited: true,
-    },
-    {
-      id: '2',
-      name: 'PET SHOP',
-      icon: '🏪',
-      distance: '',
-      status: '',
-      backgroundColor: '#00d9ff',
-      isFavorited: true,
-    },
-    {
-      id: '3',
-      name: 'VET CLINIC',
-      icon: '🏥',
-      distance: '',
-      status: '',
-      backgroundColor: 'white',
-      isFavorited: true,
-    },
-  ]);
+  const sheetHeightRef = useRef(sheetHeight); // 최신 sheetHeight 추적용
+
+  // sheetHeight가 변경될 때마다 ref 업데이트
+  useEffect(() => {
+    sheetHeightRef.current = sheetHeight;
+  }, [sheetHeight]);
+
+  // 검색 결과 상태
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(10); // 현재 표시할 개수
+
+  // 검색어가 변경될 때 API 호출
+  useEffect(() => {
+    if (!searchQuery.trim() || !isOpen) {
+      setSearchResults([]);
+      setVisibleCount(10); // 리셋
+      return;
+    }
+
+    const fetchSearchResults = async () => {
+      setIsLoading(true);
+      setError(null);
+      setVisibleCount(10); // 새 검색 시 리셋
+
+      try {
+        const response = await placeService.searchPlaces({ q: searchQuery });
+
+        if (response.status === "success" && response.data) {
+          // API 응답을 UI용 데이터로 변환
+          const results: SearchResult[] = response.data.map((place, index) => ({
+            id: place.poi_place_id.toString(),
+            name: place.name,
+            icon: getCategoryIcon(place.category || ""),
+            distance: "",
+            status: place.address,
+            backgroundColor: getCategoryColor(place.category || "", index),
+            isFavorited: false,
+            coordinates: place.coordinates,
+          }));
+          setSearchResults(results);
+        } else {
+          setError(response.error?.message || "검색에 실패했습니다.");
+          setSearchResults([]);
+        }
+      } catch (err: any) {
+        console.error("검색 오류:", err);
+        setError(err.response?.data?.error?.message || "서버 연결에 실패했습니다.");
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSearchResults();
+  }, [searchQuery, isOpen]);
 
   // 즐겨찾기 토글 핸들러
   const handleToggleFavorite = (placeId: string) => {
@@ -109,11 +173,12 @@ export function SearchResultsPage({
   // 드래그 종료
   const handleDragEnd = () => {
     setIsDragging(false);
-    
-    // 스냅 포인트: 35%, 60%, 85%
-    if (sheetHeight < 47.5) {
+
+    // 스냅 포인트: 35%, 60%, 85% (ref를 사용해 최신 값 참조)
+    const currentHeight = sheetHeightRef.current;
+    if (currentHeight < 47.5) {
       setSheetHeight(35);
-    } else if (sheetHeight < 72.5) {
+    } else if (currentHeight < 72.5) {
       setSheetHeight(60);
     } else {
       setSheetHeight(85);
@@ -205,21 +270,70 @@ export function SearchResultsPage({
   // 검색 결과 리스트 컨텐츠
   const resultsContent = (
     <div className="flex flex-col gap-[11.996px] w-full">
-      {searchResults.map((result) => (
-        <ResultCard key={result.id} result={result} />
+      {/* 로딩 상태 */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-8 h-8 border-4 border-[#4a9960] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* 에러 상태 */}
+      {error && !isLoading && (
+        <div className="text-center py-8">
+          <p className="text-red-500 font-bold">{error}</p>
+        </div>
+      )}
+
+      {/* 빈 결과 */}
+      {!isLoading && !error && searchResults.length === 0 && searchQuery && (
+        <div className="text-center py-8">
+          <p className="text-gray-500">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
+        </div>
+      )}
+
+      {/* 검색 결과 목록 (visibleCount만큼만 표시) */}
+      {!isLoading && !error && searchResults.slice(0, visibleCount).map((result, index) => (
+        <ResultCard key={`${result.id}-${index}`} result={result} />
       ))}
+
+      {/* 정보 더보기 버튼 */}
+      {!isLoading && !error && searchResults.length > visibleCount && (
+        <button
+          onClick={() => setVisibleCount((prev) => prev + 10)}
+          className="w-full py-4 bg-[#4a9960] text-white font-bold rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-[#3d8050] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_black] transition-all"
+        >
+          <span className="font-['Press_Start_2P:Regular',sans-serif] text-[12px]">
+            정보 더보기 ({searchResults.length - visibleCount}개 남음)
+          </span>
+        </button>
+      )}
     </div>
   );
 
-  // 지도 컨텐츠
+  // 첫 번째 검색 결과의 좌표 (지도 이동용)
+  const firstResultLocation: [number, number] | null =
+    searchResults.length > 0 && searchResults[0].coordinates
+      ? [searchResults[0].coordinates.lon, searchResults[0].coordinates.lat]
+      : null;
+
+  // 검색 결과를 마커 정보로 변환 (visibleCount만큼만, 중복 ID 방지를 위해 인덱스 포함)
+  const mapMarkers = searchResults
+    .slice(0, visibleCount)
+    .filter((result) => result.coordinates)
+    .map((result, index) => ({
+      id: `${result.id}-${index}`,
+      coordinates: [result.coordinates!.lon, result.coordinates!.lat] as [number, number],
+      name: result.name,
+      icon: result.icon,
+    }));
+
+  // 지도 컨텐츠 - 실제 MapView 컴포넌트 사용
   const mapContent = (
-    <>
-      <img 
-        alt="Map" 
-        className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" 
-        src={imgImage} 
-      />
-    </>
+    <MapView
+      currentPage="search"
+      targetLocation={firstResultLocation}
+      markers={mapMarkers}
+    />
   );
 
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)

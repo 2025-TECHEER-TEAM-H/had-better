@@ -43,6 +43,7 @@ export function MainLayout() {
     distance: string;
     icon: string;
     isFavorited?: boolean;
+    coordinates?: { lon: number; lat: number };
   } | null>(null);
 
   // 노선도 줌/드래그 상태
@@ -142,16 +143,19 @@ export function MainLayout() {
     id: string;
     name: string;
     distance?: string;
+    status?: string; // address
     icon: string;
     isFavorited?: boolean;
+    coordinates?: { lon: number; lat: number };
   }) => {
     setSelectedPlace({
       id: result.id,
       name: result.name,
-      address: "123 Main Street, City",
-      distance: result.distance || "1.2km",
+      address: result.status || "", // SearchResultsPage에서 status가 address
+      distance: result.distance || "",
       icon: result.icon,
       isFavorited: result.isFavorited,
+      coordinates: result.coordinates,
     });
     searchParams.set("place", result.id);
     setSearchParams(searchParams);
