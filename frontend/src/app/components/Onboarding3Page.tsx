@@ -1,15 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import imgTerrainGrassHorizontalMiddle10 from "@/assets/terrain-grass-horizontal-middle.png";
-import imgTerrainGrassHorizontalOverhangRight2 from "@/assets/terrain-grass-horizontal-overhang-right.png";
-import imgTerrainGrassHorizontalOverhangLeft2 from "@/assets/terrain-grass-horizontal-overhang-left.png";
 import imgHudPlayerHelmetPurple2 from "@/assets/hud-player-helmet-purple.png";
 import imgHudPlayerHelmetGreen2 from "@/assets/hud-player-helmet-green.png";
 import imgHudPlayerHelmetYellow2 from "@/assets/hud-player-helmet-yellow.png";
-import imgEllipse6 from "@/assets/ellipse.png";
-import imgHudCharacter12 from "@/assets/hud-character-1.png";
-import imgHudCharacter22 from "@/assets/hud-character-2.png";
-import imgHudCharacter32 from "@/assets/hud-character-3.png";
-import svgPaths from "@/imports/svg-nlrrfs8dd7";
 import { ArrowLeft } from "lucide-react";
 
 interface Onboarding3PageProps {
@@ -17,6 +10,128 @@ interface Onboarding3PageProps {
   onNext?: () => void;
   onSkip?: () => void;
   onBack?: () => void;
+}
+
+type MarkerVariant = "yellow" | "green" | "purple";
+
+// Route curve (SVG coordinate space)
+const ROUTE_W = 292;
+const ROUTE_H = 60;
+const ROUTE_SEG_1: [[number, number], [number, number], [number, number], [number, number]] = [
+  [18, 38],
+  [78, 14],
+  [116, 14],
+  [146, 30],
+];
+const ROUTE_SEG_2: [[number, number], [number, number], [number, number], [number, number]] = [
+  [146, 30],
+  [176, 46],
+  [214, 46],
+  [274, 22],
+];
+
+function bezier(p0: number, p1: number, p2: number, p3: number, t: number) {
+  const u = 1 - t;
+  return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+}
+
+function routeYAtX(xTarget: number) {
+  const seg = xTarget <= ROUTE_SEG_1[3][0] ? ROUTE_SEG_1 : ROUTE_SEG_2;
+  const [p0, p1, p2, p3] = seg;
+  // x(t) is monotonic increasing for these control points, so binary search is safe.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    const x = bezier(p0[0], p1[0], p2[0], p3[0], mid);
+    if (x < xTarget) lo = mid;
+    else hi = mid;
+  }
+  const t = (lo + hi) / 2;
+  return bezier(p0[1], p1[1], p2[1], p3[1], t);
+}
+
+function MarkerPin({
+  variant,
+  avatarSrc,
+  size = 70,
+}: {
+  variant: MarkerVariant;
+  avatarSrc: string;
+  size?: number;
+}) {
+  const bg =
+    variant === "yellow" ? "#ffd93d" :
+    variant === "green" ? "#48d448" :
+    "#a78bfa";
+  // tuned for a cleaner, less "sticker-like" pin
+  const border = 3;
+  const innerBorder = 3;
+  const innerSize = Math.round(size * 0.66);
+  const pointerOuter = Math.round(size * 0.14);
+  const pointerInner = Math.max(pointerOuter - 2, 7);
+  const pointerHeight = Math.round(size * 0.19);
+  const pointerTop = size - 6;
+  const totalH = size + pointerHeight + 6;
+
+  return (
+    <div
+      className="relative"
+      style={{
+        width: size,
+        height: totalH,
+        filter:
+          "drop-shadow(0px 6px 0px rgba(0,0,0,0.18)) drop-shadow(0px 14px 18px rgba(0,0,0,0.12))",
+      }}
+    >
+      {/* main circle */}
+      <div
+        className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full border-[3px] border-black flex items-center justify-center overflow-hidden"
+        style={{ width: size, height: size, background: bg }}
+      >
+        {/* subtle highlight */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(60% 60% at 28% 25%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 60%)",
+          }}
+        />
+        <div
+          className="relative rounded-full bg-white border-[3px] border-black overflow-hidden flex items-center justify-center"
+          style={{ width: innerSize, height: innerSize, padding: innerBorder }}
+        >
+          <img
+            alt=""
+            className="w-full h-full object-cover"
+            src={avatarSrc}
+          />
+        </div>
+      </div>
+
+      {/* pointer (outer black) */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 w-0 h-0"
+        style={{
+          top: pointerTop,
+          borderLeft: `${pointerOuter}px solid transparent`,
+          borderRight: `${pointerOuter}px solid transparent`,
+          borderTop: `${pointerHeight}px solid #000`,
+        }}
+      />
+
+      {/* pointer (inner fill) */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 w-0 h-0"
+        style={{
+          top: pointerTop + 2,
+          borderLeft: `${pointerInner}px solid transparent`,
+          borderRight: `${pointerInner}px solid transparent`,
+          borderTop: `${Math.max(pointerHeight - 3, 9)}px solid ${bg}`,
+        }}
+      />
+    </div>
+  );
 }
 
 export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboarding3PageProps) {
@@ -69,93 +184,122 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
         </div>
 
         {/* 레이싱 맵 캐릭터 */}
-        <div className="relative mb-8 h-[202px] w-[250px] flex items-center justify-center">
-          {/* 맵 플랫폼 */}
-          <div className="absolute bottom-[30px] left-1/2 -translate-x-1/2 flex items-center">
-            <img 
-              alt="" 
-              className="w-[72.746px] h-[72.746px] object-cover" 
-              src={imgTerrainGrassHorizontalOverhangLeft2} 
-            />
-            <img 
-              alt="" 
-              className="w-[72.912px] h-[72.912px] object-cover" 
-              src={imgTerrainGrassHorizontalMiddle10} 
-            />
-            <img 
-              alt="" 
-              className="w-[72.912px] h-[72.912px] object-cover" 
-              src={imgTerrainGrassHorizontalOverhangRight2} 
-            />
-          </div>
+        <div className="relative mb-8 w-[320px] max-w-[calc(100%-40px)] h-[210px] flex items-center justify-center">
+          <div className="relative w-full h-full">
+            {/* cloud "track" (no ground) */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-[54px] w-[292px] h-[92px]">
+              {/* shadow */}
+              <div className="absolute inset-x-[10px] bottom-[8px] h-[18px] bg-black/10 blur-[16px] rounded-full" />
 
-          {/* 그림자 타원 */}
-          <div className="absolute bottom-[8px] left-1/2 -translate-x-1/2">
-            <img 
-              alt="" 
-              className="w-[219px] h-[108px] object-contain" 
-              src={imgEllipse6} 
-            />
-          </div>
+              {/* cloud body */}
+              <div
+                className="absolute inset-x-0 bottom-[18px] h-[56px] rounded-full border border-black/10"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(231,245,255,0.82))",
+                  boxShadow:
+                    "inset 0 -10px 18px rgba(180, 220, 245, 0.28), 0 8px 22px rgba(0,0,0,0.06)",
+                }}
+              />
+              {/* soft rim highlight */}
+              <div
+                className="absolute inset-x-[10px] bottom-[44px] h-[22px] rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))",
+                  filter: "blur(0.5px)",
+                }}
+              />
+              {/* cloud bumps */}
+              <div className="absolute left-[18px] bottom-[46px] w-[62px] h-[38px] rounded-full bg-white/82 border border-black/10 blur-[0.2px]" />
+              <div className="absolute left-[88px] bottom-[52px] w-[92px] h-[46px] rounded-full bg-white/80 border border-black/10 blur-[0.2px]" />
+              <div className="absolute right-[28px] bottom-[48px] w-[72px] h-[42px] rounded-full bg-white/80 border border-black/10 blur-[0.2px]" />
+              {/* tiny back puff for depth */}
+              <div className="absolute left-[214px] bottom-[58px] w-[38px] h-[26px] rounded-full bg-white/55 border border-black/5 blur-[0.6px]" />
 
-          {/* 캐릭터 1 (노란색 - 왼쪽 앞) */}
-          <div className="absolute left-[10px] top-[50px] z-30">
-            <div className="relative">
-              {/* 헬멧 배경 */}
-              <svg className="absolute -left-[4px] -top-[4px] w-[79px] h-[96.603px]" fill="none" viewBox="0 0 79 96.6026">
-                <path d={svgPaths.p2aaddf80} fill="#111111" />
-              </svg>
-              <img 
-                alt="" 
-                className="relative z-10 w-[67px] h-[67px] object-cover" 
-                src={imgHudCharacter12} 
-              />
-              <img 
-                alt="" 
-                className="absolute top-[18px] left-[3px] w-[70px] h-[70px] object-cover" 
-                src={imgHudPlayerHelmetYellow2} 
-              />
+              {/* dashed route line + markers snapped to the curve (perfect alignment) */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 bottom-[28px]"
+                style={{ width: ROUTE_W, height: ROUTE_H }}
+              >
+                <svg
+                  className="absolute inset-0"
+                  width={ROUTE_W}
+                  height={ROUTE_H}
+                  viewBox={`0 0 ${ROUTE_W} ${ROUTE_H}`}
+                  fill="none"
+                >
+                  <path
+                    d="M18 38 C 78 14, 116 14, 146 30 C 176 46, 214 46, 274 22"
+                    stroke="rgba(31, 74, 47, 0.26)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray="6 10"
+                  />
+                  <path
+                    d="M18 38 C 78 14, 116 14, 146 30 C 176 46, 214 46, 274 22"
+                    stroke="rgba(255,255,255,0.55)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="6 10"
+                  />
+                </svg>
+
+                {(() => {
+                  const points = [
+                    {
+                      xPct: 0.18,
+                      variant: "yellow" as const,
+                      avatarSrc: imgHudPlayerHelmetYellow2,
+                      size: 64,
+                      scale: 1,
+                      opacity: 1,
+                    },
+                    {
+                      xPct: 0.5,
+                      variant: "green" as const,
+                      avatarSrc: imgHudPlayerHelmetGreen2,
+                      size: 56,
+                      scale: 0.9,
+                      opacity: 0.9,
+                    },
+                    {
+                      xPct: 0.82,
+                      variant: "purple" as const,
+                      avatarSrc: imgHudPlayerHelmetPurple2,
+                      size: 64,
+                      scale: 1,
+                      opacity: 1,
+                    },
+                  ];
+
+                  return points.map((p, idx) => {
+                    const x = p.xPct * ROUTE_W;
+                    const y = routeYAtX(x);
+                    // A tiny nudge so the tip visually sits on top of the stroke.
+                    const yVisual = y + 2;
+                    return (
+                      <div
+                        key={idx}
+                        className="absolute"
+                        style={{
+                          left: `${x}px`,
+                          top: `${yVisual}px`,
+                          transform: `translate(-50%, -100%) scale(${p.scale})`,
+                          opacity: p.opacity,
+                        }}
+                      >
+                        <MarkerPin variant={p.variant} avatarSrc={p.avatarSrc} size={p.size} />
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
-          </div>
 
-          {/* 캐릭터 3 (초록색 - 중간 뒤) */}
-          <div className="absolute left-[80px] top-[35px] z-20 opacity-90">
-            <div className="relative">
-              {/* 헬멧 배경 */}
-              <svg className="absolute -left-[3px] -top-[3px] w-[44.653px] h-[52.256px]" fill="none" viewBox="0 0 44.6533 52.2557">
-                <path d={svgPaths.p1f9e4f40} fill="#FF3C3C" />
-              </svg>
-              <img 
-                alt="" 
-                className="relative z-10 w-[30px] h-[30px] object-cover" 
-                src={imgHudCharacter32} 
-              />
-              <img 
-                alt="" 
-                className="absolute top-[3px] left-[0px] w-[39.566px] h-[39.566px] object-cover" 
-                src={imgHudPlayerHelmetGreen2} 
-              />
-            </div>
-          </div>
-
-          {/* 캐릭터 2 (보라색 - 오른쪽 앞) */}
-          <div className="absolute right-[20px] top-[45px] z-25">
-            <div className="relative">
-              {/* 헬멧 배경 */}
-              <svg className="absolute -left-[4px] -top-[3px] w-[53.648px] h-[63.87px]" fill="none" viewBox="0 0 53.6484 63.8701">
-                <path d={svgPaths.pd907200} fill="#FF3C3C" />
-              </svg>
-              <img 
-                alt="" 
-                className="relative z-10 w-[50px] h-[50px] object-cover" 
-                src={imgHudCharacter22} 
-              />
-              <img 
-                alt="" 
-                className="absolute top-[3px] left-[1px] w-[47.537px] h-[47.537px] object-cover" 
-                src={imgHudPlayerHelmetPurple2} 
-              />
-            </div>
+            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[12px] text-[#1f4a2f] opacity-70 font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif]">
+              3개의 경로가 동시에 달려요
+            </p>
           </div>
         </div>
 
@@ -175,10 +319,10 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center justify-center w-[1184px]">
           {Array.from({ length: 13 }).map((_, index) => (
             <div key={index} className="relative shrink-0 size-[128px]">
-              <img 
-                alt="" 
-                className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" 
-                src={imgTerrainGrassHorizontalMiddle10} 
+              <img
+                alt=""
+                className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
+                src={imgTerrainGrassHorizontalMiddle10}
               />
             </div>
           ))}
