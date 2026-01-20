@@ -1,4 +1,4 @@
-import mapboxgl, { Map as MapboxMap } from "mapbox-gl";
+import { Map as MapboxMap } from "mapbox-gl";
 
 // Mapbox에 이미지 로드하는 헬퍼 함수
 async function loadImage(map: MapboxMap, name: string, url: string): Promise<void> {
