@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useLocation } from "react-router-dom";
 import { useMapStore } from "@/stores/mapStore";
+import { MapCharacter } from "@/components/MapCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway";
 
@@ -349,6 +350,32 @@ export function MapView({ onNavigate, currentPage, targetLocation, markers = [] 
           }
         }
       `}</style>
+
+      {/* 애니메이션 캐릭터 테스트 - 실제 지도 좌표에 고정 */}
+      {/* Green 캐릭터 - 서울역 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="green"
+        coordinates={[126.9708, 37.5547]}
+        size={80}
+        animationSpeed={150}
+      />
+      {/* Pink 캐릭터 - 광화문 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="pink"
+        coordinates={[126.9769, 37.5759]}
+        size={80}
+        animationSpeed={180}
+      />
+      {/* Yellow 캐릭터 - 강남역 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="yellow"
+        coordinates={[127.0276, 37.4979]}
+        size={80}
+        animationSpeed={200}
+      />
 
       {/* 지도 컨트롤 버튼들 */}
       <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-10">
