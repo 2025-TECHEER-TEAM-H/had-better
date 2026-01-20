@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/types/user';
+import { useMapStore } from './mapStore';
 
 interface AuthState {
   user: User | null;
@@ -52,6 +53,10 @@ export const useAuthStore = create<AuthState>()(
         // 이전 키 형식도 함께 삭제 (호환성)
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+
+        // 지도 상태도 초기화 (다음 로그인 시 다시 현재 위치로 이동)
+        useMapStore.getState().resetMapState();
+
         set({
           user: null,
           accessToken: null,
