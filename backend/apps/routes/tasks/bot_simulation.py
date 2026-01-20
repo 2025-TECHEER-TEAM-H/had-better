@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 # API 재시도 설정
 MAX_API_RETRIES = 3  # API 재시도 횟수
 API_RETRY_INTERVAL = 10  # 10초 간격
+MAX_WAITING_TIME = 30 * 60  # 버스 최대 대기 시간: 30분 (초 단위)
 
 
 def is_night_time() -> bool:
@@ -649,6 +650,18 @@ def _handle_waiting_bus(
         f"버스 API 응답: route_id={route_id}, arrival_info={'있음' if arrival_info else '없음'}"
     )
 
+    # API 응답 상세 로깅
+    if arrival_info:
+        logger.info(
+            f"버스 API 응답 상세: route_id={route_id}, "
+            f"vehId1={arrival_info.get('vehId1')}, "
+            f"traTime1={arrival_info.get('traTime1')}, "
+            f"arrmsg1={arrival_info.get('arrmsg1')}, "
+            f"vehId2={arrival_info.get('vehId2')}, "
+            f"traTime2={arrival_info.get('traTime2')}, "
+            f"arrmsg2={arrival_info.get('arrmsg2')}"
+        )
+
     if not arrival_info:
         # API 재시도 로직
         retry_count = bot_state.get("api_retry_count", 0)
@@ -722,11 +735,41 @@ def _handle_waiting_bus(
     if tra_time <= 0 or "도착" in arrmsg:
         # vehId가 유효한지 확인 (vehId1, vehId2 모두 없는 경우)
         if not veh_id or veh_id == "0":
+            # 대기 시간 체크 (최대 30분)
+            leg_started_at = bot_state.get("leg_started_at")
+            if leg_started_at:
+                try:
+                    from dateutil import parser
+                    started_time = parser.isoparse(leg_started_at)
+                    elapsed = (timezone.now() - started_time).total_seconds()
+
+                    if elapsed < MAX_WAITING_TIME:
+                        logger.info(
+                            f"버스 대기 중 (vehId 없음): route_id={route_id}, "
+                            f"경과시간={int(elapsed)}초, 최대={MAX_WAITING_TIME}초, "
+                            f"arrmsg={arrmsg}"
+                        )
+                        # 30초 후 재시도
+                        SSEPublisher.publish_bot_status_update(
+                            route_itinerary_id=route_itinerary_id,
+                            bot_state={**bot_state, "arrival_time": None},
+                            vehicle_info={
+                                "type": "BUS",
+                                "route": public_leg.get("bus_route_name"),
+                                "status": "waiting",
+                                "message": arrmsg,
+                            },
+                            next_update_in=30,
+                        )
+                        return 30
+                except Exception as e:
+                    logger.error(f"대기 시간 파싱 오류: {e}")
+
+            # 30분 초과 또는 시간 파싱 실패 → fallback 전환
             logger.warning(
-                f"버스 배차 없음 (시간 기반 fallback 전환): route_id={route_id}, "
+                f"버스 최대 대기 시간 초과 (fallback 전환): route_id={route_id}, "
                 f"tra_time={tra_time}, arrmsg={arrmsg}"
             )
-            # fallback 모드로 전환
             return _handle_waiting_bus_fallback(
                 route_id, route_itinerary_id, bot_state, current_leg, public_leg
             )

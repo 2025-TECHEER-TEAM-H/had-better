@@ -142,7 +142,7 @@ class SeoulBusAPIClient:
         self, st_id: str, bus_route_id: str, ord: Optional[int] = None
     ) -> Optional[dict]:
         """
-        버스 도착정보 조회
+        버스 도착정보 조회 (JSON 형식)
 
         Args:
             st_id: 정류소 ID
@@ -164,6 +164,7 @@ class SeoulBusAPIClient:
             "serviceKey": self.api_key,
             "stId": st_id,
             "busRouteId": bus_route_id,
+            "resultType": "json",  # JSON 형식으로 요청
         }
 
         # ord가 제공된 경우에만 파라미터에 추가
@@ -174,12 +175,23 @@ class SeoulBusAPIClient:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
 
-            error_msg = self._get_error_message(response.text)
-            if error_msg:
-                logger.warning(f"버스 도착정보 조회 오류: {error_msg}")
+            # JSON 파싱
+            data = response.json()
+
+            # 에러 체크
+            msg_header = data.get("msgHeader", {})
+            result_code = msg_header.get("headerCd")
+
+            if result_code not in ("0", "4"):
+                logger.warning(
+                    f"버스 도착정보 조회 오류: [{result_code}] "
+                    f"{msg_header.get('headerMsg', '알 수 없는 오류')}"
+                )
                 return None
 
-            items = self._parse_xml_response(response.text)
+            # itemList 추출
+            msg_body = data.get("msgBody", {})
+            items = msg_body.get("itemList") or []
 
             # API 응답 로깅 강화
             logger.info(
@@ -187,17 +199,38 @@ class SeoulBusAPIClient:
                 f"result_count={len(items)}"
             )
 
-            return items[0] if items else None
+            # busRouteId가 일치하는 항목 찾기
+            for item in items:
+                if item.get("busRouteId") == bus_route_id:
+                    logger.info(
+                        f"일치하는 노선 발견: bus_route_id={bus_route_id}, "
+                        f"vehId1={item.get('vehId1')}, "
+                        f"arrmsg1={item.get('arrmsg1')}"
+                    )
+                    return item
+
+            # 일치하는 노선이 없으면 None 반환
+            logger.warning(
+                f"일치하는 노선 없음: bus_route_id={bus_route_id}, "
+                f"검색된 항목 수={len(items)}"
+            )
+            return None
         except requests.RequestException as e:
             logger.error(
                 f"버스 도착정보 API 요청 실패: st_id={st_id}, "
                 f"bus_route_id={bus_route_id}, error={e}"
             )
             return None
+        except (ValueError, KeyError) as e:
+            logger.error(
+                f"버스 API JSON 파싱 오류: st_id={st_id}, "
+                f"bus_route_id={bus_route_id}, error={e}"
+            )
+            return None
 
     def get_bus_position(self, veh_id: str) -> Optional[dict]:
         """
-        버스 실시간 위치 조회
+        버스 실시간 위치 조회 (JSON 형식)
 
         Args:
             veh_id: 차량 ID
@@ -218,21 +251,40 @@ class SeoulBusAPIClient:
             return None
 
         url = f"{self.BASE_URL}/buspos/getBusPosByVehId"
-        params = {"serviceKey": self.api_key, "vehId": veh_id}
+        params = {
+            "serviceKey": self.api_key,
+            "vehId": veh_id,
+            "resultType": "json",  # JSON 형식으로 요청
+        }
 
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
 
-            error_msg = self._get_error_message(response.text)
-            if error_msg:
-                logger.warning(f"버스 위치 조회 오류: {error_msg}")
+            # JSON 파싱
+            data = response.json()
+
+            # 에러 체크
+            msg_header = data.get("msgHeader", {})
+            result_code = msg_header.get("headerCd")
+
+            if result_code not in ("0", "4"):
+                logger.warning(
+                    f"버스 위치 조회 오류: [{result_code}] "
+                    f"{msg_header.get('headerMsg', '알 수 없는 오류')}"
+                )
                 return None
 
-            items = self._parse_xml_response(response.text)
+            # itemList 추출
+            msg_body = data.get("msgBody", {})
+            items = msg_body.get("itemList") or []
+
             return items[0] if items else None
         except requests.RequestException as e:
             logger.error(f"버스 위치 API 요청 실패: {e}")
+            return None
+        except (ValueError, KeyError) as e:
+            logger.error(f"버스 위치 API JSON 파싱 오류: {e}")
             return None
 
 
