@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { MapView } from "./MapView";
-import placeService, { type PlaceSearchResult } from "@/services/placeService";
+import placeService, { type PlaceSearchResult, type SavedPlace } from "@/services/placeService";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -15,6 +15,8 @@ interface SearchResult {
     lon: number;
     lat: number;
   };
+  _poiPlaceId?: number; // 원본 POI ID (API 호출 시 사용)
+  _nameAddressKey?: string; // 이름+주소 조합 (즐겨찾기 상태 추적용)
 }
 
 // 카테고리별 아이콘 매핑
@@ -82,6 +84,108 @@ export function SearchResultsPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(10); // 현재 표시할 개수
+  
+  // 즐겨찾기 상태 관리 (poi_place_id -> saved_place_id 매핑)
+  const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
+  // 이름+주소 조합으로 즐겨찾기 상태 추적 (같은 POI ID를 가진 결과들을 구분하기 위해)
+  const [savedPlacesByNameAddress, setSavedPlacesByNameAddress] = useState<Map<string, number>>(new Map());
+
+  // 즐겨찾기 목록 로드 함수 (매핑만 업데이트, 검색 결과는 건드리지 않음)
+  const loadSavedPlaces = async (): Promise<void> => {
+    try {
+      const response = await placeService.getSavedPlaces();
+      if (response.status === "success" && response.data) {
+        // poi_place_id -> saved_place_id 매핑 생성
+        // 같은 POI ID에 대해 여러 saved_place가 있을 수 있으므로 가장 최근 것을 사용
+        const map = new Map<number, number>();
+        response.data.forEach((savedPlace) => {
+          const poiId = savedPlace.poi_place.poi_place_id;
+          // 이미 있으면 덮어쓰지 않음 (가장 최근 것이 이미 저장됨)
+          if (!map.has(poiId)) {
+            map.set(poiId, savedPlace.saved_place_id);
+          }
+        });
+        setSavedPlacesMap(map);
+        
+        // 이름+주소 조합으로 즐겨찾기 상태 추적 (같은 POI ID를 가진 결과들을 구분하기 위해)
+        const nameAddressMap = new Map<string, number>();
+        response.data.forEach((savedPlace) => {
+          const key = `${savedPlace.poi_place.name}-${savedPlace.poi_place.address}`;
+          nameAddressMap.set(key, savedPlace.saved_place_id);
+        });
+        setSavedPlacesByNameAddress(nameAddressMap);
+      }
+    } catch (err) {
+      console.error("즐겨찾기 목록 로드 실패:", err);
+    }
+  };
+
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    if (isOpen) {
+      loadSavedPlaces();
+    }
+  }, [isOpen]);
+
+  // FavoritesPlaces에서 즐겨찾기 변경 시 동기화
+  useEffect(() => {
+    const handleFavoritesUpdated = (event: CustomEvent<{ deletedPoiIds?: number[]; addedPoiId?: number; savedPlaceId?: number }>) => {
+      const { deletedPoiIds, addedPoiId, savedPlaceId } = event.detail;
+      
+      if (deletedPoiIds && deletedPoiIds.length > 0) {
+        // 삭제된 POI ID들을 매핑에서 제거
+        setSavedPlacesMap((prev) => {
+          const newMap = new Map(prev);
+          deletedPoiIds.forEach((poiId) => {
+            newMap.delete(poiId);
+          });
+          return newMap;
+        });
+        
+        // 즐겨찾기 목록을 다시 로드하여 이름+주소 조합 매핑 업데이트
+        loadSavedPlaces().then(() => {
+          // 검색 결과의 즐겨찾기 상태 업데이트 (이름+주소 조합으로 확인)
+          // loadSavedPlaces가 완료되면 savedPlacesByNameAddress가 업데이트되므로
+          // 검색 결과를 다시 로드하여 최신 상태 반영
+          setSearchResults((prev) =>
+            prev.map((result) => {
+              const poiPlaceId = result._poiPlaceId || parseInt(result.id.split('-')[0]);
+              if (deletedPoiIds.includes(poiPlaceId)) {
+                // 이름+주소 조합으로 즐겨찾기 상태 확인
+                const nameAddressKey = result._nameAddressKey || `${result.name}-${result.status}`;
+                // savedPlacesByNameAddress가 업데이트된 후이므로 직접 확인
+                return { ...result, isFavorited: false }; // 삭제되었으므로 false
+              }
+              return result;
+            })
+          );
+        });
+      }
+      
+      if (addedPoiId && savedPlaceId) {
+        // 추가된 POI ID를 매핑에 추가
+        setSavedPlacesMap((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(addedPoiId, savedPlaceId);
+          return newMap;
+        });
+        
+        // 즐겨찾기 목록을 다시 로드하여 이름+주소 조합 매핑 업데이트
+        loadSavedPlaces();
+        
+        // 검색 결과는 업데이트하지 않음
+        // 이유: 
+        // 1. handleToggleFavorite에서 이미 해당 결과만 업데이트함
+        // 2. 동기화 이벤트는 다른 컴포넌트(FavoritesPlaces)에서 온 것이므로
+        //    검색 결과는 건드리지 않음 (같은 POI ID를 가진 다른 결과가 함께 업데이트되는 것을 방지)
+      }
+    };
+
+    window.addEventListener("favoritesUpdated", handleFavoritesUpdated as EventListener);
+    return () => {
+      window.removeEventListener("favoritesUpdated", handleFavoritesUpdated as EventListener);
+    };
+  }, []);
 
   // 검색어가 변경될 때 API 호출
   useEffect(() => {
@@ -101,16 +205,31 @@ export function SearchResultsPage({
 
         if (response.status === "success" && response.data) {
           // API 응답을 UI용 데이터로 변환
-          const results: SearchResult[] = response.data.map((place, index) => ({
-            id: place.poi_place_id.toString(),
-            name: place.name,
-            icon: getCategoryIcon(place.category || ""),
-            distance: "",
-            status: place.address,
-            backgroundColor: getCategoryColor(place.category || "", index),
-            isFavorited: false,
-            coordinates: place.coordinates,
-          }));
+          // 같은 POI ID를 가진 여러 결과가 있을 수 있으므로, 각 결과에 고유한 ID 부여
+          // 이름과 주소를 조합하여 더 정확한 고유성 보장
+          const results: SearchResult[] = response.data.map((place, index) => {
+            const poiPlaceId = place.poi_place_id;
+            // 이름+주소 조합으로 즐겨찾기 상태 확인 (같은 POI ID를 가진 결과들을 구분하기 위해)
+            const nameAddressKey = `${place.name}-${place.address}`;
+            const savedPlaceId = savedPlacesByNameAddress.get(nameAddressKey);
+            // 고유 ID 생성: poi_place_id + name + address + index
+            // 같은 POI ID라도 이름이나 주소가 다르면 다른 결과로 처리
+            const uniqueId = `${poiPlaceId}-${place.name}-${place.address}-${index}`;
+            return {
+              id: uniqueId,
+              name: place.name,
+              icon: getCategoryIcon(place.category || ""),
+              distance: "",
+              status: place.address,
+              backgroundColor: getCategoryColor(place.category || "", index),
+              isFavorited: savedPlaceId !== undefined,
+              coordinates: place.coordinates,
+              // 원본 POI ID 저장 (API 호출 시 사용)
+              _poiPlaceId: poiPlaceId,
+              // 이름+주소 조합 저장 (즐겨찾기 상태 추적용)
+              _nameAddressKey: nameAddressKey,
+            };
+          });
           setSearchResults(results);
         } else {
           setError(response.error?.message || "검색에 실패했습니다.");
@@ -126,17 +245,135 @@ export function SearchResultsPage({
     };
 
     fetchSearchResults();
+    // savedPlacesMap 의존성 제거 (즐겨찾기 변경 시 검색 결과를 다시 로드하지 않음)
   }, [searchQuery, isOpen]);
 
   // 즐겨찾기 토글 핸들러
-  const handleToggleFavorite = (placeId: string) => {
+  const handleToggleFavorite = async (placeId: string) => {
+    const result = searchResults.find((r) => r.id === placeId);
+    
+    if (!result) return;
+
+    // 원본 POI ID 사용 (고유 ID가 아닌 실제 POI ID)
+    const poiPlaceId = result._poiPlaceId || parseInt(placeId.split('-')[0]);
+    // 이름+주소 조합으로 즐겨찾기 상태 확인
+    const nameAddressKey = result._nameAddressKey || `${result.name}-${result.status}`;
+    const savedPlaceId = savedPlacesByNameAddress.get(nameAddressKey);
+
+    // 낙관적 UI 업데이트 (즉시 반영) - 해당 결과만 업데이트
+    const newIsFavorited = !result.isFavorited;
     setSearchResults((prev) =>
-      prev.map((result) =>
-        result.id === placeId
-          ? { ...result, isFavorited: !result.isFavorited }
-          : result
+      prev.map((r) =>
+        r.id === placeId ? { ...r, isFavorited: newIsFavorited } : r
       )
     );
+
+    try {
+      if (savedPlaceId !== undefined) {
+        // 즐겨찾기 삭제
+        try {
+          const response = await placeService.deleteSavedPlace(savedPlaceId);
+          if (response.status === "success") {
+            // 매핑에서 제거
+            setSavedPlacesMap((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(poiPlaceId);
+              return newMap;
+            });
+            // 이름+주소 조합 매핑에서도 제거
+            setSavedPlacesByNameAddress((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(nameAddressKey);
+              return newMap;
+            });
+          } else {
+            // 실패 시 롤백
+            setSearchResults((prev) =>
+              prev.map((r) =>
+                r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+              )
+            );
+          }
+        } catch (deleteErr: any) {
+          // 404 에러인 경우 (이미 삭제된 경우) 매핑에서만 제거
+          if (deleteErr.response?.status === 404) {
+            console.warn(`즐겨찾기 ${savedPlaceId}가 이미 삭제되었습니다.`);
+            setSavedPlacesMap((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(poiPlaceId);
+              return newMap;
+            });
+            // 이름+주소 조합 매핑에서도 제거
+            setSavedPlacesByNameAddress((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(nameAddressKey);
+              return newMap;
+            });
+          } else {
+            // 다른 에러인 경우 롤백
+            setSearchResults((prev) =>
+              prev.map((r) =>
+                r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+              )
+            );
+            throw deleteErr;
+          }
+        }
+      } else {
+        // 즐겨찾기 추가
+        // 주의: 백엔드가 같은 tmap_poi_id를 가진 여러 결과를 하나의 PoiPlace로 합치기 때문에,
+        // 검색 결과에서 선택한 정확한 이름과 주소가 백엔드에 저장되지 않을 수 있습니다.
+        // 백엔드에서는 마지막으로 처리된 결과의 이름과 주소가 저장됩니다.
+        const response = await placeService.addSavedPlace({
+          poi_place_id: poiPlaceId,
+        });
+        if (response.status === "success" && response.data) {
+          // 매핑에 추가
+          setSavedPlacesMap((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(poiPlaceId, response.data!.saved_place_id);
+            return newMap;
+          });
+          // 이름+주소 조합 매핑에도 추가 (선택한 정확한 이름+주소 사용)
+          setSavedPlacesByNameAddress((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(nameAddressKey, response.data!.saved_place_id);
+            return newMap;
+          });
+          
+          // 백엔드가 같은 tmap_poi_id를 가진 결과를 합치기 때문에,
+          // 즐겨찾기 목록을 다시 로드하여 최신 상태 반영
+          loadSavedPlaces();
+          
+          // 다른 컴포넌트에 동기화 이벤트 발생 (검색 결과는 이미 업데이트했으므로 이벤트만 발생)
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { addedPoiId: poiPlaceId, savedPlaceId: response.data.saved_place_id },
+            })
+          );
+        } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
+          // 이미 즐겨찾기에 있는 경우 (409 Conflict)
+          // 즐겨찾기 목록을 다시 로드하여 정확한 saved_place_id 가져오기
+          loadSavedPlaces();
+        } else {
+          // 실패 시 롤백
+          setSearchResults((prev) =>
+            prev.map((r) =>
+              r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+            )
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("즐겨찾기 토글 실패:", err);
+      // 실패 시 롤백
+      setSearchResults((prev) =>
+        prev.map((r) =>
+          r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+        )
+      );
+    }
+
     onToggleFavorite?.(placeId);
   };
 
@@ -293,7 +530,7 @@ export function SearchResultsPage({
 
       {/* 검색 결과 목록 (visibleCount만큼만 표시) */}
       {!isLoading && !error && searchResults.slice(0, visibleCount).map((result, index) => (
-        <ResultCard key={`${result.id}-${index}`} result={result} />
+        <ResultCard key={`${result.id}-${index}-${result.name}`} result={result} />
       ))}
 
       {/* 정보 더보기 버튼 */}
