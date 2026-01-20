@@ -5,7 +5,10 @@ from django.db import models
 class PoiPlace(models.Model):
     """TMap API에서 캐시된 POI 장소"""
 
-    tmap_poi_id = models.CharField(max_length=100, unique=True)
+    # tmap_pkey: TMap API의 고유 식별자 (서울대학교, 정문, 후문 등 각각 구분)
+    tmap_pkey = models.CharField(max_length=100, unique=True)
+    # tmap_poi_id: TMap API의 POI ID (같은 장소의 정문/후문 등이 같은 ID를 공유)
+    tmap_poi_id = models.CharField(max_length=100, db_index=True)
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255)
     category = models.CharField(max_length=100, blank=True)
