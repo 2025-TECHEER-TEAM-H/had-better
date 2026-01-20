@@ -4,7 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useLocation } from "react-router-dom";
 import { useMapStore } from "@/stores/mapStore";
 
-type PageType = "map" | "search" | "favorites" | "subway";
+type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
 // 마커 정보 타입
 interface MarkerInfo {
@@ -12,6 +12,22 @@ interface MarkerInfo {
   coordinates: [number, number]; // [경도, 위도]
   name: string;
   icon?: string;
+}
+
+// 경로 라인 정보 타입
+export interface RouteLineInfo {
+  id: string;
+  coordinates: [number, number][]; // [[경도, 위도], ...]
+  color: string;
+  width?: number;
+  opacity?: number;
+}
+
+// 출발지/도착지 마커 타입
+export interface EndpointMarker {
+  type: 'departure' | 'arrival';
+  coordinates: [number, number];
+  name: string;
 }
 
 interface MapViewProps {
@@ -32,18 +48,40 @@ interface MapViewProps {
    * 표시할 마커 목록 (선택)
    */
   markers?: MarkerInfo[];
+  /**
+   * 표시할 경로 라인 목록 (선택)
+   */
+  routeLines?: RouteLineInfo[];
+  /**
+   * 출발지/도착지 마커 (선택)
+   */
+  endpoints?: EndpointMarker[];
+  /**
+   * 경로 영역에 맞게 지도 범위 조정 여부 (선택)
+   */
+  fitToRoutes?: boolean;
 }
 
 // Mapbox Access Token 설정
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "";
 
-export function MapView({ onNavigate, currentPage, targetLocation, markers = [] }: MapViewProps = {}) {
+export function MapView({
+  onNavigate,
+  currentPage,
+  targetLocation,
+  markers = [],
+  routeLines = [],
+  endpoints = [],
+  fitToRoutes = false,
+}: MapViewProps = {}) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const placeMarkers = useRef<mapboxgl.Marker[]>([]); // 검색 결과 마커들
+  const endpointMarkers = useRef<mapboxgl.Marker[]>([]); // 출발지/도착지 마커
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
+  const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
 
@@ -58,7 +96,9 @@ export function MapView({ onNavigate, currentPage, targetLocation, markers = [] 
         ? "subway"
         : location.pathname === "/search"
           ? "search"
-          : "favorites");
+          : location.pathname.startsWith("/route")
+            ? "route"
+            : "favorites");
 
   // 서울 시청 좌표 (기본값)
   const defaultCenter: [number, number] = [126.9780, 37.5665];
@@ -226,10 +266,210 @@ export function MapView({ onNavigate, currentPage, targetLocation, markers = [] 
 
     // 클린업: 컴포넌트 언마운트 시 마커 제거
     return () => {
-      placeMarkers.current.forEach((marker) => marker.remove());
+      try {
+        placeMarkers.current.forEach((marker) => marker.remove());
+      } catch {
+        // 지도가 제거된 경우 무시
+      }
       placeMarkers.current = [];
     };
   }, [markers, isMapLoaded]);
+
+  // 경로 라인 표시 (지도 로드 완료 후에만)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const mapInstance = map.current;
+
+    // 기존 경로 레이어 및 소스 제거
+    routeLines.forEach((_, index) => {
+      const layerId = `route-line-${index}`;
+      const sourceId = `route-source-${index}`;
+
+      if (mapInstance.getLayer(layerId)) {
+        mapInstance.removeLayer(layerId);
+      }
+      if (mapInstance.getSource(sourceId)) {
+        mapInstance.removeSource(sourceId);
+      }
+    });
+
+    // 이전에 추가된 레이어들도 정리 (최대 10개까지)
+    for (let i = 0; i < 10; i++) {
+      const layerId = `route-line-${i}`;
+      const sourceId = `route-source-${i}`;
+
+      if (mapInstance.getLayer(layerId)) {
+        mapInstance.removeLayer(layerId);
+      }
+      if (mapInstance.getSource(sourceId)) {
+        mapInstance.removeSource(sourceId);
+      }
+    }
+
+    // 새 경로 라인 추가
+    routeLines.forEach((route, index) => {
+      const sourceId = `route-source-${index}`;
+      const layerId = `route-line-${index}`;
+
+      // GeoJSON 소스 추가
+      mapInstance.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: route.coordinates,
+          },
+        },
+      });
+
+      // 라인 레이어 추가
+      mapInstance.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': route.color,
+          'line-width': route.width || 5,
+          'line-opacity': route.opacity || 0.8,
+        },
+      });
+    });
+
+    // 클린업
+    return () => {
+      // 지도가 이미 제거되었는지 확인
+      if (!mapInstance || !mapInstance.getStyle()) return;
+
+      routeLines.forEach((_, index) => {
+        const layerId = `route-line-${index}`;
+        const sourceId = `route-source-${index}`;
+
+        try {
+          if (mapInstance.getLayer(layerId)) {
+            mapInstance.removeLayer(layerId);
+          }
+          if (mapInstance.getSource(sourceId)) {
+            mapInstance.removeSource(sourceId);
+          }
+        } catch {
+          // 지도가 제거된 경우 무시
+        }
+      });
+    };
+  }, [routeLines, isMapLoaded]);
+
+  // 출발지/도착지 마커 표시
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 마커 제거
+    endpointMarkers.current.forEach((marker) => marker.remove());
+    endpointMarkers.current = [];
+
+    // 새 마커 추가
+    endpoints.forEach((endpoint) => {
+      const el = document.createElement("div");
+      el.className = "endpoint-marker";
+
+      const bgColor = endpoint.type === 'departure' ? '#4CAF50' : '#F44336';
+      const icon = endpoint.type === 'departure' ? '🚩' : '🏁';
+
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        ">
+          <div style="
+            width: 44px;
+            height: 44px;
+            background: ${bgColor};
+            border: 3px solid black;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+          ">${icon}</div>
+          <div style="
+            margin-top: 4px;
+            padding: 4px 8px;
+            background: white;
+            border: 2px solid black;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          ">${endpoint.name}</div>
+        </div>
+      `;
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat(endpoint.coordinates)
+        .addTo(map.current!);
+
+      endpointMarkers.current.push(marker);
+    });
+
+    return () => {
+      try {
+        endpointMarkers.current.forEach((marker) => marker.remove());
+      } catch {
+        // 지도가 제거된 경우 무시
+      }
+      endpointMarkers.current = [];
+    };
+  }, [endpoints, isMapLoaded]);
+
+  // 경로 영역에 맞게 지도 범위 조정
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || !fitToRoutes) return;
+    if (routeLines.length === 0 && endpoints.length === 0) return;
+    if (routesFitted.current) return; // 이미 맞춤 완료
+
+    // 모든 좌표 수집
+    const allCoordinates: [number, number][] = [];
+
+    routeLines.forEach((route) => {
+      allCoordinates.push(...route.coordinates);
+    });
+
+    endpoints.forEach((endpoint) => {
+      allCoordinates.push(endpoint.coordinates);
+    });
+
+    if (allCoordinates.length === 0) return;
+
+    // bounds 계산
+    const bounds = new mapboxgl.LngLatBounds();
+    allCoordinates.forEach((coord) => {
+      bounds.extend(coord);
+    });
+
+    // 지도 범위 조정
+    map.current.fitBounds(bounds, {
+      padding: { top: 80, bottom: 200, left: 50, right: 50 },
+      duration: 1000,
+    });
+
+    routesFitted.current = true;
+  }, [routeLines, endpoints, fitToRoutes, isMapLoaded]);
+
+  // fitToRoutes가 변경되면 다시 맞춤 가능하도록 리셋
+  useEffect(() => {
+    if (!fitToRoutes) {
+      routesFitted.current = false;
+    }
+  }, [fitToRoutes]);
 
   // 자동 현재 위치 이동 제거
   // - 저장된 위치가 있으면 그 위치로 시작 (지도 초기화 시 처리)
