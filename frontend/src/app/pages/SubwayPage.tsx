@@ -7,6 +7,7 @@ import { SearchPage } from "@/app/components/SearchPage";
 
 interface LayoutContext {
   onNavigate: (page: string) => void;
+  onBack?: () => void;
   onOpenDashboard: () => void;
   onOpenFavorites: () => void;
   onSearchSubmit: (query: string) => void;
@@ -17,7 +18,7 @@ export function SubwayPage() {
 
   return (
     <SearchPage
-      onBack={() => context.onNavigate("map")}
+      onBack={context.onBack || (() => context.onNavigate("search"))}
       onNavigate={context.onNavigate}
       onOpenDashboard={context.onOpenDashboard}
       onOpenFavorites={context.onOpenFavorites}

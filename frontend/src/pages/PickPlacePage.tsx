@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Map, type MapRef } from 'react-map-gl/mapbox';
-import { useSavedPlaceStore, type CategoryType } from '../stores/useSavedPlaceStore';
+// TODO: 리팩토링 후 새 store로 교체 필요
+// import { useSavedPlaceStore, type CategoryType } from '../stores/useSavedPlaceStore';
+type CategoryType = '집' | '회사' | '학교' | '즐겨찾기';
 // import api from '../services/api'; // TODO: 백엔드 연결 시 주석 해제
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
@@ -33,7 +35,11 @@ export function PickPlacePage({ onNavigate, category }: PickPlacePageProps) {
   const startPositionRef = useRef(10);
   const mapRef = useRef<MapRef>(null);
 
-  const { saveCategorizedPlace } = useSavedPlaceStore();
+  // TODO: 리팩토링 후 새 store로 교체 필요
+  // const { saveCategorizedPlace } = useSavedPlaceStore();
+  const saveCategorizedPlace = async (_category: CategoryType, _placeId: number, _data: any) => {
+    console.log('TODO: saveCategorizedPlace 구현 필요');
+  };
 
   // 지도 로드 시 언어 플러그인 적용
   const onMapLoad = () => {
