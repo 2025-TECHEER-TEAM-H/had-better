@@ -40,6 +40,68 @@ from .utils.redis_client import redis_client
 logger = logging.getLogger(__name__)
 
 
+def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
+    """
+    공공데이터 ID 변환 결과 검증
+
+    Args:
+        public_ids: PublicAPIIdConverter.convert_legs() 결과
+        bot_leg_id: 봇 경로 ID
+
+    Returns:
+        (is_valid, error_message) 튜플
+    """
+    legs = public_ids.get("legs", [])
+
+    for i, leg in enumerate(legs):
+        mode = leg.get("mode")
+
+        if mode == "BUS":
+            # 버스 노선 ID 검증
+            if not leg.get("bus_route_id"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=bus_route_id_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 노선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 승차 정류소 검증
+            if not leg.get("start_station"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=start_station_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 승차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 하차 정류소 검증
+            if not leg.get("end_station"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=end_station_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 하차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+        elif mode == "SUBWAY":
+            # 호선 ID 검증
+            if not leg.get("subway_line_id"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=subway_line_id_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 호선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 경유역 목록 검증
+            pass_stops = leg.get("pass_stops", [])
+            if len(pass_stops) <= 2:
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=insufficient_pass_stops, count={len(pass_stops)}"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 경유역 정보가 부족합니다. 다른 경로를 선택해주세요."
+
+    return True, ""
+
+
 def success_response(data, status_code=status.HTTP_200_OK, meta=None):
     """공통 성공 응답 포맷"""
     response = {
@@ -179,6 +241,23 @@ class RouteListCreateView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
+        # 봇 경로 ID 변환 및 검증 (transaction 시작 전)
+        bot_public_ids_list = []
+        for bot_leg in bot_legs:
+            legs = bot_leg.raw_data.get("legs", [])
+            public_ids = PublicAPIIdConverter.convert_legs(legs)
+
+            # 공공데이터 ID 변환 결과 검증
+            is_valid, error_message = validate_public_ids(public_ids, bot_leg.id)
+            if not is_valid:
+                return error_response(
+                    code="INVALID_PUBLIC_IDS",
+                    message=error_message,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            bot_public_ids_list.append((bot_leg, public_ids))
+
         # 출발/도착 좌표
         start_lat = float(route_itinerary.start_y)
         start_lon = float(route_itinerary.start_x)
@@ -209,7 +288,7 @@ class RouteListCreateView(APIView):
 
             # 봇 Route 생성 및 시뮬레이션 시작
             bot_routes = []
-            for i, bot_leg in enumerate(bot_legs):
+            for i, (bot_leg, public_ids) in enumerate(bot_public_ids_list):
                 # 봇 생성
                 bot = Bot.objects.create(
                     name=f"Bot {i + 1}",
@@ -230,14 +309,13 @@ class RouteListCreateView(APIView):
                     end_lon=end_lon,
                 )
                 participants.append(bot_route)
-                bot_routes.append((bot_route, bot_leg, bot))
+                bot_routes.append((bot_route, bot_leg, bot, public_ids))
 
         # 봇 시뮬레이션 시작 (v3)
-        for bot_route, bot_leg, bot in bot_routes:
+        for bot_route, bot_leg, bot, public_ids in bot_routes:
             try:
-                # TMAP → 공공데이터 ID 변환
+                # 미리 검증된 public_ids 사용
                 legs = bot_leg.raw_data.get("legs", [])
-                public_ids = PublicAPIIdConverter.convert_legs(legs)
                 redis_client.set_public_ids(bot_route.id, public_ids)
 
                 # 봇 초기 상태 생성

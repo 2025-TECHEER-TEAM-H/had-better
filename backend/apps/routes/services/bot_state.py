@@ -8,9 +8,10 @@
 - 도착 예정 시간 기반 동적 폴링 간격 결정
 """
 
-from datetime import datetime
 from enum import Enum
 from typing import Optional
+
+from django.utils import timezone
 
 from ..utils.redis_client import redis_client
 
@@ -51,7 +52,7 @@ class BotStateManager:
             "status": initial_status,
             "current_leg_index": 0,
             "total_legs": len(legs),
-            "leg_started_at": datetime.now().isoformat(),
+            "leg_started_at": timezone.now().isoformat(),
             "vehicle_id": None,
             "arrival_time": None,  # v3: 도착 예정 시간 (초)
             "next_poll_interval": 30,  # v3: 다음 폴링 간격
@@ -119,7 +120,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_BUS.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=timezone.now().isoformat(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -161,7 +162,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_SUBWAY.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=timezone.now().isoformat(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -203,7 +204,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WALKING.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=timezone.now().isoformat(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,

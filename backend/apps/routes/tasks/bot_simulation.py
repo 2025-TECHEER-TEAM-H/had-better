@@ -307,11 +307,15 @@ def _handle_waiting_bus_fallback(
         # 대기 완료 → 탑승 처리
         BotStateManager.transition_to_riding_bus(route_id, "fallback")
 
+        # start_station이 None일 수 있으므로 안전하게 처리
+        start_station = public_leg.get("start_station") or {}
+        station_name = start_station.get("name", "")
+
         SSEPublisher.publish_bot_boarding(
             route_itinerary_id=route_itinerary_id,
             route_id=route_id,
             bot_id=bot_state["bot_id"],
-            station_name=public_leg.get("start_station", {}).get("name", ""),
+            station_name=station_name,
             vehicle={
                 "type": "BUS",
                 "route": public_leg.get("bus_route_name"),
@@ -398,12 +402,15 @@ def _handle_riding_bus_fallback(
     )
 
     if elapsed >= section_time:
-        # 하차 처리
+        # 하차 처리 (end_station이 None일 수 있으므로 안전하게 처리)
+        end_station = public_leg.get("end_station") or {}
+        station_name = end_station.get("name", "")
+
         SSEPublisher.publish_bot_alighting(
             route_itinerary_id=route_itinerary_id,
             route_id=route_id,
             bot_id=bot_state["bot_id"],
-            station_name=public_leg.get("end_station", {}).get("name", ""),
+            station_name=station_name,
         )
 
         next_leg_index = bot_state["current_leg_index"] + 1
@@ -616,6 +623,13 @@ def _handle_waiting_bus(
     start_station = public_leg.get("start_station", {})
     st_id = start_station.get("stId") if start_station else None
 
+    # 디버깅: 버스 정보 확인
+    logger.info(
+        f"버스 대기 시작: route_id={route_id}, "
+        f"bus_route_id={bus_route_id}, st_id={st_id}, "
+        f"bus_route_name={public_leg.get('bus_route_name')}"
+    )
+
     # 버스 정보가 없으면 시간 기반 fallback 사용
     if not bus_route_id or not st_id:
         logger.warning(
@@ -627,7 +641,13 @@ def _handle_waiting_bus(
         )
 
     # 도착정보 조회
+    logger.info(
+        f"버스 API 호출: route_id={route_id}, st_id={st_id}, bus_route_id={bus_route_id}"
+    )
     arrival_info = bus_api_client.get_arrival_info(st_id, bus_route_id)
+    logger.info(
+        f"버스 API 응답: route_id={route_id}, arrival_info={'있음' if arrival_info else '없음'}"
+    )
 
     if not arrival_info:
         # API 재시도 로직

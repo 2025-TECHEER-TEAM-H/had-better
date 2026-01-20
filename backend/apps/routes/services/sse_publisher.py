@@ -18,8 +18,9 @@ SSE 이벤트 발행 서비스 (v3)
 """
 
 import logging
-from datetime import datetime
 from typing import Optional
+
+from django.utils import timezone
 
 from ..utils.rabbitmq_client import rabbitmq_client
 
@@ -53,7 +54,7 @@ class SSEPublisher:
             "progress_percent": bot_state.get("progress_percent"),
             "arrival_time": bot_state.get("arrival_time"),
             "next_update_in": next_update_in,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timezone.now().isoformat(),
         }
 
         if vehicle_info:
@@ -104,7 +105,7 @@ class SSEPublisher:
                 "bot_id": bot_id,
                 "station_name": station_name,
                 "vehicle": vehicle,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
 
@@ -132,7 +133,7 @@ class SSEPublisher:
                 "bot_id": bot_id,
                 "station_name": station_name,
                 "next_action": "WALKING",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
 
@@ -163,7 +164,7 @@ class SSEPublisher:
                 "participant": participant,
                 "rank": rank,
                 "duration": duration,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
 
@@ -185,7 +186,7 @@ class SSEPublisher:
             data={
                 "route_itinerary_id": route_itinerary_id,
                 "reason": reason,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
 
@@ -204,7 +205,7 @@ class SSEPublisher:
             event_type="heartbeat",
             data={
                 "route_itinerary_id": route_itinerary_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
 
@@ -229,6 +230,6 @@ class SSEPublisher:
                 "route_itinerary_id": route_itinerary_id,
                 "error_code": error_code,
                 "error_message": error_message,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
             },
         )
