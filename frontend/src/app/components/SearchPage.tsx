@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import subwayMapImage from "@/assets/subway-map-image.png";
 import imgGemGreen1 from "@/assets/gem-green.png";
 import imgGemRed1 from "@/assets/gem-red.png";
@@ -8,6 +9,9 @@ import imgWindow2 from "@/assets/window.png";
 import imgSaw1 from "@/assets/saw.png";
 import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
 import { AppHeader } from "@/app/components/AppHeader";
+import { useAuthStore } from "@/stores/authStore";
+import userService from "@/services/userService";
+import authService from "@/services/authService";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -36,6 +40,9 @@ interface FavoriteLocations {
 }
 
 export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
+  const navigate = useNavigate();
+  const { refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [startLocation, setStartLocation] = useState("");
   const [endLocation, setEndLocation] = useState("");
@@ -66,6 +73,59 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [subwayPosition, setSubwayPosition] = useState({ x: 0, y: 0 });
   const [isSubwayDragging, setIsSubwayDragging] = useState(false);
   const [subwayDragStart, setSubwayDragStart] = useState({ x: 0, y: 0 });
+
+  // 햄버거 메뉴 팝오버 상태
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [isSavingNickname, setIsSavingNickname] = useState(false);
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
+
+  const handleToggleProfileMenu = () => {
+    setIsProfileMenuOpen((prev) => !prev);
+  };
+
+  const handleEditProfileClick = () => {
+    setIsProfileMenuOpen(false);
+    setNicknameInput("");
+    setNicknameError(null);
+    setIsProfileDialogOpen(true);
+  };
+
+  const handleLogoutClick = () => {
+    setIsProfileMenuOpen(false);
+    const tokenToInvalidate = refreshToken;
+    clearAuthState();
+    navigate("/login");
+    if (tokenToInvalidate) {
+      authService.logout(tokenToInvalidate);
+    }
+  };
+
+  const handleSaveNickname = async () => {
+    const trimmed = nicknameInput.trim();
+    if (!trimmed) {
+      setNicknameError("닉네임을 입력해주세요.");
+      return;
+    }
+
+    setIsSavingNickname(true);
+    setNicknameError(null);
+
+    try {
+      const response = await userService.updateNickname(trimmed);
+      if (response.status === "success" && response.data) {
+        updateUser({ nickname: response.data.nickname });
+        setIsProfileDialogOpen(false);
+      } else {
+        setNicknameError(response.error?.message || "닉네임 변경에 실패했습니다.");
+      }
+    } catch (error: any) {
+      setNicknameError(error?.response?.data?.error?.message || "서버 오류로 닉네임을 변경할 수 없습니다.");
+    } finally {
+      setIsSavingNickname(false);
+    }
+  };
 
   // 노선도 마우스 드래그 시작
   const handleSubwayMouseDown = (e: React.MouseEvent) => {
@@ -126,6 +186,92 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     <div className="relative size-full" style={{
       background: 'linear-gradient(180deg, #c5e7f5 0%, #ffffff 100%)'
     }}>
+      {/* 내 정보 수정 모달 */}
+      {isProfileDialogOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-[20px] border-4 border-black shadow-[8px_8px_0px_0px_black] w-[320px] max-w-[90vw] px-6 pt-6 pb-5 relative">
+            <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[14px] text-black text-center mb-4">
+              닉네임을 변경해주세요
+            </p>
+            <input
+              type="text"
+              value={nicknameInput}
+              onChange={(e) => setNicknameInput(e.target.value)}
+              maxLength={50}
+              placeholder="새 닉네임을 입력하세요"
+              className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[13px] text-black placeholder:text-[rgba(0,0,0,0.35)] outline-none"
+            />
+            {nicknameError && (
+              <p className="mt-2 text-[11px] text-red-600 css-4hzbpn">
+                {nicknameError}
+              </p>
+            )}
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileDialogOpen(false);
+                }}
+                className="flex-1 bg-white border-3 border-black rounded-[16px] h-[40px] flex items-center justify-center shadow-[4px_4px_0px_0px_black] hover:bg-[#f3f4f6] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] transition-all"
+              >
+                <span className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black">
+                  취소
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNickname}
+                disabled={isSavingNickname}
+                className="flex-1 bg-[#4a9960] border-3 border-black rounded-[16px] h-[40px] flex items-center justify-center shadow-[4px_4px_0px_0px_black] hover:bg-[#3d7f50] disabled:opacity-60 disabled:cursor-not-allowed active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_black] transition-all"
+              >
+                <span className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[11px] text-white">
+                  {isSavingNickname ? "Saving..." : "저장"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 햄버거 메뉴 팝오버 */}
+      {isProfileMenuOpen && (
+        <>
+          {/* 배경 클릭 시 닫히는 투명 오버레이 */}
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => setIsProfileMenuOpen(false)}
+          />
+          {/* 팝오버 본문 */}
+          <div className="absolute left-[21px] top-[74px] z-30">
+            <div
+              className="bg-white rounded-[16px] border-3 border-black shadow-[6px_6px_0px_0px_black] w-[190px] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={handleEditProfileClick}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#f3f4f6] active:bg-[#e5e7eb] transition-colors"
+              >
+                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-black">
+                  내 정보 수정
+                </span>
+                <span className="text-[16px]">✏️</span>
+              </button>
+              <div className="h-[1px] bg-black/10" />
+              <button
+                type="button"
+                onClick={handleLogoutClick}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#fee2e2] active:bg-[#fecaca] transition-colors"
+              >
+                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-[#b91c1c]">
+                  로그아웃
+                </span>
+                <span className="text-[16px]">🚪</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {isSubwayMode ? (
         // 지하철 노선도 표시
         <>
@@ -141,7 +287,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             }}
             onNavigate={onNavigate}
             onOpenDashboard={onOpenDashboard}
-            onMenuClick={() => alert('메뉴 클릭')}
+            onMenuClick={handleToggleProfileMenu}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onSearchSubmit={() => {
@@ -192,7 +338,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             onBack={onBack}
             onNavigate={onNavigate}
             onOpenDashboard={onOpenDashboard}
-            onMenuClick={() => alert('메뉴 클릭')}
+            onMenuClick={handleToggleProfileMenu}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onSearchSubmit={() => {
