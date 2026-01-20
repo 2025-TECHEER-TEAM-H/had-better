@@ -73,12 +73,24 @@ export function MainLayout() {
 
     const route = pageRoutes[page];
     if (route) {
-      // 지도 페이지로 이동할 때 검색 파라미터 제거
-      if (page === "map") {
-        navigate(route);
+      // search 페이지로 이동할 때는 항상 쿼리 파라미터를 제거
+      // 이렇게 하면 다른 화면에서 SearchPage로 왔을 때 SearchResultsPage가 자동으로 열리지 않음
+      if (page === "search") {
+        navigate("/search", { replace: false });
       } else {
         navigate(route);
       }
+    }
+  };
+
+  // 뒤로가기 핸들러 (브라우저 히스토리 활용)
+  const handleBack = () => {
+    // 브라우저 히스토리를 사용하여 이전 페이지로 이동
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // 히스토리가 없으면 기본적으로 검색 페이지로 이동
+      navigate("/search");
     }
   };
 
@@ -106,15 +118,23 @@ export function MainLayout() {
   // 검색 제출 핸들러
   const handleSearchSubmit = (query: string) => {
     if (query.trim()) {
-      setSearchParams({ q: query });
+      // 검색 결과는 히스토리 스택을 늘리지 않고 현재 /search 엔트리를
+      // /search?q=... 로 교체한다.
+      navigate(
+        {
+          pathname: "/search",
+          search: `?q=${encodeURIComponent(query)}`,
+        },
+        { replace: true }
+      );
     }
   };
 
   // 검색 결과 닫기
   const handleCloseSearchResults = () => {
-    searchParams.delete("q");
-    searchParams.delete("place");
-    setSearchParams(searchParams);
+    // 쿼리 없이 /search 로 현재 엔트리를 교체하여,
+    // 이후 뒤로가기를 하면 바로 이전 화면(예: /map, /route 등)으로 이동.
+    navigate("/search", { replace: true });
   };
 
   // 장소 클릭 핸들러
@@ -210,6 +230,7 @@ export function MainLayout() {
             <Outlet
               context={{
                 onNavigate: handleNavigate,
+                onBack: handleBack,
                 onOpenDashboard: () => setIsDashboardOpen(true),
                 onOpenFavorites: () => setIsFavoritesOpen(true),
                 onSearchSubmit: handleSearchSubmit,

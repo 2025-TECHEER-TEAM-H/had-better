@@ -7,6 +7,7 @@ import { RouteSelectionPage } from "@/app/components/RouteSelectionPage";
 
 interface LayoutContext {
   onNavigate: (page: string) => void;
+  onBack?: () => void;
   onOpenDashboard: () => void;
   onOpenFavorites: () => void;
   onSearchSubmit: (query: string) => void;
@@ -17,7 +18,7 @@ export function RoutePage() {
 
   return (
     <RouteSelectionPage
-      onBack={() => context.onNavigate("search")}
+      onBack={context.onBack || (() => context.onNavigate("search"))}
       onNavigate={context.onNavigate}
     />
   );

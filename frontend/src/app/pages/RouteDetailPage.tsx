@@ -7,6 +7,7 @@ import { RouteDetailPage as RouteDetailPageComponent } from "@/app/components/Ro
 
 interface LayoutContext {
   onNavigate: (page: string) => void;
+  onBack?: () => void;
   onOpenDashboard: () => void;
   onOpenFavorites: () => void;
   onSearchSubmit: (query: string) => void;
@@ -17,7 +18,7 @@ export function RouteDetailPage() {
 
   return (
     <RouteDetailPageComponent
-      onBack={() => context.onNavigate("route")}
+      onBack={context.onBack || (() => context.onNavigate("route"))}
       onNavigate={context.onNavigate}
       onOpenDashboard={context.onOpenDashboard}
     />

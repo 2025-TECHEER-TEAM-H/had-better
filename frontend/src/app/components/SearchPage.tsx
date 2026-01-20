@@ -130,7 +130,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
         // 지하철 노선도 표시
         <>
           <AppHeader
-            onBack={onBack}
+            onBack={() => {
+              if (isSubwayMode) {
+                // 지하철 모드에서는 컨텍스트에서 온 기본 뒤로가기 동작 사용
+                onBack?.();
+              } else {
+                // 기본 검색 화면에서는 항상 SearchPage를 닫고 지도(MapView)로 이동
+                onNavigate?.("map");
+              }
+            }}
             onNavigate={onNavigate}
             onOpenDashboard={onOpenDashboard}
             onMenuClick={() => alert('메뉴 클릭')}

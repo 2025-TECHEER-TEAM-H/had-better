@@ -12,9 +12,20 @@ interface ResultPopupProps {
 export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard }: ResultPopupProps) {
   if (!isOpen) return null;
 
+  // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
+  // 1) 항상 먼저 지도(Map)로 한 번 이동
+  // 2) 그 다음 검색(Search) 페이지로 이동
+  // 이렇게 하면 SearchPage의 검색 탭에서 뒤로가기 버튼을 눌렀을 때
+  // 브라우저 히스토리 기준 바로 이전 화면이 MapView가 되도록 보장할 수 있음.
+  const navigateToSearchMain = () => {
+    if (!onNavigate) return;
+    onNavigate("map");
+    onNavigate("search");
+  };
+
   const handleMainClick = () => {
     onClose();
-    onNavigate?.("search");
+    navigateToSearchMain();
   };
 
   const handleDashboardClick = () => {
@@ -60,7 +71,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard }: Re
           <button
             onClick={() => {
               onClose();
-              onNavigate?.("search");
+              navigateToSearchMain();
             }}
             className="absolute bg-white right-0 h-[42.156px] rounded-[14px] top-[2.08px] w-[40.312px] border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] flex items-center justify-center hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all"
           >
