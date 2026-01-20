@@ -11,12 +11,18 @@ import { DashboardPopup } from "@/app/components/DashboardPopup";
 import { FavoritesPlaces } from "@/app/components/FavoritesPlaces";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
+// [로그인 API 작업] 로그아웃 기능을 위해 추가 - feature/front-login-api 브랜치
+import { useAuthStore } from "@/stores/authStore";
+import authService from "@/services/authService";
 import subwayMapImage from "@/assets/subway-map-image.png";
 
 export function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // [로그인 API 작업] 로그아웃 시 토큰 무효화를 위해 추가 - feature/front-login-api 브랜치
+  const { refreshToken, logout: clearAuthState } = useAuthStore();
 
   // 팝업 상태
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
@@ -76,10 +82,25 @@ export function MainLayout() {
     }
   };
 
-  // 로그아웃 핸들러
+  // [로그인 API 작업] 로그아웃 핸들러 - 백엔드 API 호출 추가 (feature/front-login-api 브랜치)
+  // 기존: navigate("/login")만 호출
+  // 변경: 낙관적 UI - 즉시 로컬 상태 정리 후 API는 백그라운드 처리
   const handleLogout = () => {
     setIsDashboardOpen(false);
+
+    // refreshToken을 먼저 저장 (clearAuthState 후에는 null이 됨)
+    const tokenToInvalidate = refreshToken;
+
+    // 로컬 인증 상태 즉시 초기화
+    clearAuthState();
+
+    // 로그인 페이지로 즉시 이동
     navigate("/login");
+
+    // 백엔드에 토큰 무효화 요청 (백그라운드, fire-and-forget)
+    if (tokenToInvalidate) {
+      authService.logout(tokenToInvalidate);
+    }
   };
 
   // 검색 제출 핸들러
