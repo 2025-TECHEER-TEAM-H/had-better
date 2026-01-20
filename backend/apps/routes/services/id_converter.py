@@ -104,14 +104,34 @@ class PublicAPIIdConverter:
         try:
             routes = bus_api_client.get_bus_route_list(bus_number)
 
+            # 디버깅: API 응답 로깅
+            logger.info(
+                f"버스 노선 검색: bus_number={bus_number}, "
+                f"검색 결과 개수={len(routes)}"
+            )
+            if routes:
+                logger.info(f"검색된 노선 목록: {[r.get('busRouteNm') for r in routes]}")
+
             for route in routes:
                 if route.get("busRouteNm") == bus_number:
-                    return route.get("busRouteId")
+                    route_id = route.get("busRouteId")
+                    logger.info(f"노선 ID 찾음: {bus_number} → {route_id}")
+                    return route_id
+
+            # 정확히 일치하는 것이 없으면 첫 번째 결과 사용 (부분 매칭)
+            if routes:
+                route_id = routes[0].get("busRouteId")
+                route_name = routes[0].get("busRouteNm")
+                logger.warning(
+                    f"정확한 노선명 매칭 실패, 첫 번째 결과 사용: "
+                    f"검색={bus_number}, 찾음={route_name}, route_id={route_id}"
+                )
+                return route_id
 
             logger.warning(f"버스 노선 ID를 찾을 수 없음: {bus_number}")
             return None
         except Exception as e:
-            logger.error(f"버스 노선 ID 조회 실패: {e}")
+            logger.error(f"버스 노선 ID 조회 실패: bus_number={bus_number}, error={e}")
             return None
 
     @staticmethod
@@ -140,8 +160,17 @@ class PublicAPIIdConverter:
 
             stations = bus_api_client.get_station_by_name(search_name)
 
+            # 디버깅: API 응답 로깅
+            logger.info(
+                f"정류소 검색: station_name={station_name}, "
+                f"search_name={search_name}, 검색 결과 개수={len(stations)}"
+            )
+
             if not stations:
-                logger.warning(f"정류소를 찾을 수 없음: {search_name}")
+                logger.warning(
+                    f"정류소를 찾을 수 없음: station_name={station_name}, "
+                    f"tmap_coords=({tmap_lon}, {tmap_lat})"
+                )
                 return None
 
             # 좌표로 가장 가까운 정류소 찾기
@@ -154,17 +183,30 @@ class PublicAPIIdConverter:
                 except (ValueError, TypeError):
                     lon, lat = 0, 0
 
+                st_id = closest.get("stId")
+                st_nm = closest.get("stNm")
+                logger.info(
+                    f"정류소 ID 찾음: {station_name} → {st_nm} (stId={st_id})"
+                )
+
                 return {
-                    "stId": closest.get("stId"),
+                    "stId": st_id,
                     "arsId": closest.get("arsId"),
-                    "name": closest.get("stNm"),
+                    "name": st_nm,
                     "lon": lon,
                     "lat": lat,
                 }
 
+            logger.warning(
+                f"가까운 정류소 없음: station_name={station_name}, "
+                f"tmap_coords=({tmap_lon}, {tmap_lat}), candidates={len(stations)}"
+            )
             return None
         except Exception as e:
-            logger.error(f"정류소 ID 조회 실패: {e}")
+            logger.error(
+                f"정류소 ID 조회 실패: station_name={station_name}, "
+                f"coords=({tmap_lon}, {tmap_lat}), error={e}"
+            )
             return None
 
     @classmethod

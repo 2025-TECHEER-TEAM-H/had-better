@@ -8,11 +8,17 @@
 - 도착 예정 시간 기반 동적 폴링 간격 결정
 """
 
-from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from django.utils import timezone
+
 from ..utils.redis_client import redis_client
+
+
+def get_seoul_timestamp() -> str:
+    """서울 시간대 타임스탬프 반환"""
+    return timezone.localtime(timezone.now()).isoformat()
 
 
 class BotStatus(str, Enum):
@@ -51,7 +57,7 @@ class BotStateManager:
             "status": initial_status,
             "current_leg_index": 0,
             "total_legs": len(legs),
-            "leg_started_at": datetime.now().isoformat(),
+            "leg_started_at": get_seoul_timestamp(),
             "vehicle_id": None,
             "arrival_time": None,  # v3: 도착 예정 시간 (초)
             "next_poll_interval": 30,  # v3: 다음 폴링 간격
@@ -76,7 +82,9 @@ class BotStateManager:
     @staticmethod
     def update(route_id: int, **kwargs) -> Optional[dict]:
         """
-        봇 상태 부분 업데이트
+        봇 상태 부분 업데이트 (원자적 업데이트)
+
+        분산 락을 사용하여 동시성 문제를 방지합니다.
 
         Args:
             route_id: 경주 ID
@@ -85,11 +93,7 @@ class BotStateManager:
         Returns:
             업데이트된 봇 상태 또는 None
         """
-        state = redis_client.get_bot_state(route_id)
-        if state:
-            state.update(kwargs)
-            redis_client.set_bot_state(route_id, state)
-        return state
+        return redis_client.update_bot_state_atomic(route_id, **kwargs)
 
     @staticmethod
     def delete(route_id: int) -> None:
@@ -121,7 +125,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_BUS.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -163,7 +167,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WAITING_SUBWAY.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -205,7 +209,7 @@ class BotStateManager:
             route_id,
             status=BotStatus.WALKING.value,
             current_leg_index=leg_index,
-            leg_started_at=datetime.now().isoformat(),
+            leg_started_at=get_seoul_timestamp(),
             vehicle_id=None,
             arrival_time=None,
             next_poll_interval=30,
@@ -270,4 +274,37 @@ class BotStateManager:
         return BotStateManager.update(
             route_id,
             current_position={"lon": lon, "lat": lat},
+        )
+
+    @staticmethod
+    def update_retry_count(route_id: int, count: int) -> Optional[dict]:
+        """
+        API 재시도 카운터 업데이트
+
+        Args:
+            route_id: 경주 ID
+            count: 재시도 횟수
+
+        Returns:
+            업데이트된 봇 상태
+        """
+        return BotStateManager.update(
+            route_id,
+            api_retry_count=count,
+        )
+
+    @staticmethod
+    def reset_retry_count(route_id: int) -> Optional[dict]:
+        """
+        API 재시도 카운터 리셋
+
+        Args:
+            route_id: 경주 ID
+
+        Returns:
+            업데이트된 봇 상태
+        """
+        return BotStateManager.update(
+            route_id,
+            api_retry_count=0,
         )

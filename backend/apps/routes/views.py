@@ -21,6 +21,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
+
 from drf_spectacular.utils import extend_schema
 
 from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
@@ -38,6 +45,68 @@ from .utils.rabbitmq_client import rabbitmq_client
 from .utils.redis_client import redis_client
 
 logger = logging.getLogger(__name__)
+
+
+def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
+    """
+    공공데이터 ID 변환 결과 검증
+
+    Args:
+        public_ids: PublicAPIIdConverter.convert_legs() 결과
+        bot_leg_id: 봇 경로 ID
+
+    Returns:
+        (is_valid, error_message) 튜플
+    """
+    legs = public_ids.get("legs", [])
+
+    for i, leg in enumerate(legs):
+        mode = leg.get("mode")
+
+        if mode == "BUS":
+            # 버스 노선 ID 검증
+            if not leg.get("bus_route_id"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=bus_route_id_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 노선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 승차 정류소 검증
+            if not leg.get("start_station"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=start_station_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 승차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 하차 정류소 검증
+            if not leg.get("end_station"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=end_station_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 하차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+        elif mode == "SUBWAY":
+            # 호선 ID 검증
+            if not leg.get("subway_line_id"):
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=subway_line_id_not_found"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 호선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+
+            # 경유역 목록 검증
+            pass_stops = leg.get("pass_stops", [])
+            if len(pass_stops) <= 2:
+                logger.warning(
+                    f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
+                    f"segment={i}, reason=insufficient_pass_stops, count={len(pass_stops)}"
+                )
+                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 경유역 정보가 부족합니다. 다른 경로를 선택해주세요."
+
+    return True, ""
 
 
 def success_response(data, status_code=status.HTTP_200_OK, meta=None):
@@ -134,7 +203,17 @@ class RouteListCreateView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        # bot_legs 확인
+        # user_leg 경로 검증
+        from apps.itineraries.views import validate_route_segments
+        is_valid, error_message = validate_route_segments(user_leg)
+        if not is_valid:
+            return error_response(
+                code="INVALID_ROUTE",
+                message=error_message,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # bot_legs 확인 및 검증
         bot_legs = []
         for bot_leg_id in bot_leg_ids:
             try:
@@ -143,6 +222,16 @@ class RouteListCreateView(APIView):
                     route_itinerary=route_itinerary,
                     deleted_at__isnull=True
                 )
+
+                # bot_leg 경로 검증
+                is_valid, error_message = validate_route_segments(bot_leg)
+                if not is_valid:
+                    return error_response(
+                        code="INVALID_ROUTE",
+                        message=f"봇 경로(ID: {bot_leg_id}) 검증 실패: {error_message}",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 bot_legs.append(bot_leg)
             except RouteLeg.DoesNotExist:
                 return error_response(
@@ -158,6 +247,23 @@ class RouteListCreateView(APIView):
                 message="봇은 최대 2개까지 배정할 수 있습니다.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
+
+        # 봇 경로 ID 변환 및 검증 (transaction 시작 전)
+        bot_public_ids_list = []
+        for bot_leg in bot_legs:
+            legs = bot_leg.raw_data.get("legs", [])
+            public_ids = PublicAPIIdConverter.convert_legs(legs)
+
+            # 공공데이터 ID 변환 결과 검증
+            is_valid, error_message = validate_public_ids(public_ids, bot_leg.id)
+            if not is_valid:
+                return error_response(
+                    code="INVALID_PUBLIC_IDS",
+                    message=error_message,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            bot_public_ids_list.append((bot_leg, public_ids))
 
         # 출발/도착 좌표
         start_lat = float(route_itinerary.start_y)
@@ -189,7 +295,7 @@ class RouteListCreateView(APIView):
 
             # 봇 Route 생성 및 시뮬레이션 시작
             bot_routes = []
-            for i, bot_leg in enumerate(bot_legs):
+            for i, (bot_leg, public_ids) in enumerate(bot_public_ids_list):
                 # 봇 생성
                 bot = Bot.objects.create(
                     name=f"Bot {i + 1}",
@@ -210,14 +316,13 @@ class RouteListCreateView(APIView):
                     end_lon=end_lon,
                 )
                 participants.append(bot_route)
-                bot_routes.append((bot_route, bot_leg, bot))
+                bot_routes.append((bot_route, bot_leg, bot, public_ids))
 
         # 봇 시뮬레이션 시작 (v3)
-        for bot_route, bot_leg, bot in bot_routes:
+        for bot_route, bot_leg, bot, public_ids in bot_routes:
             try:
-                # TMAP → 공공데이터 ID 변환
+                # 미리 검증된 public_ids 사용
                 legs = bot_leg.raw_data.get("legs", [])
-                public_ids = PublicAPIIdConverter.convert_legs(legs)
                 redis_client.set_public_ids(bot_route.id, public_ids)
 
                 # 봇 초기 상태 생성
@@ -244,8 +349,8 @@ class RouteListCreateView(APIView):
             "route_itinerary_id": route_itinerary.id,
             "participants": ParticipantSerializer(participants, many=True).data,
             "status": Route.Status.RUNNING,
-            "start_time": now.isoformat(),
-            "created_at": now.isoformat(),
+            "start_time": to_seoul_time(now),
+            "created_at": to_seoul_time(now),
             "sse_endpoint": f"/api/v1/sse/routes/{route_itinerary.id}",
         }
 
@@ -284,8 +389,8 @@ class RouteListCreateView(APIView):
                 "route_itinerary_id": route.route_itinerary.id,
                 "status": route.status,
                 "is_win": route.is_win,
-                "start_time": route.start_time.isoformat() if route.start_time else None,
-                "end_time": route.end_time.isoformat() if route.end_time else None,
+                "start_time": to_seoul_time(route.start_time),
+                "end_time": to_seoul_time(route.end_time),
                 "duration": route.duration,
             })
 
@@ -386,12 +491,35 @@ class RouteStatusUpdateView(APIView):
 
         route.save()
 
+        # CANCELED인 경우 같은 경주의 봇 Route도 취소 처리 및 봇 상태 정리
+        if new_status == Route.Status.CANCELED:
+            # 같은 경주의 봇 Route 조회 (같은 route_itinerary, 같은 start_time)
+            bot_routes = Route.objects.filter(
+                route_itinerary=route.route_itinerary,
+                start_time=route.start_time,
+                participant_type=Route.ParticipantType.BOT,
+                status=Route.Status.RUNNING,
+                deleted_at__isnull=True
+            )
+
+            for bot_route in bot_routes:
+                # 봇 Route 상태 변경
+                bot_route.status = Route.Status.CANCELED
+                bot_route.end_time = now
+                bot_route.save()
+
+                # 봇 상태 정리 (Redis 캐시 삭제)
+                # 다음 Celery Task 실행 시 상태 체크로 인해 자동 종료되지만
+                # 즉시 정리하여 리소스 확보
+                BotStateManager.delete(bot_route.id)
+                logger.info(f"봇 시뮬레이션 중단: route_id={bot_route.id} (경주 취소)")
+
         # 응답 데이터 생성
         response_data = {
             "route_id": route.id,
             "status": route.status,
-            "start_time": route.start_time.isoformat() if route.start_time else None,
-            "end_time": route.end_time.isoformat() if route.end_time else None,
+            "start_time": to_seoul_time(route.start_time),
+            "end_time": to_seoul_time(route.end_time),
         }
 
         # FINISHED인 경우에만 duration 포함
@@ -478,7 +606,7 @@ class RouteResultView(APIView):
                 "route_id": p.id,
                 "type": p.participant_type,
                 "duration": p.duration,
-                "end_time": p.end_time.isoformat() if p.end_time else None,
+                "end_time": to_seoul_time(p.end_time),
             }
 
             if p.participant_type == Route.ParticipantType.USER:
@@ -534,8 +662,8 @@ class RouteResultView(APIView):
             "route_id": user_route.id,
             "route_itinerary_id": route_itinerary.id,
             "status": user_route.status,
-            "start_time": user_route.start_time.isoformat() if user_route.start_time else None,
-            "end_time": user_route.end_time.isoformat() if user_route.end_time else None,
+            "start_time": to_seoul_time(user_route.start_time),
+            "end_time": to_seoul_time(user_route.end_time),
             "route_info": {
                 "departure": {
                     "name": departure_name,

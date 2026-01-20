@@ -139,7 +139,7 @@ class SeoulBusAPIClient:
             return []
 
     def get_arrival_info(
-        self, st_id: str, bus_route_id: str, ord: int = 1
+        self, st_id: str, bus_route_id: str, ord: Optional[int] = None
     ) -> Optional[dict]:
         """
         버스 도착정보 조회
@@ -147,7 +147,7 @@ class SeoulBusAPIClient:
         Args:
             st_id: 정류소 ID
             bus_route_id: 노선 ID
-            ord: 정류소 순번 (기본 1)
+            ord: 정류소 순번 (선택사항, None이면 자동 검색)
 
         Returns:
             도착정보 {
@@ -164,8 +164,11 @@ class SeoulBusAPIClient:
             "serviceKey": self.api_key,
             "stId": st_id,
             "busRouteId": bus_route_id,
-            "ord": ord,
         }
+
+        # ord가 제공된 경우에만 파라미터에 추가
+        if ord is not None:
+            params["ord"] = ord
 
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
@@ -177,9 +180,19 @@ class SeoulBusAPIClient:
                 return None
 
             items = self._parse_xml_response(response.text)
+
+            # API 응답 로깅 강화
+            logger.info(
+                f"버스 API 응답: st_id={st_id}, bus_route_id={bus_route_id}, "
+                f"result_count={len(items)}"
+            )
+
             return items[0] if items else None
         except requests.RequestException as e:
-            logger.error(f"버스 도착정보 API 요청 실패: {e}")
+            logger.error(
+                f"버스 도착정보 API 요청 실패: st_id={st_id}, "
+                f"bus_route_id={bus_route_id}, error={e}"
+            )
             return None
 
     def get_bus_position(self, veh_id: str) -> Optional[dict]:
