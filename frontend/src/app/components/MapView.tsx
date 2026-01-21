@@ -1,11 +1,33 @@
 import { useMapStore } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { MapCharacter } from "@/components/MapCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
+
+// 지도 스타일 타입
+type MapStyleType = "default" | "dark" | "satellite-streets";
+
+// 지도 스타일 정보
+const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
+  default: {
+    url: "mapbox://styles/mapbox/outdoors-v12",
+    name: "기본 지도",
+    icon: "🗺️",
+  },
+  dark: {
+    url: "mapbox://styles/mapbox/navigation-night-v1",
+    name: "야간 모드",
+    icon: "🌙",
+  },
+  "satellite-streets": {
+    url: "mapbox://styles/mapbox/satellite-streets-v12",
+    name: "위성 지도",
+    icon: "🛰️",
+  },
+};
 
 // 마커 정보 타입
 interface MarkerInfo {
@@ -104,6 +126,11 @@ export function MapView({
   const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
+  const [mapStyle, setMapStyle] = useState<MapStyleType>("default"); // 지도 스타일
+  const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
+  const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
+  const layerButtonRef = useRef<HTMLButtonElement>(null); // 레이어 버튼 ref
+  const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
   // 지도 상태 저장 store
   const { lastCenter, lastZoom, hasHydrated, setMapView } = useMapStore();
@@ -190,10 +217,14 @@ export function MapView({
     // 지도 이동/줌 완료 시 상태 저장 (moveend 이벤트)
     map.current.on("moveend", () => {
       const mapInstance = map.current;
-      if (mapInstance) {
-        const center = mapInstance.getCenter();
-        const zoom = mapInstance.getZoom();
-        setMapView([center.lng, center.lat], zoom);
+      if (mapInstance && mapInstance.isStyleLoaded()) {
+        try {
+          const center = mapInstance.getCenter();
+          const zoom = mapInstance.getZoom();
+          setMapView([center.lng, center.lat], zoom);
+        } catch {
+          // 스타일 로딩 중 에러 무시
+        }
       }
     });
 
@@ -433,87 +464,94 @@ export function MapView({
 
     const mapInstance = map.current;
 
-    // 기존 경로 레이어 및 소스 제거
-    routeLines.forEach((_, index) => {
-      const layerId = `route-line-${index}`;
-      const sourceId = `route-source-${index}`;
+    // 스타일이 로딩 중이면 무시
+    if (!mapInstance.isStyleLoaded()) return;
 
-      if (mapInstance.getLayer(layerId)) {
-        mapInstance.removeLayer(layerId);
-      }
-      if (mapInstance.getSource(sourceId)) {
-        mapInstance.removeSource(sourceId);
-      }
-    });
-
-    // 이전에 추가된 레이어들도 정리 (최대 10개까지)
-    for (let i = 0; i < 10; i++) {
-      const layerId = `route-line-${i}`;
-      const sourceId = `route-source-${i}`;
-
-      if (mapInstance.getLayer(layerId)) {
-        mapInstance.removeLayer(layerId);
-      }
-      if (mapInstance.getSource(sourceId)) {
-        mapInstance.removeSource(sourceId);
-      }
-    }
-
-    // 새 경로 라인 추가
-    routeLines.forEach((route, index) => {
-      const sourceId = `route-source-${index}`;
-      const layerId = `route-line-${index}`;
-
-      // GeoJSON 소스 추가
-      mapInstance.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: route.coordinates,
-          },
-        },
-      });
-
-      // 라인 레이어 추가
-      mapInstance.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-        },
-        paint: {
-          'line-color': route.color,
-          'line-width': route.width || 5,
-          'line-opacity': route.opacity || 0.8,
-        },
-      });
-    });
-
-    // 클린업
-    return () => {
-      // 지도가 이미 제거되었는지 확인
-      if (!mapInstance || !mapInstance.getStyle()) return;
-
+    try {
+      // 기존 경로 레이어 및 소스 제거
       routeLines.forEach((_, index) => {
         const layerId = `route-line-${index}`;
         const sourceId = `route-source-${index}`;
 
-        try {
+        if (mapInstance.getLayer(layerId)) {
+          mapInstance.removeLayer(layerId);
+        }
+        if (mapInstance.getSource(sourceId)) {
+          mapInstance.removeSource(sourceId);
+        }
+      });
+
+      // 이전에 추가된 레이어들도 정리 (최대 10개까지)
+      for (let i = 0; i < 10; i++) {
+        const layerId = `route-line-${i}`;
+        const sourceId = `route-source-${i}`;
+
+        if (mapInstance.getLayer(layerId)) {
+          mapInstance.removeLayer(layerId);
+        }
+        if (mapInstance.getSource(sourceId)) {
+          mapInstance.removeSource(sourceId);
+        }
+      }
+
+      // 새 경로 라인 추가
+      routeLines.forEach((route, index) => {
+        const sourceId = `route-source-${index}`;
+        const layerId = `route-line-${index}`;
+
+        // GeoJSON 소스 추가
+        mapInstance.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: route.coordinates,
+            },
+          },
+        });
+
+        // 라인 레이어 추가
+        mapInstance.addLayer({
+          id: layerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': route.color,
+            'line-width': route.width || 5,
+            'line-opacity': route.opacity || 0.8,
+          },
+        });
+      });
+    } catch {
+      // 스타일 로딩 중 에러 무시
+    }
+
+    // 클린업
+    return () => {
+      // 지도가 이미 제거되었거나 스타일 로딩 중이면 무시
+      try {
+        if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+
+        routeLines.forEach((_, index) => {
+          const layerId = `route-line-${index}`;
+          const sourceId = `route-source-${index}`;
+
           if (mapInstance.getLayer(layerId)) {
             mapInstance.removeLayer(layerId);
           }
           if (mapInstance.getSource(sourceId)) {
             mapInstance.removeSource(sourceId);
           }
-        } catch {
-          // 지도가 제거된 경우 무시
-        }
-      });
+        });
+      } catch {
+        // 지도가 제거된 경우 무시
+      }
     };
   }, [routeLines, isMapLoaded]);
 
@@ -806,6 +844,193 @@ export function MapView({
     }
   };
 
+  // 지도 스타일 변경
+  const handleStyleChange = useCallback((style: MapStyleType) => {
+    if (!map.current) return;
+
+    // 스타일이 아직 로딩 중이면 무시
+    if (!map.current.isStyleLoaded()) return;
+
+    // 현재 지도 상태 저장
+    const center = map.current.getCenter();
+    const zoom = map.current.getZoom();
+    const bearing = map.current.getBearing();
+    const pitch = map.current.getPitch();
+
+    // 지도 로딩 상태를 false로 설정 (다른 컴포넌트가 접근하지 않도록)
+    setIsMapLoaded(false);
+
+    // 스타일 변경 (diff: false로 경고 방지)
+    map.current.setStyle(MAP_STYLES[style].url, { diff: false });
+
+    // 스타일 로드 후 상태 복원 및 한국어 라벨 적용
+    map.current.once("style.load", () => {
+      if (!map.current) return;
+
+      // 지도 상태 복원
+      map.current.jumpTo({
+        center: center,
+        zoom: zoom,
+        bearing: bearing,
+        pitch: pitch,
+      });
+
+      // 한국어 라벨 적용 (위성 지도는 라벨이 없으므로 제외)
+      if (style !== "satellite-streets") {
+        const layers = map.current.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            if (layer.type === "symbol" && layer.layout?.["text-field"]) {
+              try {
+                map.current?.setLayoutProperty(layer.id, "text-field", [
+                  "coalesce",
+                  ["get", "name_ko"],
+                  ["get", "name:ko"],
+                  ["get", "name"],
+                ]);
+              } catch {
+                // 일부 레이어는 text-field 변경이 불가능할 수 있음
+              }
+            }
+          });
+        }
+      }
+
+      // 야간 모드(navigation-night-v1)의 혼잡도 레이어 숨기기
+      if (style === "dark") {
+        const layers = map.current.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            // traffic 관련 레이어 숨기기
+            if (layer.id.includes("traffic")) {
+              try {
+                map.current?.setLayoutProperty(layer.id, "visibility", "none");
+              } catch {
+                // 레이어 숨기기 실패 무시
+              }
+            }
+          });
+        }
+      }
+
+      // 3D 건물 상태 유지 (스타일 변경 후에도)
+      if (is3DBuildingsEnabled && map.current && !map.current.getLayer("3d-buildings")) {
+        map.current.addLayer({
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 14,
+          paint: {
+            "fill-extrusion-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "height"],
+              0, "#e0e0e0",
+              50, "#c0c0c0",
+              100, "#a0a0a0",
+              200, "#808080",
+            ],
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": ["get", "min_height"],
+            "fill-extrusion-opacity": 0.7,
+          },
+        });
+      }
+
+      // 지도 로딩 완료
+      setIsMapLoaded(true);
+    });
+
+    setMapStyle(style);
+    setIsLayerPopoverOpen(false);
+  }, [is3DBuildingsEnabled]);
+
+  // 3D 건물 레이어 추가 함수
+  const add3DBuildingsLayer = useCallback(() => {
+    if (!map.current) return;
+
+    // 이미 레이어가 있으면 무시
+    if (map.current.getLayer("3d-buildings")) return;
+
+    // 건물 레이어 추가
+    map.current.addLayer({
+      id: "3d-buildings",
+      source: "composite",
+      "source-layer": "building",
+      filter: ["==", "extrude", "true"],
+      type: "fill-extrusion",
+      minzoom: 14,
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["get", "height"],
+          0, "#e0e0e0",
+          50, "#c0c0c0",
+          100, "#a0a0a0",
+          200, "#808080",
+        ],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-base": ["get", "min_height"],
+        "fill-extrusion-opacity": 0.7,
+      },
+    });
+  }, []);
+
+  // 3D 건물 레이어 제거 함수
+  const remove3DBuildingsLayer = useCallback(() => {
+    if (!map.current) return;
+    if (map.current.getLayer("3d-buildings")) {
+      map.current.removeLayer("3d-buildings");
+    }
+  }, []);
+
+  // 3D 건물 토글 핸들러
+  const handle3DBuildingsToggle = useCallback(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+
+    const newState = !is3DBuildingsEnabled;
+    setIs3DBuildingsEnabled(newState);
+
+    if (newState) {
+      add3DBuildingsLayer();
+      // 3D 효과를 위해 pitch 추가
+      map.current.easeTo({
+        pitch: 45,
+        duration: 500,
+      });
+    } else {
+      remove3DBuildingsLayer();
+      // pitch 초기화
+      map.current.easeTo({
+        pitch: 0,
+        duration: 500,
+      });
+    }
+  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+
+  // 팝오버 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isLayerPopoverOpen &&
+        popoverRef.current &&
+        layerButtonRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !layerButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsLayerPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isLayerPopoverOpen]);
+
   return (
     <div className="w-full h-full bg-[#f5f5f5] relative overflow-hidden">
       {/* Mapbox 지도 컨테이너 */}
@@ -826,105 +1051,176 @@ export function MapView({
       `}</style>
 
       {/* 애니메이션 캐릭터 테스트 - 실제 지도 좌표에 고정 */}
-      {/* Green 캐릭터 - 서울역 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="green"
-        coordinates={[126.9708, 37.5547]}
-        size={80}
-        animationSpeed={150}
-      />
-      {/* Pink 캐릭터 - 광화문 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="pink"
-        coordinates={[126.9769, 37.5759]}
-        size={80}
-        animationSpeed={180}
-      />
-      {/* Yellow 캐릭터 - 강남역 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="yellow"
-        coordinates={[127.0276, 37.4979]}
-        size={80}
-        animationSpeed={200}
-      />
+      {/* 지도가 로드되었을 때만 캐릭터 렌더링 */}
+      {isMapLoaded && (
+        <>
+          {/* Green 캐릭터 - 서울역 근처 */}
+          <MapCharacter
+            map={map.current}
+            color="green"
+            coordinates={[126.9708, 37.5547]}
+            size={80}
+            animationSpeed={150}
+          />
+          {/* Pink 캐릭터 - 광화문 근처 */}
+          <MapCharacter
+            map={map.current}
+            color="pink"
+            coordinates={[126.9769, 37.5759]}
+            size={80}
+            animationSpeed={180}
+          />
+          {/* Yellow 캐릭터 - 강남역 근처 */}
+          <MapCharacter
+            map={map.current}
+            color="yellow"
+            coordinates={[127.0276, 37.4979]}
+            size={80}
+            animationSpeed={200}
+          />
+        </>
+      )}
 
-      {/* 지도 컨트롤 버튼들 */}
-      <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-10">
-        {/* 지도 페이지에서만 컨트롤 표시 */}
-        {resolvedCurrentPage === "map" && (
-          <>
-            {/* 네비게이션 버튼들 - 모바일에서만 표시 */}
-            {onNavigate && (
-              <>
-                <button
-                  onClick={() => onNavigate("map")}
-                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-                  title="지도"
-                >
-                  <span className="text-[20px]">🗺️</span>
-                </button>
-
-                <button
-                  onClick={() => onNavigate("search")}
-                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-                  title="검색"
-                >
-                  <span className="text-[20px]">🔍</span>
-                </button>
-
-                <button
-                  onClick={() => onNavigate("favorites")}
-                  className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-                  title="MY"
-                >
-                  <span className="text-[20px]">⭐</span>
-                </button>
-              </>
-            )}
-
-            {/* 줌 컨트롤 */}
-            <div className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black overflow-hidden w-[48px]">
-              <button
-                onClick={handleZoomIn}
-                className="w-full h-[48px] border-b-2 border-[#e5e7eb] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-                title="줌 인"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M8 3V13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <button
-                onClick={handleZoomOut}
-                className="w-full h-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-                title="줌 아웃"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* 현재 위치 버튼 */}
+      {/* 우상단 컨트롤 버튼들 */}
+      {resolvedCurrentPage === "map" && (
+        <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
+          {/* 검색 버튼 - 모바일에서만 표시 */}
+          {onNavigate && (
             <button
-              onClick={handleMyLocation}
-              className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-              title="내 위치로 이동"
+              onClick={() => onNavigate("search")}
+              className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              title="검색"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="#2D5F3F" strokeWidth="2"/>
-                <path d="M12 2V6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M12 18V22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M2 12H6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M18 12H22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+              <span className="text-[20px]">🔍</span>
+            </button>
+          )}
+
+          {/* 레이어 버튼 */}
+          <div className="relative">
+            <button
+              ref={layerButtonRef}
+              onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
+              className={`bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors ${isLayerPopoverOpen ? "bg-[#e5e7eb]" : ""}`}
+              title="레이어"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-          </>
-        )}
-      </div>
+
+            {/* 레이어 팝오버 */}
+            {isLayerPopoverOpen && (
+              <div
+                ref={popoverRef}
+                className="absolute right-[56px] top-0 bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black p-4 min-w-[200px] z-20"
+              >
+                <div className="text-sm font-bold text-gray-700 mb-3 pb-2 border-b-2 border-gray-200">
+                  지도 스타일
+                </div>
+                <div className="flex flex-col gap-2">
+                  {(Object.keys(MAP_STYLES) as MapStyleType[]).map((styleKey) => (
+                    <button
+                      key={styleKey}
+                      onClick={() => handleStyleChange(styleKey)}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                        mapStyle === styleKey
+                          ? "bg-[#4a9960] text-white"
+                          : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
+                      <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                      {mapStyle === styleKey && (
+                        <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 레이어 옵션 섹션 */}
+                <div className="text-sm font-bold text-gray-700 mt-4 mb-3 pt-3 pb-2 border-t-2 border-b-2 border-gray-200">
+                  레이어 옵션
+                </div>
+                <div className="flex flex-col gap-2">
+                  {/* 3D 건물 토글 */}
+                  <button
+                    onClick={handle3DBuildingsToggle}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      is3DBuildingsEnabled
+                        ? "bg-[#4a9960] text-white"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className="text-lg">🏢</span>
+                    <span className="text-sm font-medium">3D 건물</span>
+                    {/* 토글 스위치 */}
+                    <div
+                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
+                        is3DBuildingsEnabled ? "bg-white/30" : "bg-gray-300"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                          is3DBuildingsEnabled
+                            ? "translate-x-5 bg-white"
+                            : "translate-x-0.5 bg-white"
+                        }`}
+                      />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 현재 위치 버튼 */}
+          <button
+            onClick={handleMyLocation}
+            className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+            title="내 위치로 이동"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="3" stroke="#2D5F3F" strokeWidth="2"/>
+              <path d="M12 2V6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M12 18V22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M2 12H6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M18 12H22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* 우하단 컨트롤 버튼들 - 데스크톱 줌 컨트롤 */}
+      {resolvedCurrentPage === "map" && (
+        <div className="hidden md:flex absolute right-4 bottom-10 flex-col gap-3 z-10">
+          {/* 줌 컨트롤 - 데스크톱에서만 표시 */}
+          <div className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black overflow-hidden w-[48px]">
+            <button
+              onClick={handleZoomIn}
+              className="w-full h-[48px] border-b-2 border-[#e5e7eb] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              title="줌 인"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 3V13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="w-full h-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              title="줌 아웃"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

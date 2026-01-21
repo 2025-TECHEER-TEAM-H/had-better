@@ -51,16 +51,25 @@ export function MapCharacter({
 
     // 좌표를 화면 좌표로 변환하는 함수
     const updateScreenPosition = () => {
-      const point = map.project(coordinates);
-      setScreenPosition({ x: point.x, y: point.y });
+      // 스타일이 로딩 중이면 무시
+      try {
+        if (!map.isStyleLoaded()) return;
+        const point = map.project(coordinates);
+        setScreenPosition({ x: point.x, y: point.y });
+      } catch {
+        // 스타일 로딩 중 에러 무시
+      }
     };
 
     // 지도 로드 완료 후 초기 위치 설정
-    if (map.loaded()) {
+    if (map.loaded() && map.isStyleLoaded()) {
       updateScreenPosition();
     } else {
       map.once('load', updateScreenPosition);
     }
+
+    // 스타일 로드 완료 시 위치 업데이트
+    map.on('style.load', updateScreenPosition);
 
     // 지도 이동/줌/회전 시 위치 업데이트
     const handleMove = () => {
@@ -73,6 +82,7 @@ export function MapCharacter({
     map.on('pitch', handleMove);
 
     return () => {
+      map.off('style.load', updateScreenPosition);
       map.off('move', handleMove);
       map.off('zoom', handleMove);
       map.off('rotate', handleMove);
