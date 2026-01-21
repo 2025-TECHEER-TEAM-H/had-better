@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useMapStore } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { useMapStore } from "@/stores/mapStore";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -12,6 +12,8 @@ interface MarkerInfo {
   coordinates: [number, number]; // [경도, 위도]
   name: string;
   icon?: string;
+  // 있으면 라벨에 2줄로 표시(없으면 name만 표시). 다른 파일 수정 없이 optional로 둠.
+  address?: string;
 }
 
 // 경로 라인 정보 타입
@@ -81,6 +83,8 @@ export function MapView({
   const placeMarkers = useRef<mapboxgl.Marker[]>([]); // 검색 결과 마커들
   const endpointMarkers = useRef<mapboxgl.Marker[]>([]); // 출발지/도착지 마커
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
+  // SVG <defs> id 충돌 방지: MapView 인스턴스별 고유 prefix (SVG id는 document 전역 namespace)
+  const svgIdPrefixRef = useRef(`m${Math.random().toString(36).slice(2)}`);
   const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
@@ -233,6 +237,34 @@ export function MapView({
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
+    const isHex = (c: string) => /^#([0-9a-fA-F]{6})$/.test(c);
+    const clamp255 = (n: number) => Math.max(0, Math.min(255, n));
+    const lightenHex = (hex: string, amount = 0.25) => {
+      if (!isHex(hex)) return hex;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const lr = clamp255(Math.round(r + (255 - r) * amount));
+      const lg = clamp255(Math.round(g + (255 - g) * amount));
+      const lb = clamp255(Math.round(b + (255 - b) * amount));
+      return `#${lr.toString(16).padStart(2, "0")}${lg.toString(16).padStart(2, "0")}${lb
+        .toString(16)
+        .padStart(2, "0")}`;
+    };
+    const darkenHex = (hex: string, amount = 0.28) => {
+      if (!isHex(hex)) return hex;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const dr = clamp255(Math.round(r * (1 - amount)));
+      const dg = clamp255(Math.round(g * (1 - amount)));
+      const db = clamp255(Math.round(b * (1 - amount)));
+      return `#${dr.toString(16).padStart(2, "0")}${dg.toString(16).padStart(2, "0")}${db
+        .toString(16)
+        .padStart(2, "0")}`;
+    };
+    // (labelText를 항상 black으로 고정해서, 밝기 기반 분기는 필요 없음)
+
     // 기존 마커들 제거
     placeMarkers.current.forEach((marker) => marker.remove());
     placeMarkers.current = [];
@@ -242,42 +274,126 @@ export function MapView({
       // 마커 엘리먼트 생성
       const el = document.createElement("div");
       el.className = "place-marker";
+      const isActive = index === 0;
+      // 활성(초록 카드) 마커를 "다른 마커들보다만" 위로 (카드/오버레이 UI보다 위로는 올라오면 안 됨)
+      // 따라서 z-index는 낮게 유지하고, 지도 컨테이너를 별도 stacking context로 묶어 UI 오버레이에 눌리도록 합니다.
+      el.style.zIndex = isActive ? "3" : "1";
+      // "한 파일(MapView)에서만" 색 규칙 유지:
+      // SearchResultsPage의 카드 팔레트(인덱스 기반)와 동일 규칙을 여기서 그대로 사용합니다.
+      const cardPalette = ["#7ed321", "#00d9ff", "#ffffff", "#ffc107", "#ff9ff3", "#54a0ff"];
+      const pinBase = cardPalette[index % cardPalette.length];
+      const pinHi = lightenHex(pinBase, 0.22);
+      const pinLo = darkenHex(pinBase, 0.12);
+      const pinStroke = darkenHex(pinBase, 0.32);
+      const innerFill = "white";
+      // 핀 내부(흰 원)에는 아이콘/글자 없이 비워둠
+
+      const labelBg = pinBase;
+      // 글씨색은 항상 검정으로 통일
+      const labelText = "black";
+      // SVG id는 XML Name 규칙을 타서 숫자 시작/특수문자에 취약할 수 있어 안전하게 sanitize + prefix
+      const safeId = String(markerInfo.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const pinFillId = `${svgIdPrefixRef.current}-pinFill-${safeId}`;
+      const holeShadowId = `${svgIdPrefixRef.current}-holeShadow-${safeId}`;
       el.innerHTML = `
         <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          position: relative;
+          width: 48px;
+          height: 58px;
           cursor: pointer;
+          overflow: visible;
         ">
+          <!-- 라벨(우측, 장소 이름) -->
           <div style="
-            width: 40px;
-            height: 40px;
-            background: ${index === 0 ? '#4a9960' : 'white'};
-            border: 3px solid black;
-            border-radius: 50%;
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          ">${markerInfo.icon || '📍'}</div>
-          <div style="
-            margin-top: 4px;
-            padding: 2px 6px;
-            background: white;
-            border: 2px solid black;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: bold;
+            gap: 8px;
+            padding: 10px 14px 10px 44px; /* 핀 아래로 깔리므로 텍스트는 핀 오른쪽에서 시작 */
+            background: rgba(255,255,255,0.96);
+            color: ${labelText};
+            border: 2px solid rgba(0,0,0,0.18);
+            border-radius: 999px;
             white-space: nowrap;
-            max-width: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          ">${markerInfo.name}</div>
+            max-width: 240px;
+            overflow: visible;
+            user-select: none;
+            z-index: 0; /* 핀보다 뒤 */
+          ">
+            <!-- 텍스트(장소 위치) -->
+            <div style="
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+              min-width: 0;
+              padding-right: 2px;
+            ">
+              <div style="
+                font-size: 12px;
+                font-weight: 900;
+                line-height: 1.05;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              ">${markerInfo.name}</div>
+              <div style="
+                display: ${markerInfo.address ? "block" : "none"};
+                font-size: 10px;
+                font-weight: 700;
+                line-height: 1.05;
+                opacity: 0.65;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              ">${markerInfo.address ?? ""}</div>
+            </div>
+          </div>
+
+          <!-- 핀(좌측) -->
+          <div style="
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 48px;
+            height: 58px;
+            filter: none;
+            z-index: 1; /* 라벨보다 위 */
+          ">
+            <svg width="48" height="58" viewBox="0 0 48 58" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+              <defs>
+                <!-- 핀 바디: 은은한 하이라이트(위) + 살짝 어두운 바닥(아래) -->
+                <linearGradient id="${pinFillId}" x1="0" y1="0" x2="0" y2="58">
+                  <stop offset="0" stop-color="${pinHi}" />
+                  <stop offset="0.55" stop-color="${pinBase}" />
+                  <stop offset="1" stop-color="${pinLo}" />
+                </linearGradient>
+
+                <!-- 가운데 링/구멍에 부드러운 그림자(입체감) -->
+                <filter id="${holeShadowId}" x="-40%" y="-40%" width="180%" height="180%">
+                  <feDropShadow dx="1.2" dy="1.8" stdDeviation="0.6" flood-color="black" flood-opacity="0.16" />
+                </filter>
+              </defs>
+              <path
+                d="M24 2C14.611 2 7 9.611 7 19c0 12.6 17 36 17 36s17-23.4 17-36C41 9.611 33.389 2 24 2Z"
+                fill="url(#${pinFillId})"
+                stroke="${pinStroke}"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+              />
+              <!-- 컬러 링(핀색) + 흰 구멍 -->
+              <circle cx="24" cy="20" r="13.2" fill="${pinBase}" filter="url(#${holeShadowId})" />
+              <circle cx="24" cy="20" r="11.1" fill="${innerFill}" />
+              <!-- 링 하이라이트 -->
+              <circle cx="21" cy="17" r="6.8" fill="${pinHi}" opacity="0.16" />
+              <!-- 구멍 가장자리 얇은 음영(입체감) -->
+              <circle cx="24" cy="20" r="11.1" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="1" />
+            </svg>
+          </div>
         </div>
       `;
 
-      const marker = new mapboxgl.Marker({ element: el })
+      const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
         .setLngLat(markerInfo.coordinates)
         .addTo(map.current!);
 
@@ -594,7 +710,7 @@ export function MapView({
   return (
     <div className="w-full h-full bg-[#f5f5f5] relative overflow-hidden">
       {/* Mapbox 지도 컨테이너 */}
-      <div ref={mapContainer} className="w-full h-full" />
+      <div ref={mapContainer} className="w-full h-full relative z-0" />
 
       {/* 펄스 애니메이션을 위한 스타일 */}
       <style>{`
