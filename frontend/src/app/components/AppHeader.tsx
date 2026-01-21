@@ -35,7 +35,11 @@ interface AppHeaderProps {
   onMenuClick?: () => void;
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
-  onSearchSubmit?: () => void;
+  /**
+   * 검색 제출 핸들러
+   * - 입력창의 현재 값이 인자로 전달됩니다.
+   */
+  onSearchSubmit?: (value: string) => void;
   currentPage?: PageType;
   showSearchBar?: boolean;
 }
@@ -110,8 +114,9 @@ export function AppHeader({
                 value={searchQuery}
                 onChange={(e) => onSearchChange?.(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    onSearchSubmit?.();
+                  const value = (e.currentTarget as HTMLInputElement).value;
+                  if (e.key === 'Enter' && value.trim()) {
+                    onSearchSubmit?.(value);
                   }
                 }}
                 placeholder="목적지를 입력해주세요"
