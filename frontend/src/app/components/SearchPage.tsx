@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import subwayMapImage from "@/assets/subway-map-image.png";
-import imgGemGreen1 from "@/assets/gem-green.png";
+import { AppHeader } from "@/app/components/AppHeader";                                                                           import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
+import imgCoinGold2 from "@/assets/coin-gold.png";                                                                              
+import imgGemGreen1 from "@/assets/gem-green.png";                                                                              
 import imgGemRed1 from "@/assets/gem-red.png";
-import imgCoinGold2 from "@/assets/coin-gold.png";
-import imgStar1 from "@/assets/star.png";
-import imgWindow2 from "@/assets/window.png";
 import imgSaw1 from "@/assets/saw.png";
-import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
-import { AppHeader } from "@/app/components/AppHeader";
+import imgStar1 from "@/assets/star.png";
+import subwayMapImage from "@/assets/subway-map-image.png";
+import imgWindow2 from "@/assets/window.png";
+import authService from "@/services/authService";
+import userService from "@/services/userService";
+import placeService, { type SearchPlaceHistory } from "@/services/placeService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
-import userService from "@/services/userService";
-import authService from "@/services/authService";
-import placeService, { type SearchPlaceHistory } from "@/services/placeService";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // 좌표 포함 장소 타입
 interface LocationWithCoords {
@@ -36,6 +35,7 @@ interface SearchPageProps {
 interface Place {
   id: string;
   name: string;
+  detail?: string;
   distance: string;
   time: string;
   icon: string;
@@ -43,9 +43,9 @@ interface Place {
 }
 
 interface FavoriteLocations {
-  home: Place | null;
-  school: Place | null;
-  work: Place | null;
+  home: Place[];
+  school: Place[];
+  work: Place[];
 }
 
 export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
@@ -66,10 +66,20 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [isPlaceSearchOpen, setIsPlaceSearchOpen] = useState(false);
   const [selectedFavoriteType, setSelectedFavoriteType] = useState<"home" | "school" | "work" | null>(null);
   const [favoriteLocations, setFavoriteLocations] = useState<FavoriteLocations>({
-    home: null,
-    school: null,
-    work: null,
+    home: [],
+    school: [],
+    work: [],
   });
+  const [favoriteSavedToast, setFavoriteSavedToast] = useState<{
+    type: "home" | "school" | "work";
+    placeName: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!favoriteSavedToast) return;
+    const t = window.setTimeout(() => setFavoriteSavedToast(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [favoriteSavedToast]);
 
   // 최근 검색 기록 상태
   const [searchHistories, setSearchHistories] = useState<SearchPlaceHistory[]>([]);
@@ -80,7 +90,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     const checkViewport = () => {
       setIsWebView(window.innerWidth > 768);
     };
-    
+
     checkViewport();
     window.addEventListener('resize', checkViewport);
     return () => window.removeEventListener('resize', checkViewport);
@@ -277,6 +287,40 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     <div className="relative size-full" style={{
       background: 'linear-gradient(180deg, #c5e7f5 0%, #ffffff 100%)'
     }}>
+      {/* 저장 완료 토스트: 모달 닫힌 뒤 SearchPage에서 저장 확인용 */}
+      {favoriteSavedToast && !isPlaceSearchOpen && (
+        <div className="fixed left-1/2 top-[92px] -translate-x-1/2 z-50 w-[340px] pointer-events-none">
+          <div className="bg-white border-3 border-black rounded-[18px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] px-4 py-3 flex items-center gap-3">
+            <div className="bg-[rgba(198,198,198,0.35)] border-3 border-black rounded-[12px] size-[44px] flex items-center justify-center shrink-0">
+              <img
+                alt=""
+                className="size-[28px] object-contain pointer-events-none"
+                src={
+                  favoriteSavedToast.type === "home"
+                    ? imgWindow2
+                    : favoriteSavedToast.type === "school"
+                      ? imgSaw1
+                      : imgCoinGold2
+                }
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] leading-[16px] text-black">
+                {favoriteSavedToast.type === "home"
+                  ? "집"
+                  : favoriteSavedToast.type === "school"
+                    ? "학교"
+                    : "회사"}
+                이(가) 등록되었습니다
+              </p>
+              <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium text-[11px] leading-[14px] text-black/60 truncate">
+                {favoriteSavedToast.placeName}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 내 정보 수정 모달 */}
       {isProfileDialogOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
@@ -405,8 +449,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           ) : (
             // 앱 화면: 노선도 이미지 표시
             <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '230px' }}>
-              <img 
-                src={subwayMapImage} 
+              <img
+                src={subwayMapImage}
                 alt="지하철 노선도"
                 className={`w-full h-full object-contain ${isSubwayDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                 style={{
@@ -517,11 +561,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           {/* 자주 가는 곳 버튼들 */}
           <div className="absolute left-[50%] top-[455px] translate-x-[-50%] w-[320px] flex gap-[15px] z-10">
             {/* 집 */}
-            <button 
+            <button
               onClick={() => {
-                if (favoriteLocations.home) {
+                if (favoriteLocations.home.length > 0) {
+                  const place = favoriteLocations.home[0];
                   setStartLocation("현재 위치");
-                  setEndLocation(favoriteLocations.home.name);
+                  setEndLocation(place.name);
                   onNavigate?.("route");
                 } else {
                   setSelectedFavoriteType("home");
@@ -530,7 +575,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
-              <div className={`${favoriteLocations.home ? 'bg-white' : 'bg-[rgba(198,198,198,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
+              <div className={`${favoriteLocations.home.length > 0 ? 'bg-white' : 'bg-[rgba(198,198,198,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
               <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[30px] text-[12px] text-black text-center tracking-[0.6px] mt-[13.5px]">집</p>
               <div className="absolute size-[30px] top-[20px] left-[50%] translate-x-[-50%] pointer-events-none" data-name="window 2">
                 <img alt="" className="absolute inset-0 max-w-none object-cover size-full" src={imgWindow2} />
@@ -538,11 +583,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </button>
 
             {/* 학교 */}
-            <button 
+            <button
               onClick={() => {
-                if (favoriteLocations.school) {
+                if (favoriteLocations.school.length > 0) {
+                  const place = favoriteLocations.school[0];
                   setStartLocation("현재 위치");
-                  setEndLocation(favoriteLocations.school.name);
+                  setEndLocation(place.name);
                   onNavigate?.("route");
                 } else {
                   setSelectedFavoriteType("school");
@@ -551,7 +597,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
-              <div className={`${favoriteLocations.school ? 'bg-white' : 'bg-[rgba(198,198,198,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
+              <div className={`${favoriteLocations.school.length > 0 ? 'bg-white' : 'bg-[rgba(198,198,198,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
               <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[30px] text-[12px] text-black text-center tracking-[0.6px] mt-[13.5px]">학교</p>
               <div className="absolute size-[30px] top-[22px] left-[50%] translate-x-[-50%] pointer-events-none" data-name="saw 1">
                 <img alt="" className="absolute inset-0 max-w-none object-cover size-full" src={imgSaw1} />
@@ -559,11 +605,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </button>
 
             {/* 회사 */}
-            <button 
+            <button
               onClick={() => {
-                if (favoriteLocations.work) {
+                if (favoriteLocations.work.length > 0) {
+                  const place = favoriteLocations.work[0];
                   setStartLocation("현재 위치");
-                  setEndLocation(favoriteLocations.work.name);
+                  setEndLocation(place.name);
                   onNavigate?.("route");
                 } else {
                   setSelectedFavoriteType("work");
@@ -572,7 +619,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
-              <div className={`${favoriteLocations.work ? 'bg-white' : 'bg-[rgba(175,175,175,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
+              <div className={`${favoriteLocations.work.length > 0 ? 'bg-white' : 'bg-[rgba(175,175,175,0.6)]'} border-3 border-black border-solid h-[74px] rounded-[10px] w-[68.153px]`} />
               <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] text-[12px] text-black text-center tracking-[0.6px] mt-[13.5px]">회사</p>
               <div className="absolute size-[55px] top-[9px] left-[50%] translate-x-[-50%] pointer-events-none" data-name="coin_gold 2">
                 <img alt="" className="absolute inset-0 max-w-none object-cover size-full" src={imgCoinGold2} />
@@ -580,7 +627,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </button>
 
             {/* 즐겨찾기 */}
-            <button 
+            <button
               onClick={onOpenFavorites}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
@@ -662,17 +709,35 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
         }}
         onSelectPlace={(place) => {
           if (selectedFavoriteType) {
-            // 자주 가는 곳에 저장
+            // 자주 가는 곳에 저장 (최신이 위로 오도록 unshift, 중복 id는 제거)
             setFavoriteLocations((prev) => ({
               ...prev,
-              [selectedFavoriteType]: place,
+              [selectedFavoriteType]: [
+                place,
+                ...prev[selectedFavoriteType].filter((p) => p.id !== place.id),
+              ],
             }));
-            // 모달 닫고 SearchPage로 돌아가기
-            setIsPlaceSearchOpen(false);
-            setSelectedFavoriteType(null);
+            setFavoriteSavedToast({ type: selectedFavoriteType, placeName: place.name });
+            // 모달은 PlaceSearchModal이 UX 흐름에 맞게 제어(저장 후 초기 화면으로 돌아가게)
           }
         }}
         targetType={selectedFavoriteType}
+        currentSavedPlaces={selectedFavoriteType ? favoriteLocations[selectedFavoriteType] : []}
+        onRemoveSavedPlace={(placeId) => {
+          if (!selectedFavoriteType) return;
+          setFavoriteLocations((prev) => ({
+            ...prev,
+            [selectedFavoriteType]: prev[selectedFavoriteType].filter((p) => p.id !== placeId),
+          }));
+        }}
+        onRequestRoute={(place) => {
+          // 모달 닫고 경로 안내로 이동: 현재 위치 -> 선택된 장소
+          setIsPlaceSearchOpen(false);
+          setSelectedFavoriteType(null);
+          setStartLocation("현재 위치");
+          setEndLocation(place.name);
+          onNavigate?.("route");
+        }}
         onNavigate={(page) => {
           if (page === "map") {
             // 지도 버튼 - 모달 닫고 지도로 이동

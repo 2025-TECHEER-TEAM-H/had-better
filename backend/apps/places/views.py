@@ -127,15 +127,13 @@ class PlaceSearchView(APIView):
         # 결과를 poi_place 테이블에 upsert
         poi_places = []
         for result in tmap_results:
-            # lon, lat, pkey가 None이면 건너뛰기
-            if not result.get("lon") or not result.get("lat") or not result.get("pkey"):
+            # lon, lat이 None이면 건너뛰기
+            if not result.get("lon") or not result.get("lat"):
                 continue
 
-            # tmap_pkey로 고유 식별 (정문/후문 등 각각 별도 레코드로 저장)
             poi_place, _ = PoiPlace.objects.update_or_create(
-                tmap_pkey=result.get("pkey"),
+                tmap_poi_id=result.get("id"),
                 defaults={
-                    "tmap_poi_id": result.get("id"),
                     "name": result.get("name"),
                     "address": result.get("address"),
                     "category": result.get("category", ""),
@@ -274,13 +272,12 @@ class PlaceSearchView(APIView):
                 results.append(
                     {
                         "id": poi.get("id"),
-                        "pkey": poi.get("pkey"),  # 고유 식별자 (정문/후문 등 구분)
                         "name": poi.get("name", ""),
                         "address": address,
-                        # TMap 분류는 코드(mlClass)로 오는 경우가 많아 프론트에서 활용이 어려움.
-                        # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback.
+
                         "category": (
-                            # 더 구체적인 분류가 우선
+                            # 더# TMap 분류는 코드(mlClass)로 오는 경우가 많아 프론트에서 활용이 어려움.
+                        # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback. 구체적인 분류가 우선
                             poi.get("lowerBizName")
                             or poi.get("middleBizName")
                             or poi.get("upperBizName")
