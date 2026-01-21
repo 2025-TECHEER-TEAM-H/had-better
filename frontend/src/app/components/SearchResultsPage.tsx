@@ -15,9 +15,17 @@ interface SearchResult {
     lon: number;
     lat: number;
   };
-  _poiPlaceId?: number; // 원본 POI ID (API 호출 시 사용)
-  _nameAddressKey?: string; // 이름+주소 조합 (즐겨찾기 상태 추적용)
+  _poiPlaceId?: number; // POI Place ID (API 호출 시 사용)
 }
+
+// 받침 여부에 따라 주격 조사 반환
+const getSubjectParticle = (word: string): "이" | "가" => {
+  if (!word) return "이";
+  const lastChar = word.charCodeAt(word.length - 1);
+  if (lastChar < 0xac00 || lastChar > 0xd7a3) return "이";
+  const jong = (lastChar - 0xac00) % 28;
+  return jong === 0 ? "가" : "이";
+};
 
 // 카테고리별 아이콘 매핑
 const getCategoryIcon = (category: string): string => {
@@ -87,8 +95,29 @@ export function SearchResultsPage({
   
   // 즐겨찾기 상태 관리 (poi_place_id -> saved_place_id 매핑)
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
-  // 이름+주소 조합으로 즐겨찾기 상태 추적 (같은 POI ID를 가진 결과들을 구분하기 위해)
-  const [savedPlacesByNameAddress, setSavedPlacesByNameAddress] = useState<Map<string, number>>(new Map());
+
+  // 토스트 메시지
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+    }, 1500);
+  };
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // 즐겨찾기 목록 로드 함수 (매핑만 업데이트, 검색 결과는 건드리지 않음)
   const loadSavedPlaces = async (): Promise<void> => {
@@ -96,24 +125,12 @@ export function SearchResultsPage({
       const response = await placeService.getSavedPlaces();
       if (response.status === "success" && response.data) {
         // poi_place_id -> saved_place_id 매핑 생성
-        // 같은 POI ID에 대해 여러 saved_place가 있을 수 있으므로 가장 최근 것을 사용
         const map = new Map<number, number>();
         response.data.forEach((savedPlace) => {
           const poiId = savedPlace.poi_place.poi_place_id;
-          // 이미 있으면 덮어쓰지 않음 (가장 최근 것이 이미 저장됨)
-          if (!map.has(poiId)) {
-            map.set(poiId, savedPlace.saved_place_id);
-          }
+          map.set(poiId, savedPlace.saved_place_id);
         });
         setSavedPlacesMap(map);
-        
-        // 이름+주소 조합으로 즐겨찾기 상태 추적 (같은 POI ID를 가진 결과들을 구분하기 위해)
-        const nameAddressMap = new Map<string, number>();
-        response.data.forEach((savedPlace) => {
-          const key = `${savedPlace.poi_place.name}-${savedPlace.poi_place.address}`;
-          nameAddressMap.set(key, savedPlace.saved_place_id);
-        });
-        setSavedPlacesByNameAddress(nameAddressMap);
       }
     } catch (err) {
       console.error("즐겨찾기 목록 로드 실패:", err);
@@ -142,24 +159,16 @@ export function SearchResultsPage({
           return newMap;
         });
         
-        // 즐겨찾기 목록을 다시 로드하여 이름+주소 조합 매핑 업데이트
-        loadSavedPlaces().then(() => {
-          // 검색 결과의 즐겨찾기 상태 업데이트 (이름+주소 조합으로 확인)
-          // loadSavedPlaces가 완료되면 savedPlacesByNameAddress가 업데이트되므로
-          // 검색 결과를 다시 로드하여 최신 상태 반영
-          setSearchResults((prev) =>
-            prev.map((result) => {
-              const poiPlaceId = result._poiPlaceId || parseInt(result.id.split('-')[0]);
-              if (deletedPoiIds.includes(poiPlaceId)) {
-                // 이름+주소 조합으로 즐겨찾기 상태 확인
-                const nameAddressKey = result._nameAddressKey || `${result.name}-${result.status}`;
-                // savedPlacesByNameAddress가 업데이트된 후이므로 직접 확인
-                return { ...result, isFavorited: false }; // 삭제되었으므로 false
-              }
-              return result;
-            })
-          );
-        });
+        // 검색 결과의 즐겨찾기 상태 업데이트
+        setSearchResults((prev) =>
+          prev.map((result) => {
+            const poiPlaceId = result._poiPlaceId;
+            if (poiPlaceId && deletedPoiIds.includes(poiPlaceId)) {
+              return { ...result, isFavorited: false };
+            }
+            return result;
+          })
+        );
       }
       
       if (addedPoiId && savedPlaceId) {
@@ -170,14 +179,8 @@ export function SearchResultsPage({
           return newMap;
         });
         
-        // 즐겨찾기 목록을 다시 로드하여 이름+주소 조합 매핑 업데이트
-        loadSavedPlaces();
-        
         // 검색 결과는 업데이트하지 않음
-        // 이유: 
-        // 1. handleToggleFavorite에서 이미 해당 결과만 업데이트함
-        // 2. 동기화 이벤트는 다른 컴포넌트(FavoritesPlaces)에서 온 것이므로
-        //    검색 결과는 건드리지 않음 (같은 POI ID를 가진 다른 결과가 함께 업데이트되는 것을 방지)
+        // 이유: handleToggleFavorite에서 이미 해당 결과만 업데이트함
       }
     };
 
@@ -205,16 +208,11 @@ export function SearchResultsPage({
 
         if (response.status === "success" && response.data) {
           // API 응답을 UI용 데이터로 변환
-          // 같은 POI ID를 가진 여러 결과가 있을 수 있으므로, 각 결과에 고유한 ID 부여
-          // 이름과 주소를 조합하여 더 정확한 고유성 보장
           const results: SearchResult[] = response.data.map((place, index) => {
             const poiPlaceId = place.poi_place_id;
-            // 이름+주소 조합으로 즐겨찾기 상태 확인 (같은 POI ID를 가진 결과들을 구분하기 위해)
-            const nameAddressKey = `${place.name}-${place.address}`;
-            const savedPlaceId = savedPlacesByNameAddress.get(nameAddressKey);
-            // 고유 ID 생성: poi_place_id + name + address + index
-            // 같은 POI ID라도 이름이나 주소가 다르면 다른 결과로 처리
-            const uniqueId = `${poiPlaceId}-${place.name}-${place.address}-${index}`;
+            const savedPlaceId = savedPlacesMap.get(poiPlaceId);
+            // 고유 ID 생성: poi_place_id + index (백엔드에서 각 장소가 고유한 poi_place_id를 가지므로)
+            const uniqueId = `${poiPlaceId}-${index}`;
             return {
               id: uniqueId,
               name: place.name,
@@ -224,10 +222,8 @@ export function SearchResultsPage({
               backgroundColor: getCategoryColor(place.category || "", index),
               isFavorited: savedPlaceId !== undefined,
               coordinates: place.coordinates,
-              // 원본 POI ID 저장 (API 호출 시 사용)
+              // POI Place ID 저장 (API 호출 시 사용)
               _poiPlaceId: poiPlaceId,
-              // 이름+주소 조합 저장 (즐겨찾기 상태 추적용)
-              _nameAddressKey: nameAddressKey,
             };
           });
           setSearchResults(results);
@@ -245,20 +241,18 @@ export function SearchResultsPage({
     };
 
     fetchSearchResults();
-    // savedPlacesMap 의존성 제거 (즐겨찾기 변경 시 검색 결과를 다시 로드하지 않음)
+    // savedPlacesMap 변경 시에는 검색 결과를 다시 불러오지 않는다
+    // (즐겨찾기 토글 시 re-fetch로 인한 화면 재로딩을 막기 위함)
   }, [searchQuery, isOpen]);
 
   // 즐겨찾기 토글 핸들러
   const handleToggleFavorite = async (placeId: string) => {
     const result = searchResults.find((r) => r.id === placeId);
     
-    if (!result) return;
+    if (!result || !result._poiPlaceId) return;
 
-    // 원본 POI ID 사용 (고유 ID가 아닌 실제 POI ID)
-    const poiPlaceId = result._poiPlaceId || parseInt(placeId.split('-')[0]);
-    // 이름+주소 조합으로 즐겨찾기 상태 확인
-    const nameAddressKey = result._nameAddressKey || `${result.name}-${result.status}`;
-    const savedPlaceId = savedPlacesByNameAddress.get(nameAddressKey);
+    const poiPlaceId = result._poiPlaceId;
+    const savedPlaceId = savedPlacesMap.get(poiPlaceId);
 
     // 낙관적 UI 업데이트 (즉시 반영) - 해당 결과만 업데이트
     const newIsFavorited = !result.isFavorited;
@@ -266,6 +260,13 @@ export function SearchResultsPage({
       prev.map((r) =>
         r.id === placeId ? { ...r, isFavorited: newIsFavorited } : r
       )
+    );
+    // 토글 즉시 토스트 표시
+    const particle = getSubjectParticle(result.name);
+    showToast(
+      newIsFavorited
+        ? `${result.name}${particle} 즐겨찾기에 추가됐습니다.`
+        : `${result.name}${particle} 즐겨찾기에서 삭제됐습니다.`
     );
 
     try {
@@ -280,12 +281,13 @@ export function SearchResultsPage({
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            // 이름+주소 조합 매핑에서도 제거
-            setSavedPlacesByNameAddress((prev) => {
-              const newMap = new Map(prev);
-              newMap.delete(nameAddressKey);
-              return newMap;
-            });
+            
+            // 다른 컴포넌트에 동기화 이벤트 발생
+            window.dispatchEvent(
+              new CustomEvent("favoritesUpdated", {
+                detail: { deletedPoiIds: [poiPlaceId] },
+              })
+            );
           } else {
             // 실패 시 롤백
             setSearchResults((prev) =>
@@ -295,20 +297,22 @@ export function SearchResultsPage({
             );
           }
         } catch (deleteErr: any) {
-          // 404 에러인 경우 (이미 삭제된 경우) 매핑에서만 제거
-          if (deleteErr.response?.status === 404) {
-            console.warn(`즐겨찾기 ${savedPlaceId}가 이미 삭제되었습니다.`);
+          const status = deleteErr.response?.status;
+          // 404/409: 이미 삭제되었거나 충돌 → 매핑에서 제거하고 진행
+          if (status === 404 || status === 409) {
+            console.warn(`즐겨찾기 ${savedPlaceId} 처리 중 상태 ${status}, 로컬 정리만 진행합니다.`);
             setSavedPlacesMap((prev) => {
               const newMap = new Map(prev);
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            // 이름+주소 조합 매핑에서도 제거
-            setSavedPlacesByNameAddress((prev) => {
-              const newMap = new Map(prev);
-              newMap.delete(nameAddressKey);
-              return newMap;
-            });
+            
+            // 다른 컴포넌트에 동기화 이벤트 발생
+            window.dispatchEvent(
+              new CustomEvent("favoritesUpdated", {
+                detail: { deletedPoiIds: [poiPlaceId] },
+              })
+            );
           } else {
             // 다른 에러인 경우 롤백
             setSearchResults((prev) =>
@@ -321,9 +325,6 @@ export function SearchResultsPage({
         }
       } else {
         // 즐겨찾기 추가
-        // 주의: 백엔드가 같은 tmap_poi_id를 가진 여러 결과를 하나의 PoiPlace로 합치기 때문에,
-        // 검색 결과에서 선택한 정확한 이름과 주소가 백엔드에 저장되지 않을 수 있습니다.
-        // 백엔드에서는 마지막으로 처리된 결과의 이름과 주소가 저장됩니다.
         const response = await placeService.addSavedPlace({
           poi_place_id: poiPlaceId,
         });
@@ -334,18 +335,8 @@ export function SearchResultsPage({
             newMap.set(poiPlaceId, response.data!.saved_place_id);
             return newMap;
           });
-          // 이름+주소 조합 매핑에도 추가 (선택한 정확한 이름+주소 사용)
-          setSavedPlacesByNameAddress((prev) => {
-            const newMap = new Map(prev);
-            newMap.set(nameAddressKey, response.data!.saved_place_id);
-            return newMap;
-          });
           
-          // 백엔드가 같은 tmap_poi_id를 가진 결과를 합치기 때문에,
-          // 즐겨찾기 목록을 다시 로드하여 최신 상태 반영
-          loadSavedPlaces();
-          
-          // 다른 컴포넌트에 동기화 이벤트 발생 (검색 결과는 이미 업데이트했으므로 이벤트만 발생)
+          // 다른 컴포넌트에 동기화 이벤트 발생
           window.dispatchEvent(
             new CustomEvent("favoritesUpdated", {
               detail: { addedPoiId: poiPlaceId, savedPlaceId: response.data.saved_place_id },
@@ -577,6 +568,11 @@ export function SearchResultsPage({
   if (isWebView) {
     return (
       <div className="fixed inset-0 z-50 flex">
+        {toastMessage && (
+          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+            {toastMessage}
+          </div>
+        )}
         {/* 왼쪽 사이드바 (400px 고정) */}
         <div className="w-[400px] bg-white border-r-[3.366px] border-black flex flex-col h-full overflow-hidden">
           {/* 헤더 */}
@@ -620,10 +616,15 @@ export function SearchResultsPage({
         pointerEvents: isOpen ? 'auto' : 'none',
       }}
     >
+      {toastMessage && (
+        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+          {toastMessage}
+        </div>
+      )}
       {/* 지도 배경 */}
       <div className="absolute inset-0">
         {mapContent}
-
+        
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}

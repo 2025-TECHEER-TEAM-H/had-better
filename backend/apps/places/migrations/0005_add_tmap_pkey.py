@@ -13,7 +13,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='poiplace',
             name='tmap_pkey',
-            field=models.CharField(default='', max_length=100, unique=True),
+            # 1단계: 기존 데이터가 있으므로 우선 nullable/비-unique로 추가
+            # (백필 이후 다음 마이그레이션에서 unique + not null로 강화)
+            field=models.CharField(max_length=100, null=True, blank=True),
         ),
         migrations.AlterField(
             model_name='poiplace',

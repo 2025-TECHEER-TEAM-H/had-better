@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import placeService from "@/services/placeService";
@@ -25,6 +25,15 @@ interface FavoritesPlacesProps {
   onOpenSubway?: () => void;
 }
 
+// 받침 여부에 따라 주격 조사 반환
+const getSubjectParticle = (word: string): "이" | "가" => {
+  if (!word) return "이";
+  const lastChar = word.charCodeAt(word.length - 1);
+  if (lastChar < 0xac00 || lastChar > 0xd7a3) return "이";
+  const jong = (lastChar - 0xac00) % 28;
+  return jong === 0 ? "가" : "이";
+};
+
 // 카테고리별 아이콘 매핑
 const getCategoryIcon = (category: string | null): string => {
   const iconMap: Record<string, string> = {
@@ -45,6 +54,32 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
   
   // 초기 즐겨찾기 상태 저장 (창을 닫을 때 변경사항 확인용)
   const [initialFavoritesState, setInitialFavoritesState] = useState<Map<number, boolean>>(new Map());
+
+  // 토스트 메시지
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+    }, 1500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   // 즐겨찾기 목록 로드
   useEffect(() => {
@@ -88,26 +123,44 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
   const toggleFavorite = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setFavorites((prev) =>
-      prev.map((place) =>
-        place.id === id ? { ...place, isFavorited: !place.isFavorited } : place
-      )
+      prev.map((place) => {
+        if (place.id !== id) return place;
+        const next = !place.isFavorited;
+        const particle = getSubjectParticle(place.name);
+        showToast(
+          next
+            ? `${place.name}${particle} 즐겨찾기에 추가됐습니다.`
+            : `${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`
+        );
+        return { ...place, isFavorited: next };
+      })
     );
     // selectedPlace도 업데이트
     if (selectedPlace && selectedPlace.id === id) {
-      setSelectedPlace({ ...selectedPlace, isFavorited: !selectedPlace.isFavorited });
+      const next = !selectedPlace.isFavorited;
+      setSelectedPlace({ ...selectedPlace, isFavorited: next });
     }
   };
 
   const toggleFavoriteById = (id: string) => {
     const numId = parseInt(id);
     setFavorites((prev) =>
-      prev.map((place) =>
-        place.id === numId ? { ...place, isFavorited: !place.isFavorited } : place
-      )
+      prev.map((place) => {
+        if (place.id !== numId) return place;
+        const next = !place.isFavorited;
+        const particle = getSubjectParticle(place.name);
+        showToast(
+          next
+            ? `${place.name}${particle} 즐겨찾기에 추가됐습니다.`
+            : `${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`
+        );
+        return { ...place, isFavorited: next };
+      })
     );
     // selectedPlace도 업데이트
     if (selectedPlace && selectedPlace.id === numId) {
-      setSelectedPlace({ ...selectedPlace, isFavorited: !selectedPlace.isFavorited });
+      const next = !selectedPlace.isFavorited;
+      setSelectedPlace({ ...selectedPlace, isFavorited: next });
     }
   };
 
@@ -116,6 +169,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
     // 변경사항 확인: isFavorited가 false로 변경된 항목 찾기
     const toDelete: number[] = [];
     const deletedPoiIds: number[] = []; // SearchResultsPage 동기화용
+    const removedNames: string[] = [];
     
     favorites.forEach((place) => {
       const initialState = initialFavoritesState.get(place.id);
@@ -123,30 +177,52 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
       if (initialState === true && !place.isFavorited) {
         toDelete.push(place.savedPlaceId);
         deletedPoiIds.push(place.id); // poi_place_id 저장
+        removedNames.push(place.name);
       }
     });
 
+    let shouldDelayClose = false;
+
     // 삭제할 항목이 있으면 API 호출
     if (toDelete.length > 0) {
-      try {
-        // 병렬로 삭제 요청
-        await Promise.all(
-          toDelete.map((savedPlaceId) => placeService.deleteSavedPlace(savedPlaceId))
-        );
-        
-        // SearchResultsPage에 동기화 이벤트 발생
-        window.dispatchEvent(
-          new CustomEvent("favoritesUpdated", {
-            detail: { deletedPoiIds },
-          })
-        );
-      } catch (err) {
-        console.error("즐겨찾기 삭제 실패:", err);
+      // 요청별로 성공/실패를 나눠 처리 (이미 삭제된 404는 무시)
+      const results = await Promise.allSettled(
+        toDelete.map((savedPlaceId) => placeService.deleteSavedPlace(savedPlaceId))
+      );
+
+      const hasUnexpectedError = results.some((res) => {
+        if (res.status === "fulfilled") return false;
+        const axiosErr: any = res.reason;
+        // 404 (이미 삭제됨) 는 무시
+        return axiosErr?.response?.status !== 404;
+      });
+
+      if (hasUnexpectedError) {
+        const errors = results.filter((r) => r.status === "rejected");
+        console.error("즐겨찾기 삭제 실패:", errors);
       }
+
+      // 성공 또는 404 무시 후, 동기화 이벤트 발생
+      window.dispatchEvent(
+        new CustomEvent("favoritesUpdated", {
+          detail: { deletedPoiIds },
+        })
+      );
+
+      // 실시간 토글 시 이미 토스트를 보여주므로 여기서는 별도 토스트를 띄우지 않음
     }
 
-    // 창 닫기
-    onClose();
+    // 토스트를 보여줘야 하면 1초 후 닫기, 아니면 바로 닫기
+    if (shouldDelayClose) {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+      closeTimerRef.current = window.setTimeout(() => {
+        onClose();
+      }, 1000);
+    } else {
+      onClose();
+    }
   };
 
   const handlePlaceClick = (place: FavoritePlace) => {
@@ -154,14 +230,20 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
     setIsDetailOpen(true);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen && !toastMessage) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
-        className="bg-gradient-to-b from-[#daf4ff] to-white w-full max-w-[388px] h-[838px] max-h-[90vh] rounded-[40px] overflow-hidden relative shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {toastMessage && (
+        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+          {toastMessage}
+        </div>
+      )}
+      {isOpen && (
+        <div
+          className="bg-gradient-to-b from-[#daf4ff] to-white w-full max-w-[388px] h-[838px] max-h-[90vh] rounded-[40px] overflow-hidden relative shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* 헤더 */}
         <div className="relative px-8 pt-[18px] pb-4">
           {/* 타이틀 배경 */}
@@ -239,6 +321,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           )}
         </div>
       </div>
+      )}
 
       {/* 장소 상세 정보 모달 */}
       {isDetailOpen && selectedPlace && (
