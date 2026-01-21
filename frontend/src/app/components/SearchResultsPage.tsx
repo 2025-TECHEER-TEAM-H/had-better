@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { MapView } from "./MapView";
-import placeService, { type PlaceSearchResult } from "@/services/placeService";
+import placeService, { type PlaceSearchResult, type SavedPlace } from "@/services/placeService";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -15,7 +15,17 @@ interface SearchResult {
     lon: number;
     lat: number;
   };
+  _poiPlaceId?: number; // POI Place ID (API 호출 시 사용)
 }
+
+// 받침 여부에 따라 주격 조사 반환
+const getSubjectParticle = (word: string): "이" | "가" => {
+  if (!word) return "이";
+  const lastChar = word.charCodeAt(word.length - 1);
+  if (lastChar < 0xac00 || lastChar > 0xd7a3) return "이";
+  const jong = (lastChar - 0xac00) % 28;
+  return jong === 0 ? "가" : "이";
+};
 
 // 카테고리별 아이콘 매핑
 const getCategoryIcon = (category: string): string => {
@@ -82,6 +92,103 @@ export function SearchResultsPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(10); // 현재 표시할 개수
+  
+  // 즐겨찾기 상태 관리 (poi_place_id -> saved_place_id 매핑)
+  const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
+
+  // 토스트 메시지
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+    }, 1500);
+  };
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 즐겨찾기 목록 로드 함수 (매핑만 업데이트, 검색 결과는 건드리지 않음)
+  const loadSavedPlaces = async (): Promise<void> => {
+    try {
+      const response = await placeService.getSavedPlaces();
+      if (response.status === "success" && response.data) {
+        // poi_place_id -> saved_place_id 매핑 생성
+        const map = new Map<number, number>();
+        response.data.forEach((savedPlace) => {
+          const poiId = savedPlace.poi_place.poi_place_id;
+          map.set(poiId, savedPlace.saved_place_id);
+        });
+        setSavedPlacesMap(map);
+      }
+    } catch (err) {
+      console.error("즐겨찾기 목록 로드 실패:", err);
+    }
+  };
+
+  // 즐겨찾기 목록 로드
+  useEffect(() => {
+    if (isOpen) {
+      loadSavedPlaces();
+    }
+  }, [isOpen]);
+
+  // FavoritesPlaces에서 즐겨찾기 변경 시 동기화
+  useEffect(() => {
+    const handleFavoritesUpdated = (event: CustomEvent<{ deletedPoiIds?: number[]; addedPoiId?: number; savedPlaceId?: number }>) => {
+      const { deletedPoiIds, addedPoiId, savedPlaceId } = event.detail;
+      
+      if (deletedPoiIds && deletedPoiIds.length > 0) {
+        // 삭제된 POI ID들을 매핑에서 제거
+        setSavedPlacesMap((prev) => {
+          const newMap = new Map(prev);
+          deletedPoiIds.forEach((poiId) => {
+            newMap.delete(poiId);
+          });
+          return newMap;
+        });
+        
+        // 검색 결과의 즐겨찾기 상태 업데이트
+        setSearchResults((prev) =>
+          prev.map((result) => {
+            const poiPlaceId = result._poiPlaceId;
+            if (poiPlaceId && deletedPoiIds.includes(poiPlaceId)) {
+              return { ...result, isFavorited: false };
+            }
+            return result;
+          })
+        );
+      }
+      
+      if (addedPoiId && savedPlaceId) {
+        // 추가된 POI ID를 매핑에 추가
+        setSavedPlacesMap((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(addedPoiId, savedPlaceId);
+          return newMap;
+        });
+        
+        // 검색 결과는 업데이트하지 않음
+        // 이유: handleToggleFavorite에서 이미 해당 결과만 업데이트함
+      }
+    };
+
+    window.addEventListener("favoritesUpdated", handleFavoritesUpdated as EventListener);
+    return () => {
+      window.removeEventListener("favoritesUpdated", handleFavoritesUpdated as EventListener);
+    };
+  }, []);
 
   // 검색어가 변경될 때 API 호출
   useEffect(() => {
@@ -101,16 +208,24 @@ export function SearchResultsPage({
 
         if (response.status === "success" && response.data) {
           // API 응답을 UI용 데이터로 변환
-          const results: SearchResult[] = response.data.map((place, index) => ({
-            id: place.poi_place_id.toString(),
-            name: place.name,
-            icon: getCategoryIcon(place.category || ""),
-            distance: "",
-            status: place.address,
-            backgroundColor: getCategoryColor(place.category || "", index),
-            isFavorited: false,
-            coordinates: place.coordinates,
-          }));
+          const results: SearchResult[] = response.data.map((place, index) => {
+            const poiPlaceId = place.poi_place_id;
+            const savedPlaceId = savedPlacesMap.get(poiPlaceId);
+            // 고유 ID 생성: poi_place_id + index (백엔드에서 각 장소가 고유한 poi_place_id를 가지므로)
+            const uniqueId = `${poiPlaceId}-${index}`;
+            return {
+              id: uniqueId,
+              name: place.name,
+              icon: getCategoryIcon(place.category || ""),
+              distance: "",
+              status: place.address,
+              backgroundColor: getCategoryColor(place.category || "", index),
+              isFavorited: savedPlaceId !== undefined,
+              coordinates: place.coordinates,
+              // POI Place ID 저장 (API 호출 시 사용)
+              _poiPlaceId: poiPlaceId,
+            };
+          });
           setSearchResults(results);
         } else {
           setError(response.error?.message || "검색에 실패했습니다.");
@@ -126,17 +241,130 @@ export function SearchResultsPage({
     };
 
     fetchSearchResults();
+    // savedPlacesMap 변경 시에는 검색 결과를 다시 불러오지 않는다
+    // (즐겨찾기 토글 시 re-fetch로 인한 화면 재로딩을 막기 위함)
   }, [searchQuery, isOpen]);
 
   // 즐겨찾기 토글 핸들러
-  const handleToggleFavorite = (placeId: string) => {
+  const handleToggleFavorite = async (placeId: string) => {
+    const result = searchResults.find((r) => r.id === placeId);
+    
+    if (!result || !result._poiPlaceId) return;
+
+    const poiPlaceId = result._poiPlaceId;
+    const savedPlaceId = savedPlacesMap.get(poiPlaceId);
+
+    // 낙관적 UI 업데이트 (즉시 반영) - 해당 결과만 업데이트
+    const newIsFavorited = !result.isFavorited;
     setSearchResults((prev) =>
-      prev.map((result) =>
-        result.id === placeId
-          ? { ...result, isFavorited: !result.isFavorited }
-          : result
+      prev.map((r) =>
+        r.id === placeId ? { ...r, isFavorited: newIsFavorited } : r
       )
     );
+    // 토글 즉시 토스트 표시
+    const particle = getSubjectParticle(result.name);
+    showToast(
+      newIsFavorited
+        ? `${result.name}${particle} 즐겨찾기에 추가됐습니다.`
+        : `${result.name}${particle} 즐겨찾기에서 삭제됐습니다.`
+    );
+
+    try {
+      if (savedPlaceId !== undefined) {
+        // 즐겨찾기 삭제
+        try {
+          const response = await placeService.deleteSavedPlace(savedPlaceId);
+          if (response.status === "success") {
+            // 매핑에서 제거
+            setSavedPlacesMap((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(poiPlaceId);
+              return newMap;
+            });
+            
+            // 다른 컴포넌트에 동기화 이벤트 발생
+            window.dispatchEvent(
+              new CustomEvent("favoritesUpdated", {
+                detail: { deletedPoiIds: [poiPlaceId] },
+              })
+            );
+          } else {
+            // 실패 시 롤백
+            setSearchResults((prev) =>
+              prev.map((r) =>
+                r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+              )
+            );
+          }
+        } catch (deleteErr: any) {
+          const status = deleteErr.response?.status;
+          // 404/409: 이미 삭제되었거나 충돌 → 매핑에서 제거하고 진행
+          if (status === 404 || status === 409) {
+            console.warn(`즐겨찾기 ${savedPlaceId} 처리 중 상태 ${status}, 로컬 정리만 진행합니다.`);
+            setSavedPlacesMap((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(poiPlaceId);
+              return newMap;
+            });
+            
+            // 다른 컴포넌트에 동기화 이벤트 발생
+            window.dispatchEvent(
+              new CustomEvent("favoritesUpdated", {
+                detail: { deletedPoiIds: [poiPlaceId] },
+              })
+            );
+          } else {
+            // 다른 에러인 경우 롤백
+            setSearchResults((prev) =>
+              prev.map((r) =>
+                r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+              )
+            );
+            throw deleteErr;
+          }
+        }
+      } else {
+        // 즐겨찾기 추가
+        const response = await placeService.addSavedPlace({
+          poi_place_id: poiPlaceId,
+        });
+        if (response.status === "success" && response.data) {
+          // 매핑에 추가
+          setSavedPlacesMap((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(poiPlaceId, response.data!.saved_place_id);
+            return newMap;
+          });
+          
+          // 다른 컴포넌트에 동기화 이벤트 발생
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { addedPoiId: poiPlaceId, savedPlaceId: response.data.saved_place_id },
+            })
+          );
+        } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
+          // 이미 즐겨찾기에 있는 경우 (409 Conflict)
+          // 즐겨찾기 목록을 다시 로드하여 정확한 saved_place_id 가져오기
+          loadSavedPlaces();
+        } else {
+          // 실패 시 롤백
+          setSearchResults((prev) =>
+            prev.map((r) =>
+              r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+            )
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("즐겨찾기 토글 실패:", err);
+      // 실패 시 롤백
+      setSearchResults((prev) =>
+        prev.map((r) =>
+          r.id === placeId ? { ...r, isFavorited: !newIsFavorited } : r
+        )
+      );
+    }
+
     onToggleFavorite?.(placeId);
   };
 
@@ -293,7 +521,7 @@ export function SearchResultsPage({
 
       {/* 검색 결과 목록 (visibleCount만큼만 표시) */}
       {!isLoading && !error && searchResults.slice(0, visibleCount).map((result, index) => (
-        <ResultCard key={`${result.id}-${index}`} result={result} />
+        <ResultCard key={`${result.id}-${index}-${result.name}`} result={result} />
       ))}
 
       {/* 정보 더보기 버튼 */}
@@ -340,6 +568,11 @@ export function SearchResultsPage({
   if (isWebView) {
     return (
       <div className="fixed inset-0 z-50 flex">
+        {toastMessage && (
+          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+            {toastMessage}
+          </div>
+        )}
         {/* 왼쪽 사이드바 (400px 고정) */}
         <div className="w-[400px] bg-white border-r-[3.366px] border-black flex flex-col h-full overflow-hidden">
           {/* 헤더 */}
@@ -383,10 +616,15 @@ export function SearchResultsPage({
         pointerEvents: isOpen ? 'auto' : 'none',
       }}
     >
+      {toastMessage && (
+        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+          {toastMessage}
+        </div>
+      )}
       {/* 지도 배경 */}
       <div className="absolute inset-0">
         {mapContent}
-
+        
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}

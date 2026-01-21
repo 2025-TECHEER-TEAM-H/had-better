@@ -127,6 +127,23 @@ export function MapView({
       },
     });
 
+    // 콘솔 경고 필터링 (Mapbox layer null 관련 경고 무시)
+    const originalWarn = console.warn;
+    const warnFilter = (...args: any[]) => {
+      const message = args[0]?.toString() || "";
+      // Mapbox의 layer null 관련 경고는 무시
+      if (
+        message.includes("Failed to evaluate expression") &&
+        message.includes('["get","layer"]')
+      ) {
+        return;
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    // console.warn 필터링 적용
+    console.warn = warnFilter;
+
     // 지도 로드 완료 후 한국어 라벨 적용 및 현재 위치 가져오기
     map.current.on("load", () => {
       // 모든 심볼 레이어의 텍스트를 한국어로 변경
@@ -162,6 +179,9 @@ export function MapView({
 
     // 클린업
     return () => {
+      // console.warn 복원
+      console.warn = originalWarn;
+      
       if (map.current) {
         map.current.remove();
         map.current = null;
