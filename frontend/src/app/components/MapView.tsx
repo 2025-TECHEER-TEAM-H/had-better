@@ -30,6 +30,15 @@ export interface EndpointMarker {
   name: string;
 }
 
+// 플레이어 마커 타입 (유저/봇 위치 표시용)
+export interface PlayerMarker {
+  id: string; // 'user' | 'bot1' | 'bot2'
+  coordinates: [number, number];
+  icon: string; // 이모지
+  color: string; // 배경색
+  label?: string; // 라벨 (선택)
+}
+
 interface MapViewProps {
   onNavigate?: (page: PageType) => void;
   /**
@@ -60,6 +69,10 @@ interface MapViewProps {
    * 경로 영역에 맞게 지도 범위 조정 여부 (선택)
    */
   fitToRoutes?: boolean;
+  /**
+   * 플레이어 마커 (유저/봇 위치 표시)
+   */
+  playerMarkers?: PlayerMarker[];
 }
 
 // Mapbox Access Token 설정
@@ -73,6 +86,7 @@ export function MapView({
   routeLines = [],
   endpoints = [],
   fitToRoutes = false,
+  playerMarkers = [],
 }: MapViewProps = {}) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -80,6 +94,7 @@ export function MapView({
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const placeMarkers = useRef<mapboxgl.Marker[]>([]); // 검색 결과 마커들
   const endpointMarkers = useRef<mapboxgl.Marker[]>([]); // 출발지/도착지 마커
+  const playerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map()); // 플레이어 마커들
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
   const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -429,6 +444,89 @@ export function MapView({
       endpointMarkers.current = [];
     };
   }, [endpoints, isMapLoaded]);
+
+  // 플레이어 마커 표시 (유저/봇 위치)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const currentMarkers = playerMarkersRef.current;
+
+    // 새 마커 추가 또는 기존 마커 위치 업데이트
+    playerMarkers.forEach((player) => {
+      const existingMarker = currentMarkers.get(player.id);
+
+      if (existingMarker) {
+        // 기존 마커 위치 업데이트 (부드러운 이동)
+        existingMarker.setLngLat(player.coordinates);
+      } else {
+        // 새 마커 생성
+        const el = document.createElement("div");
+        el.className = "player-marker";
+        el.innerHTML = `
+          <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s ease-out;
+          ">
+            <div style="
+              width: 48px;
+              height: 48px;
+              background: ${player.color};
+              border: 4px solid black;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 24px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+              animation: bounce 0.5s ease-out;
+            ">${player.icon}</div>
+            ${player.label ? `
+              <div style="
+                margin-top: 4px;
+                padding: 2px 8px;
+                background: ${player.color};
+                border: 2px solid black;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                color: white;
+                text-shadow: 1px 1px 0 black;
+              ">${player.label}</div>
+            ` : ''}
+          </div>
+        `;
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat(player.coordinates)
+          .addTo(map.current!);
+
+        currentMarkers.set(player.id, marker);
+      }
+    });
+
+    // 삭제된 마커 제거
+    const activeIds = new Set(playerMarkers.map((p) => p.id));
+    currentMarkers.forEach((marker, id) => {
+      if (!activeIds.has(id)) {
+        marker.remove();
+        currentMarkers.delete(id);
+      }
+    });
+
+    return () => {
+      // 컴포넌트 언마운트 시 모든 마커 제거
+      currentMarkers.forEach((marker) => {
+        try {
+          marker.remove();
+        } catch {
+          // 무시
+        }
+      });
+      currentMarkers.clear();
+    };
+  }, [playerMarkers, isMapLoaded]);
 
   // 경로 영역에 맞게 지도 범위 조정
   useEffect(() => {

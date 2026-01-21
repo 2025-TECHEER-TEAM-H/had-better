@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
-import { MapView } from "./MapView";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { MapView, type RouteLineInfo, type EndpointMarker, type PlayerMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { getRouteLegDetail } from "@/services/routeService";
 import { secondsToMinutes, metersToKilometers, MODE_ICONS } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
+import * as turf from "@turf/turf";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -33,6 +34,34 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [isWebView, setIsWebView] = useState(false);
   const [showResultPopup, setShowResultPopup] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // 시뮬레이션 상태
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [playerProgress, setPlayerProgress] = useState<Map<Player, number>>(
+    new Map([['user', 0], ['bot1', 0], ['bot2', 0]])
+  );
+  const [finishTimes, setFinishTimes] = useState<Map<Player, number>>(new Map()); // 도착 시간 기록
+  const simulationRef = useRef<number | null>(null);
+  const lastUpdateTime = useRef<number>(0);
+
+  // GPS 추적 상태
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [distanceToDestination, setDistanceToDestination] = useState<number | null>(null);
+  const [distanceFromRoute, setDistanceFromRoute] = useState<number | null>(null);
+  const [isOffRoute, setIsOffRoute] = useState(false);
+  const [isUserArrived, setIsUserArrived] = useState(false);
+  const [isGpsTracking, setIsGpsTracking] = useState(false);
+  const gpsWatchId = useRef<number | null>(null);
+
+  // GPS 테스트 모드 (가짜 GPS로 경로 따라 자동 이동)
+  const [isGpsTestMode, setIsGpsTestMode] = useState(false);
+  const [gpsTestProgress, setGpsTestProgress] = useState(0);
+  const gpsTestRef = useRef<number | null>(null);
+  const gpsTestLastUpdate = useRef<number>(0);
+
+  // 도착 판정 기준 (미터)
+  const ARRIVAL_THRESHOLD = 20;
+  const OFF_ROUTE_THRESHOLD = 20;
 
   // 웹/앱 화면 감지
   useEffect(() => {
@@ -77,6 +106,504 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
     loadRouteDetails();
   }, [assignments]);
+
+  // 지도에 표시할 경로 라인 생성
+  const routeLines = useMemo<RouteLineInfo[]>(() => {
+    const lines: RouteLineInfo[] = [];
+
+    for (const [player, routeLegId] of assignments) {
+      const detail = legDetails.get(routeLegId);
+      if (!detail) continue;
+
+      // 경로 인덱스로 색상 결정
+      const legIndex = searchResponse?.legs.findIndex(
+        (leg) => leg.route_leg_id === routeLegId
+      ) ?? 0;
+      const colorScheme = ROUTE_COLORS[legIndex % ROUTE_COLORS.length];
+
+      // 각 구간(leg)의 좌표를 모아서 하나의 라인으로 생성
+      const allCoordinates: [number, number][] = [];
+
+      for (const leg of detail.legs) {
+        // passShape가 있으면 사용 (대중교통 구간)
+        if (leg.passShape?.linestring) {
+          const points = leg.passShape.linestring.split(' ');
+          for (const point of points) {
+            const [lon, lat] = point.split(',').map(Number);
+            if (!isNaN(lon) && !isNaN(lat)) {
+              allCoordinates.push([lon, lat]);
+            }
+          }
+        } else {
+          // passShape가 없으면 시작점과 끝점만 추가 (도보 구간)
+          allCoordinates.push([leg.start.lon, leg.start.lat]);
+          allCoordinates.push([leg.end.lon, leg.end.lat]);
+        }
+      }
+
+      if (allCoordinates.length > 0) {
+        lines.push({
+          id: `route-${player}`,
+          coordinates: allCoordinates,
+          color: colorScheme.line,
+          width: player === 'user' ? 6 : 4,
+          opacity: player === 'user' ? 1 : 0.7,
+        });
+      }
+    }
+
+    return lines;
+  }, [assignments, legDetails, searchResponse]);
+
+  // 출발지/도착지 마커 생성
+  const endpoints = useMemo<EndpointMarker[]>(() => {
+    const markers: EndpointMarker[] = [];
+
+    if (departure) {
+      markers.push({
+        type: 'departure',
+        coordinates: [departure.lon, departure.lat],
+        name: departure.name,
+      });
+    }
+
+    if (arrival) {
+      markers.push({
+        type: 'arrival',
+        coordinates: [arrival.lon, arrival.lat],
+        name: arrival.name,
+      });
+    }
+
+    return markers;
+  }, [departure, arrival]);
+
+  // 경로 좌표로 turf LineString 생성
+  const getRouteLineString = useCallback((player: Player) => {
+    const routeLegId = assignments.get(player);
+    if (!routeLegId) return null;
+
+    const detail = legDetails.get(routeLegId);
+    if (!detail) return null;
+
+    const allCoordinates: [number, number][] = [];
+
+    for (const leg of detail.legs) {
+      if (leg.passShape?.linestring) {
+        const points = leg.passShape.linestring.split(' ');
+        for (const point of points) {
+          const [lon, lat] = point.split(',').map(Number);
+          if (!isNaN(lon) && !isNaN(lat)) {
+            allCoordinates.push([lon, lat]);
+          }
+        }
+      } else {
+        allCoordinates.push([leg.start.lon, leg.start.lat]);
+        allCoordinates.push([leg.end.lon, leg.end.lat]);
+      }
+    }
+
+    if (allCoordinates.length < 2) return null;
+    return turf.lineString(allCoordinates);
+  }, [assignments, legDetails]);
+
+  // 진행률로 경로 상 위치 계산
+  const getPositionOnRoute = useCallback((player: Player, progress: number): [number, number] | null => {
+    const line = getRouteLineString(player);
+    if (!line) return null;
+
+    const totalLength = turf.length(line, { units: 'meters' });
+    const targetDistance = totalLength * Math.min(progress, 1);
+    const point = turf.along(line, targetDistance, { units: 'meters' });
+
+    return point.geometry.coordinates as [number, number];
+  }, [getRouteLineString]);
+
+  // GPS 위치 업데이트 처리
+  const handlePositionUpdate = useCallback((position: GeolocationPosition) => {
+    const { longitude, latitude } = position.coords;
+    const currentLocation: [number, number] = [longitude, latitude];
+    setUserLocation(currentLocation);
+
+    // 도착지까지 거리 계산
+    if (arrival) {
+      const destPoint = turf.point([arrival.lon, arrival.lat]);
+      const userPoint = turf.point(currentLocation);
+      const distance = turf.distance(userPoint, destPoint, { units: 'meters' });
+      setDistanceToDestination(Math.round(distance));
+
+      // 20m 이내 진입 시 도착 처리
+      if (distance <= ARRIVAL_THRESHOLD && !isUserArrived) {
+        setIsUserArrived(true);
+        setPlayerProgress((prev) => {
+          const newProgress = new Map(prev);
+          newProgress.set('user', 1);
+          return newProgress;
+        });
+        // 도착 시간 기록
+        setFinishTimes((prevTimes) => {
+          if (!prevTimes.has('user')) {
+            const newTimes = new Map(prevTimes);
+            newTimes.set('user', Date.now());
+            return newTimes;
+          }
+          return prevTimes;
+        });
+        // 도착 완료 팝업 표시
+        setShowResultPopup(true);
+        // TODO: 백엔드에 도착 완료 API 호출
+        // fetch(`/api/v1/routes/${routeId}`, { method: 'PATCH', body: JSON.stringify({ status: 'FINISHED' }) });
+      }
+    }
+
+    // 경로 이탈 감지
+    const userRouteLine = getRouteLineString('user');
+    if (userRouteLine) {
+      const userPoint = turf.point(currentLocation);
+      const distFromRoute = turf.pointToLineDistance(userPoint, userRouteLine, { units: 'meters' });
+      setDistanceFromRoute(Math.round(distFromRoute));
+      setIsOffRoute(distFromRoute > OFF_ROUTE_THRESHOLD);
+    }
+
+    // 유저의 진행률 계산 (출발지 기준)
+    if (departure && arrival && userRouteLine) {
+      const totalDistance = turf.length(userRouteLine, { units: 'meters' });
+      const startPoint = turf.point([departure.lon, departure.lat]);
+      const userPoint = turf.point(currentLocation);
+
+      // 경로 상에서 가장 가까운 점 찾기
+      const nearestPoint = turf.nearestPointOnLine(userRouteLine, userPoint);
+      const distanceFromStart = turf.distance(startPoint, nearestPoint, { units: 'meters' });
+
+      const progress = Math.min(distanceFromStart / totalDistance, 1);
+      setPlayerProgress((prev) => {
+        const newProgress = new Map(prev);
+        newProgress.set('user', progress);
+        return newProgress;
+      });
+    }
+  }, [arrival, departure, isUserArrived, getRouteLineString]);
+
+  // GPS 추적 시작
+  const startGpsTracking = useCallback(() => {
+    if (!navigator.geolocation) {
+      alert('이 브라우저는 GPS를 지원하지 않습니다.');
+      return;
+    }
+
+    setIsGpsTracking(true);
+
+    gpsWatchId.current = navigator.geolocation.watchPosition(
+      handlePositionUpdate,
+      (error) => {
+        console.error('GPS 오류:', error.message);
+        if (error.code === error.PERMISSION_DENIED) {
+          alert('위치 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }, [handlePositionUpdate]);
+
+  // GPS 추적 중지
+  const stopGpsTracking = useCallback(() => {
+    setIsGpsTracking(false);
+    if (gpsWatchId.current !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId.current);
+      gpsWatchId.current = null;
+    }
+  }, []);
+
+  // 컴포넌트 언마운트 시 GPS 추적 중지
+  useEffect(() => {
+    return () => {
+      if (gpsWatchId.current !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId.current);
+      }
+      if (gpsTestRef.current !== null) {
+        cancelAnimationFrame(gpsTestRef.current);
+      }
+    };
+  }, []);
+
+  // GPS 테스트 모드: 가짜 GPS 위치 업데이트
+  const updateTestGpsPosition = useCallback((progress: number) => {
+    const userRouteLine = getRouteLineString('user');
+    if (!userRouteLine) return;
+
+    // 경로 상 현재 위치 계산
+    const totalLength = turf.length(userRouteLine, { units: 'meters' });
+    const currentDistance = totalLength * progress;
+    const currentPoint = turf.along(userRouteLine, currentDistance, { units: 'meters' });
+    const currentLocation = currentPoint.geometry.coordinates as [number, number];
+
+    // 약간의 GPS 오차 추가 (±5m)
+    const jitter = 0.00005; // 약 5m
+    const jitteredLocation: [number, number] = [
+      currentLocation[0] + (Math.random() - 0.5) * jitter,
+      currentLocation[1] + (Math.random() - 0.5) * jitter,
+    ];
+
+    setUserLocation(jitteredLocation);
+
+    // 도착지까지 거리 계산
+    if (arrival) {
+      const destPoint = turf.point([arrival.lon, arrival.lat]);
+      const userPoint = turf.point(jitteredLocation);
+      const distance = turf.distance(userPoint, destPoint, { units: 'meters' });
+      setDistanceToDestination(Math.round(distance));
+
+      // 20m 이내 도착 처리
+      if (distance <= ARRIVAL_THRESHOLD && !isUserArrived) {
+        setIsUserArrived(true);
+        setPlayerProgress((prev) => {
+          const newProgress = new Map(prev);
+          newProgress.set('user', 1);
+          return newProgress;
+        });
+        // 도착 시간 기록
+        setFinishTimes((prevTimes) => {
+          if (!prevTimes.has('user')) {
+            const newTimes = new Map(prevTimes);
+            newTimes.set('user', Date.now());
+            return newTimes;
+          }
+          return prevTimes;
+        });
+        stopGpsTestMode();
+        setShowResultPopup(true);
+      }
+    }
+
+    // 경로 이탈 감지 (테스트 모드에서는 jitter로 인해 가끔 이탈할 수 있음)
+    const userPoint = turf.point(jitteredLocation);
+    const distFromRoute = turf.pointToLineDistance(userPoint, userRouteLine, { units: 'meters' });
+    setDistanceFromRoute(Math.round(distFromRoute));
+    setIsOffRoute(distFromRoute > OFF_ROUTE_THRESHOLD);
+
+    // 유저 진행률 업데이트
+    setPlayerProgress((prev) => {
+      const newProgress = new Map(prev);
+      newProgress.set('user', progress);
+      return newProgress;
+    });
+  }, [arrival, isUserArrived, getRouteLineString]);
+
+  // GPS 테스트 모드 시작
+  const startGpsTestMode = useCallback(() => {
+    if (isGpsTestMode || isGpsTracking) return;
+
+    // 실제 GPS 추적 중지
+    stopGpsTracking();
+
+    setIsGpsTestMode(true);
+    setGpsTestProgress(0);
+    gpsTestLastUpdate.current = Date.now();
+
+    const animate = () => {
+      const now = Date.now();
+      const deltaTime = (now - gpsTestLastUpdate.current) / 1000;
+      gpsTestLastUpdate.current = now;
+
+      setGpsTestProgress((prev) => {
+        const speed = 0.015; // 1초당 1.5% (시뮬레이션보다 약간 느림)
+        const newProgress = Math.min(prev + speed * deltaTime, 1);
+
+        // 위치 업데이트
+        updateTestGpsPosition(newProgress);
+
+        if (newProgress >= 1) {
+          return 1;
+        }
+        return newProgress;
+      });
+
+      gpsTestRef.current = requestAnimationFrame(animate);
+    };
+
+    gpsTestRef.current = requestAnimationFrame(animate);
+  }, [isGpsTestMode, isGpsTracking, stopGpsTracking, updateTestGpsPosition]);
+
+  // GPS 테스트 모드 중지
+  const stopGpsTestMode = useCallback(() => {
+    setIsGpsTestMode(false);
+    if (gpsTestRef.current !== null) {
+      cancelAnimationFrame(gpsTestRef.current);
+      gpsTestRef.current = null;
+    }
+  }, []);
+
+  // GPS 테스트 모드 리셋
+  const resetGpsTestMode = useCallback(() => {
+    stopGpsTestMode();
+    setGpsTestProgress(0);
+    setUserLocation(null);
+    setDistanceToDestination(null);
+    setDistanceFromRoute(null);
+    setIsOffRoute(false);
+    setIsUserArrived(false);
+    setPlayerProgress((prev) => {
+      const newProgress = new Map(prev);
+      newProgress.set('user', 0);
+      return newProgress;
+    });
+    // 유저 도착 시간도 초기화
+    setFinishTimes((prev) => {
+      if (prev.has('user')) {
+        const newTimes = new Map(prev);
+        newTimes.delete('user');
+        return newTimes;
+      }
+      return prev;
+    });
+  }, [stopGpsTestMode]);
+
+  // 시뮬레이션 시작
+  const startSimulation = useCallback(() => {
+    if (isSimulating) return;
+
+    setIsSimulating(true);
+    lastUpdateTime.current = Date.now();
+
+    // 플레이어별 속도 (봇들은 약간씩 다르게)
+    const speeds: Record<Player, number> = {
+      user: 0.02,   // 1초당 2% 진행
+      bot1: 0.018,  // 1초당 1.8% 진행
+      bot2: 0.022,  // 1초당 2.2% 진행
+    };
+
+    const animate = () => {
+      const now = Date.now();
+      const deltaTime = (now - lastUpdateTime.current) / 1000; // 초 단위
+      lastUpdateTime.current = now;
+
+      setPlayerProgress((prev) => {
+        const newProgress = new Map(prev);
+
+        (['user', 'bot1', 'bot2'] as Player[]).forEach((player) => {
+          const current = prev.get(player) || 0;
+          if (current < 1) {
+            // 약간의 랜덤성 추가 (±10%)
+            const randomFactor = 0.9 + Math.random() * 0.2;
+            const newValue = Math.min(current + speeds[player] * deltaTime * randomFactor, 1);
+            newProgress.set(player, newValue);
+
+            // 100% 도달 시 도착 시간 기록
+            if (newValue >= 1) {
+              setFinishTimes((prevTimes) => {
+                if (!prevTimes.has(player)) {
+                  const newTimes = new Map(prevTimes);
+                  newTimes.set(player, Date.now());
+                  return newTimes;
+                }
+                return prevTimes;
+              });
+            }
+          }
+        });
+
+        return newProgress;
+      });
+
+      simulationRef.current = requestAnimationFrame(animate);
+    };
+
+    simulationRef.current = requestAnimationFrame(animate);
+  }, [isSimulating]);
+
+  // 시뮬레이션 정지
+  const stopSimulation = useCallback(() => {
+    setIsSimulating(false);
+    if (simulationRef.current) {
+      cancelAnimationFrame(simulationRef.current);
+      simulationRef.current = null;
+    }
+  }, []);
+
+  // 시뮬레이션 리셋
+  const resetSimulation = useCallback(() => {
+    stopSimulation();
+    setPlayerProgress(new Map([['user', 0], ['bot1', 0], ['bot2', 0]]));
+    setFinishTimes(new Map()); // 도착 시간 기록도 초기화
+  }, [stopSimulation]);
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      if (simulationRef.current) {
+        cancelAnimationFrame(simulationRef.current);
+      }
+    };
+  }, []);
+
+  // 플레이어 마커 생성 (GPS 또는 시뮬레이션 위치 기반)
+  const playerMarkers = useMemo<PlayerMarker[]>(() => {
+    const markers: PlayerMarker[] = [];
+    const players: Player[] = ['user', 'bot1', 'bot2'];
+
+    players.forEach((player) => {
+      let position: [number, number] | null = null;
+
+      // 유저: GPS 추적 중이면 실제 위치 사용, 아니면 시뮬레이션 위치
+      if (player === 'user' && isGpsTracking && userLocation) {
+        position = userLocation;
+      } else {
+        const progress = playerProgress.get(player) || 0;
+        position = getPositionOnRoute(player, progress);
+      }
+
+      if (position) {
+        const routeLegId = assignments.get(player);
+        const legIndex = searchResponse?.legs.findIndex(
+          (leg) => leg.route_leg_id === routeLegId
+        ) ?? 0;
+        const colorScheme = ROUTE_COLORS[legIndex % ROUTE_COLORS.length];
+
+        markers.push({
+          id: player,
+          coordinates: position,
+          icon: PLAYER_ICONS[player],
+          color: colorScheme.bg,
+          label: player === 'user' ? '나' : PLAYER_LABELS[player],
+        });
+      }
+    });
+
+    return markers;
+  }, [playerProgress, getPositionOnRoute, assignments, searchResponse, isGpsTracking, userLocation]);
+
+  // 순위 계산 (도착한 플레이어는 도착 시간순, 미도착 플레이어는 진행률순)
+  const rankings = useMemo(() => {
+    const players: Player[] = ['user', 'bot1', 'bot2'];
+    return players
+      .map((player) => ({
+        player,
+        progress: playerProgress.get(player) || 0,
+        finishTime: finishTimes.get(player),
+      }))
+      .sort((a, b) => {
+        const aFinished = a.progress >= 1;
+        const bFinished = b.progress >= 1;
+
+        // 둘 다 도착한 경우: 도착 시간 순 (빨리 도착한 사람이 위)
+        if (aFinished && bFinished) {
+          const aTime = a.finishTime || Infinity;
+          const bTime = b.finishTime || Infinity;
+          return aTime - bTime;
+        }
+
+        // 한 명만 도착한 경우: 도착한 사람이 위
+        if (aFinished && !bFinished) return -1;
+        if (!aFinished && bFinished) return 1;
+
+        // 둘 다 미도착: 진행률 순
+        return b.progress - a.progress;
+      });
+  }, [playerProgress, finishTimes]);
 
   // 드래그 시작
   const handleDragStart = (clientY: number) => {
@@ -153,7 +680,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 지도 컨텐츠
   const mapContent = (
-    <MapView currentPage="route" />
+    <MapView
+      currentPage="route"
+      routeLines={routeLines}
+      endpoints={endpoints}
+      fitToRoutes={routeLines.length > 0}
+      playerMarkers={playerMarkers}
+    />
   );
 
   // 플레이어별 경로 정보 가져오기
@@ -176,19 +709,104 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   // 플레이어 목록
   const players: Player[] = ["user", "bot1", "bot2"];
 
-  // 실시간 순위 카드 (임시 - 나중에 SSE로 업데이트)
+  // GPS 상태 카드
+  const gpsStatusCard = (
+    <div className={`rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-3 mb-3 ${
+      isOffRoute ? 'bg-[#ff6b6b]' : isUserArrived ? 'bg-[#4ecdc4]' : 'bg-white'
+    }`}>
+      {/* 경로 이탈 경고 */}
+      {isOffRoute && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[18px]">⚠️</span>
+          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
+            경로에서 {distanceFromRoute}m 이탈했습니다!
+          </p>
+        </div>
+      )}
+
+      {/* 도착 완료 */}
+      {isUserArrived && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[18px]">🎉</span>
+          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
+            도착 완료!
+          </p>
+        </div>
+      )}
+
+      {/* GPS 상태 및 남은 거리 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${
+            isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+          }`} />
+          <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
+            {isGpsTestMode ? '🧪 테스트 모드' : isGpsTracking ? 'GPS 추적 중' : 'GPS 꺼짐'}
+          </p>
+        </div>
+        {distanceToDestination !== null && (
+          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">
+            🏁 {distanceToDestination >= 1000
+              ? `${(distanceToDestination / 1000).toFixed(1)}km`
+              : `${distanceToDestination}m`}
+          </p>
+        )}
+      </div>
+
+      {/* GPS 컨트롤 버튼들 */}
+      <div className="flex gap-2 mt-2">
+        {/* 실제 GPS 버튼 */}
+        <button
+          onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
+          disabled={isGpsTestMode}
+          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+            isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
+          }`}
+        >
+          <span className="text-[12px]">{isGpsTracking ? '📍' : '🛰️'}</span>
+          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
+            {isGpsTracking ? '중지' : '실제 GPS'}
+          </span>
+        </button>
+
+        {/* 테스트 모드 버튼 */}
+        <button
+          onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
+          disabled={isGpsTracking}
+          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+            isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
+          }`}
+        >
+          <span className="text-[12px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
+          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
+            {isGpsTestMode ? '중지' : '테스트'}
+          </span>
+        </button>
+
+        {/* 리셋 버튼 */}
+        <button
+          onClick={resetGpsTestMode}
+          className="w-[32px] h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+        >
+          <span className="text-[12px]">🔄</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  // 실시간 순위 카드
   const rankingCard = (
-    <div className="bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-[19.366px] pt-[19.366px] pb-[3.366px]">
+    <div className="bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-[19.366px] pt-[19.366px] pb-[12px]">
       <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black text-center leading-[18px] mb-[12px]">
         실시간 순위 🏆
       </p>
 
       {/* 순위 목록 */}
       <div className="flex flex-col gap-[7.995px]">
-        {players.map((player, index) => {
+        {rankings.map(({ player, progress }, index) => {
           const route = getPlayerRoute(player);
           const colorScheme = route ? ROUTE_COLORS[route.legIndex % ROUTE_COLORS.length] : ROUTE_COLORS[0];
-          const progress = 46 - index * 4; // 임시 진행률
+          const progressPercent = Math.round(progress * 100);
 
           return (
             <div key={player} className="flex gap-[7.995px] items-center">
@@ -200,16 +818,37 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               <p className="text-[20px] leading-[28px]">{PLAYER_ICONS[player]}</p>
               <div className="flex-1 bg-white h-[18px] rounded-[4px] border-[3px] border-black overflow-hidden">
                 <div
-                  className="h-full"
-                  style={{ width: `${progress}%`, backgroundColor: colorScheme.bg }}
+                  className="h-full transition-all duration-300"
+                  style={{ width: `${progressPercent}%`, backgroundColor: colorScheme.bg }}
                 />
               </div>
-              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px]">
-                {progress}%
+              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px] w-[35px] text-right">
+                {progressPercent}%
               </p>
             </div>
           );
         })}
+      </div>
+
+      {/* 시뮬레이션 컨트롤 버튼 */}
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={isSimulating ? stopSimulation : startSimulation}
+          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+            isSimulating ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
+          }`}
+        >
+          <span className="text-[14px]">{isSimulating ? '⏸️' : '▶️'}</span>
+          <span className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
+            {isSimulating ? '일시정지' : '시뮬레이션'}
+          </span>
+        </button>
+        <button
+          onClick={resetSimulation}
+          className="w-[32px] h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+        >
+          <span className="text-[14px]">🔄</span>
+        </button>
       </div>
     </div>
   );
@@ -322,6 +961,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
           {/* 스크롤 가능한 컨텐츠 영역 */}
           <div className="flex-1 overflow-auto px-5 py-5">
+            {/* GPS 상태 */}
+            {gpsStatusCard}
+
             {/* 실시간 순위 */}
             <div className="mb-4">
               {rankingCard}
@@ -380,6 +1022,79 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           경주취소
         </p>
       </button>
+
+      {/* GPS 상태 표시 - 상단 좌측 */}
+      <div className="absolute left-[20px] top-[12px] z-30">
+        <div className={`rounded-[10px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] px-3 py-2 ${
+          isOffRoute ? 'bg-[#ff6b6b]' : isUserArrived ? 'bg-[#4ecdc4]' : 'bg-white'
+        }`}>
+          {isOffRoute ? (
+            <p className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold">
+              ⚠️ 경로 이탈 {distanceFromRoute}m
+            </p>
+          ) : isUserArrived ? (
+            <p className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold">
+              🎉 도착!
+            </p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+              }`} />
+              <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
+                {isGpsTestMode
+                  ? distanceToDestination !== null
+                    ? `🧪 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                    : '🧪 테스트 중'
+                  : isGpsTracking
+                    ? distanceToDestination !== null
+                      ? `🏁 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                      : 'GPS 추적 중'
+                    : 'GPS 꺼짐'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* GPS 버튼들 */}
+        <div className="flex gap-1 mt-2">
+          {/* 실제 GPS 버튼 */}
+          <button
+            onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
+            disabled={isGpsTestMode}
+            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+              isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
+            }`}
+          >
+            <span className="text-[10px]">{isGpsTracking ? '📍' : '🛰️'}</span>
+            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
+              {isGpsTracking ? '중지' : 'GPS'}
+            </span>
+          </button>
+
+          {/* 테스트 모드 버튼 */}
+          <button
+            onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
+            disabled={isGpsTracking}
+            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+              isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
+            }`}
+          >
+            <span className="text-[10px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
+            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
+              {isGpsTestMode ? '중지' : '테스트'}
+            </span>
+          </button>
+
+          {/* 리셋 버튼 */}
+          <button
+            onClick={resetGpsTestMode}
+            className="w-[28px] h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+          >
+            <span className="text-[10px]">🔄</span>
+          </button>
+        </div>
+      </div>
 
       {/* 실시간 순위 카드 - 슬라이드업 위 */}
       <div
