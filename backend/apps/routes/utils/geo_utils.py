@@ -57,11 +57,16 @@ def find_closest_station(
     Returns:
         가장 가까운 정류소 또는 None
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     if not stations:
         return None
 
     closest = None
     min_distance = float("inf")
+    distances = []  # 디버깅용 거리 목록
 
     for station in stations:
         try:
@@ -76,8 +81,29 @@ def find_closest_station(
 
         dist = calculate_distance(tmap_lat, tmap_lon, station_lat, station_lon)
 
+        # 디버깅: 각 정류소와의 거리 기록
+        distances.append(
+            {
+                "stId": station.get("stId"),
+                "stNm": station.get("stNm"),
+                "arsId": station.get("arsId"),
+                "distance": round(dist, 1),
+            }
+        )
+
         if dist < min_distance:
             min_distance = dist
             closest = station
+
+    # 디버깅: 모든 후보 정류소와 거리 출력
+    if distances:
+        logger.info(
+            f"정류소 거리 계산 결과: TMAP좌표=({tmap_lat:.6f}, {tmap_lon:.6f}), "
+            f"후보={len(distances)}개, 최소거리={round(min_distance, 1)}m"
+        )
+        for d in distances[:5]:  # 상위 5개만 출력
+            logger.info(
+                f"  - {d['stNm']} (stId={d['stId']}, arsId={d['arsId']}): {d['distance']}m"
+            )
 
     return closest

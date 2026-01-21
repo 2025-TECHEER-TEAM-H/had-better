@@ -10,8 +10,16 @@ import imgSaw1 from "@/assets/saw.png";
 import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
 import { AppHeader } from "@/app/components/AppHeader";
 import { useAuthStore } from "@/stores/authStore";
+import { useRouteStore } from "@/stores/routeStore";
 import userService from "@/services/userService";
 import authService from "@/services/authService";
+
+// 좌표 포함 장소 타입
+interface LocationWithCoords {
+  name: string;
+  lat: number;
+  lon: number;
+}
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -42,12 +50,17 @@ interface FavoriteLocations {
 export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
   const navigate = useNavigate();
   const { refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
+  const { setDepartureArrival, resetRoute } = useRouteStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startLocation, setStartLocation] = useState("");
   const [endLocation, setEndLocation] = useState("");
   const [isWebView, setIsWebView] = useState(false);
-  
+
+  // 출발지/도착지 좌표 포함 상태
+  const [selectedDeparture, setSelectedDeparture] = useState<LocationWithCoords | null>(null);
+  const [selectedArrival, setSelectedArrival] = useState<LocationWithCoords | null>(null);
+
   // 장소 검색 모달 상태
   const [isPlaceSearchOpen, setIsPlaceSearchOpen] = useState(false);
   const [selectedFavoriteType, setSelectedFavoriteType] = useState<"home" | "school" | "work" | null>(null);
@@ -393,8 +406,17 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
 
           {/* 길 찾기 버튼 */}
           <div className="absolute content-stretch flex flex-col h-[42.691px] items-start justify-end left-[27.96px] right-[27.93px] top-[353.5px] z-10">
-            <button 
-              onClick={() => onNavigate?.("route")}
+            <button
+              onClick={() => {
+                // 출발지/도착지 좌표가 있으면 routeStore에 저장
+                if (selectedDeparture && selectedArrival) {
+                  // 기존 검색 결과 초기화 (새로운 경로 검색을 위해)
+                  resetRoute();
+                  // 새 출발지/도착지 설정
+                  setDepartureArrival(selectedDeparture, selectedArrival);
+                }
+                onNavigate?.("route");
+              }}
               className="bg-[#4a9960] h-[44px] relative rounded-[25px] shrink-0 w-full hover:bg-[#3d7f50] transition-colors flex items-center justify-center"
             >
               <div aria-hidden="true" className="absolute border-3 border-black border-solid inset-0 pointer-events-none rounded-[25px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]" />
