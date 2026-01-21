@@ -43,6 +43,7 @@ export function MainLayout() {
     icon: string;
     isFavorited?: boolean;
     coordinates?: { lon: number; lat: number };
+    _poiPlaceId?: number; // POI Place ID (즐겨찾기 토글용)
   } | null>(null);
 
   // 노선도 줌/드래그 상태
@@ -146,6 +147,7 @@ export function MainLayout() {
     icon: string;
     isFavorited?: boolean;
     coordinates?: { lon: number; lat: number };
+    _poiPlaceId?: number; // POI Place ID (즐겨찾기 토글용)
   }) => {
     setSelectedPlace({
       id: result.id,
@@ -155,6 +157,7 @@ export function MainLayout() {
       icon: result.icon,
       isFavorited: result.isFavorited,
       coordinates: result.coordinates,
+      _poiPlaceId: result._poiPlaceId, // POI Place ID 전달
     });
     searchParams.set("place", result.id);
     setSearchParams(searchParams);

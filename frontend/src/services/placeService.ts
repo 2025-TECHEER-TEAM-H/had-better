@@ -111,6 +111,23 @@ interface SavedPlaceResponse {
   };
 }
 
+// 최근 검색 기록 타입
+export interface SearchPlaceHistory {
+  id: number;
+  keyword: string;
+  created_at: string;
+}
+
+// 최근 검색 기록 목록 응답 타입
+interface SearchPlaceHistoryListResponse {
+  status: "success" | "error";
+  data?: SearchPlaceHistory[];
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 // 즐겨찾기 삭제 응답 타입
 interface DeleteSavedPlaceResponse {
   status: "success" | "error";
@@ -195,6 +212,33 @@ export async function deleteSavedPlace(savedPlaceId: number): Promise<DeleteSave
   return response.data;
 }
 
+/**
+ * 최근 장소 검색 기록 목록 조회 API
+ * @returns 최근 검색 기록 배열
+ */
+export async function getSearchPlaceHistories(): Promise<SearchPlaceHistoryListResponse> {
+  const response = await api.get<SearchPlaceHistoryListResponse>("/places/search-histories");
+  return response.data;
+}
+
+/**
+ * 최근 장소 검색 기록 전체 삭제 API
+ */
+export async function clearSearchPlaceHistories(): Promise<void> {
+  await api.delete("/places/search-histories");
+}
+
+/**
+ * 최근 장소 검색 기록 단건 삭제 API
+ * @param historyId 검색 기록 ID
+ */
+export async function deleteSearchPlaceHistory(historyId: number): Promise<void> {
+  const response = await api.delete<{ status: "success" | "error"; data?: { id: number }; error?: { code: string; message: string } }>(`/places/search-histories/${historyId}`);
+  if (response.data.status === "error") {
+    throw new Error(response.data.error?.message || "검색 기록 삭제에 실패했습니다.");
+  }
+}
+
 // 기본 내보내기
 const placeService = {
   searchPlaces,
@@ -202,6 +246,9 @@ const placeService = {
   getSavedPlaces,
   addSavedPlace,
   deleteSavedPlace,
+  getSearchPlaceHistories,
+  clearSearchPlaceHistories,
+  deleteSearchPlaceHistory,
 };
 
 export default placeService;

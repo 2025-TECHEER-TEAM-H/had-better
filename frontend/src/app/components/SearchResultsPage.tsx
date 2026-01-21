@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
-import placeService, { type PlaceSearchResult, type SavedPlace } from "@/services/placeService";
+import placeService, {
+  type SearchPlaceHistory,
+} from "@/services/placeService";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -144,7 +146,7 @@ export function SearchResultsPage({
     }
   }, [isOpen]);
 
-  // FavoritesPlaces에서 즐겨찾기 변경 시 동기화
+  // FavoritesPlaces / PlaceDetailPage 등에서 즐겨찾기 변경 시 동기화
   useEffect(() => {
     const handleFavoritesUpdated = (event: CustomEvent<{ deletedPoiIds?: number[]; addedPoiId?: number; savedPlaceId?: number }>) => {
       const { deletedPoiIds, addedPoiId, savedPlaceId } = event.detail;
@@ -178,9 +180,20 @@ export function SearchResultsPage({
           newMap.set(addedPoiId, savedPlaceId);
           return newMap;
         });
-        
-        // 검색 결과는 업데이트하지 않음
-        // 이유: handleToggleFavorite에서 이미 해당 결과만 업데이트함
+
+        // 검색 결과의 즐겨찾기 상태도 업데이트
+        // - SearchResultsPage 내부에서 토글한 경우: 이미 handleToggleFavorite에서 isFavorited를 true로 만들어 둔 상태라 여기서 한 번 더 true로 설정해도 문제 없음
+        // - PlaceDetailPage / FavoritesPlaces 등 "외부"에서 즐겨찾기를 추가한 경우:
+        //   여기서 처음으로 해당 결과의 isFavorited를 true로 맞춰주어야 함
+        setSearchResults((prev) =>
+          prev.map((result) => {
+            const poiPlaceId = result._poiPlaceId;
+            if (poiPlaceId && poiPlaceId === addedPoiId) {
+              return { ...result, isFavorited: true };
+            }
+            return result;
+          })
+        );
       }
     };
 
@@ -227,6 +240,21 @@ export function SearchResultsPage({
             };
           });
           setSearchResults(results);
+
+          // 검색 성공 시, 서버에서 저장된 최신 검색 기록 목록을 가져와 SearchPage와 동기화
+          try {
+            const historiesResponse = await placeService.getSearchPlaceHistories();
+            if (historiesResponse.status === "success" && historiesResponse.data) {
+              const histories: SearchPlaceHistory[] = historiesResponse.data;
+              window.dispatchEvent(
+                new CustomEvent("searchHistoriesUpdated", {
+                  detail: { histories },
+                }),
+              );
+            }
+          } catch (historyError) {
+            console.error("검색 기록 동기화 실패:", historyError);
+          }
         } else {
           setError(response.error?.message || "검색에 실패했습니다.");
           setSearchResults([]);
