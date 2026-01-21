@@ -51,6 +51,7 @@ services:
       - "15672:15672" # 관리 콘솔 포트
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./backend/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro  # Consumer timeout 설정 (2시간)
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s

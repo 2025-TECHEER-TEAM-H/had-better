@@ -1,4 +1,5 @@
 import svgPaths from "./svg-nni0mtpei5";
+import { AnimatedCharacter } from "@/components/AnimatedCharacter";
 
 function Container() {
   return <div className="absolute border-[#e5e7eb] border-b border-solid h-[36px] left-[0.17px] top-[0.2px] w-[47px]" data-name="Container" />;
@@ -1480,6 +1481,31 @@ export default function MapScreen() {
       <Container15 />
       <Container47 />
       <p className="absolute css-ew64yg font-['Arial:Regular',sans-serif] leading-[30px] left-[91px] not-italic text-[#0a0a0a] text-[20px] top-[417px]">🏢</p>
+
+      {/* 애니메이션 캐릭터 테스트 - 지도 영역 (Container15) 내부에 배치 */}
+      {/* Green 캐릭터 - 왼쪽 상단 */}
+      <AnimatedCharacter
+        color="green"
+        position={{ x: 500, y: 150 }}
+        size={80}
+        animationSpeed={150}
+      />
+
+      {/* Pink 캐릭터 - 중앙 */}
+      <AnimatedCharacter
+        color="pink"
+        position={{ x: 700, y: 350 }}
+        size={80}
+        animationSpeed={180}
+      />
+
+      {/* Yellow 캐릭터 - 오른쪽 하단 */}
+      <AnimatedCharacter
+        color="yellow"
+        position={{ x: 900, y: 550 }}
+        size={80}
+        animationSpeed={200}
+      />
     </div>
   );
 }

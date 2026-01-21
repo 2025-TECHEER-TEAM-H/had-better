@@ -694,7 +694,14 @@ class SSEStreamView(APIView):
     GET /api/v1/sse/routes/{route_itinerary_id} - 실시간 봇 상태 스트림
     """
 
-    permission_classes = [IsAuthenticated]
+    # TODO: 실제 배포 시 인증 복구 필요
+    # permission_classes = [IsAuthenticated]
+    permission_classes = []  # 테스트용
+    authentication_classes = []  # 테스트용
+
+    # DRF content negotiation 우회 (406 에러 해결)
+    def perform_content_negotiation(self, request, force=False):
+        return (None, None)
 
     @extend_schema(
         summary="SSE 스트림",
