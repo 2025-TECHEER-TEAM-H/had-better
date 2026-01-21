@@ -1,4 +1,3 @@
-import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
 import placeService, { type PlaceSearchResult, type SavedPlace } from "@/services/placeService";

@@ -119,48 +119,115 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
     loadFavorites();
   }, [isOpen]);
 
-  // 즐겨찾기 토글 (로컬 상태만 변경, API 호출 안 함)
-  const toggleFavorite = (id: number, e: React.MouseEvent) => {
+  // 즐겨찾기 토글 (즉시 API 호출)
+  const toggleFavorite = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    const place = favorites.find((p) => p.id === id);
+    if (!place) return;
+
+    const next = !place.isFavorited;
+    const particle = getSubjectParticle(place.name);
+
+    // 로컬 상태 먼저 업데이트 (낙관적 UI)
     setFavorites((prev) =>
-      prev.map((place) => {
-        if (place.id !== id) return place;
-        const next = !place.isFavorited;
-        const particle = getSubjectParticle(place.name);
-        showToast(
-          next
-            ? `${place.name}${particle} 즐겨찾기에 추가됐습니다.`
-            : `${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`
-        );
-        return { ...place, isFavorited: next };
-      })
+      prev.map((p) => (p.id !== id ? p : { ...p, isFavorited: next }))
     );
+
     // selectedPlace도 업데이트
     if (selectedPlace && selectedPlace.id === id) {
-      const next = !selectedPlace.isFavorited;
       setSelectedPlace({ ...selectedPlace, isFavorited: next });
+    }
+
+    // 즐겨찾기 해제 시 즉시 API 호출
+    if (!next) {
+      try {
+        await placeService.deleteSavedPlace(place.savedPlaceId);
+        // 삭제 성공 시 initialFavoritesState도 업데이트 (중복 호출 방지)
+        setInitialFavoritesState((prev) => {
+          const newState = new Map(prev);
+          newState.set(id, false);
+          return newState;
+        });
+        showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+      } catch (err: any) {
+        // 404는 이미 삭제된 것이므로 성공으로 처리
+        if (err?.response?.status === 404) {
+          setInitialFavoritesState((prev) => {
+            const newState = new Map(prev);
+            newState.set(id, false);
+            return newState;
+          });
+          showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+        } else {
+          // 실패 시 롤백
+          console.error("즐겨찾기 삭제 실패:", err);
+          setFavorites((prev) =>
+            prev.map((p) => (p.id !== id ? p : { ...p, isFavorited: true }))
+          );
+          if (selectedPlace && selectedPlace.id === id) {
+            setSelectedPlace({ ...selectedPlace, isFavorited: true });
+          }
+          showToast("삭제에 실패했습니다. 다시 시도해주세요.");
+        }
+      }
+    } else {
+      showToast(`${place.name}${particle} 즐겨찾기에 추가됐습니다.`);
     }
   };
 
-  const toggleFavoriteById = (id: string) => {
+  const toggleFavoriteById = async (id: string) => {
     const numId = parseInt(id);
+    const place = favorites.find((p) => p.id === numId);
+    if (!place) return;
+
+    const next = !place.isFavorited;
+    const particle = getSubjectParticle(place.name);
+
+    // 로컬 상태 먼저 업데이트 (낙관적 UI)
     setFavorites((prev) =>
-      prev.map((place) => {
-        if (place.id !== numId) return place;
-        const next = !place.isFavorited;
-        const particle = getSubjectParticle(place.name);
-        showToast(
-          next
-            ? `${place.name}${particle} 즐겨찾기에 추가됐습니다.`
-            : `${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`
-        );
-        return { ...place, isFavorited: next };
-      })
+      prev.map((p) => (p.id !== numId ? p : { ...p, isFavorited: next }))
     );
+
     // selectedPlace도 업데이트
     if (selectedPlace && selectedPlace.id === numId) {
-      const next = !selectedPlace.isFavorited;
       setSelectedPlace({ ...selectedPlace, isFavorited: next });
+    }
+
+    // 즐겨찾기 해제 시 즉시 API 호출
+    if (!next) {
+      try {
+        await placeService.deleteSavedPlace(place.savedPlaceId);
+        // 삭제 성공 시 initialFavoritesState도 업데이트 (중복 호출 방지)
+        setInitialFavoritesState((prev) => {
+          const newState = new Map(prev);
+          newState.set(numId, false);
+          return newState;
+        });
+        showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+      } catch (err: any) {
+        // 404는 이미 삭제된 것이므로 성공으로 처리
+        if (err?.response?.status === 404) {
+          setInitialFavoritesState((prev) => {
+            const newState = new Map(prev);
+            newState.set(numId, false);
+            return newState;
+          });
+          showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+        } else {
+          // 실패 시 롤백
+          console.error("즐겨찾기 삭제 실패:", err);
+          setFavorites((prev) =>
+            prev.map((p) => (p.id !== numId ? p : { ...p, isFavorited: true }))
+          );
+          if (selectedPlace && selectedPlace.id === numId) {
+            setSelectedPlace({ ...selectedPlace, isFavorited: true });
+          }
+          showToast("삭제에 실패했습니다. 다시 시도해주세요.");
+        }
+      }
+    } else {
+      showToast(`${place.name}${particle} 즐겨찾기에 추가됐습니다.`);
     }
   };
 
