@@ -81,42 +81,47 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
     };
   }, []);
 
-  // 즐겨찾기 목록 로드
-  useEffect(() => {
-    const loadFavorites = async () => {
-      if (!isOpen) return;
-      
-      setIsLoading(true);
-      try {
-        const response = await placeService.getSavedPlaces();
-        if (response.status === "success" && response.data) {
-          const favoritePlaces: FavoritePlace[] = response.data.map((savedPlace) => ({
-            id: savedPlace.poi_place.poi_place_id,
-            savedPlaceId: savedPlace.saved_place_id,
-            name: savedPlace.poi_place.name,
-            address: savedPlace.poi_place.address,
-            distance: "거리", // TODO: 거리 계산 필요 시 추가
-            icon: getCategoryIcon(savedPlace.category),
-            isFavorited: true,
-            coordinates: savedPlace.poi_place.coordinates,
-          }));
-          setFavorites(favoritePlaces);
-          
-          // 초기 상태 저장 (모두 true)
-          const initialState = new Map<number, boolean>();
-          favoritePlaces.forEach((place) => {
-            initialState.set(place.id, true);
-          });
-          setInitialFavoritesState(initialState);
-        }
-      } catch (err) {
-        console.error("즐겨찾기 목록 로드 실패:", err);
-      } finally {
-        setIsLoading(false);
+  // 즐겨찾기 목록 로드 함수
+  const loadFavorites = async () => {
+    if (!isOpen) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await placeService.getSavedPlaces();
+      if (response.status === "success" && response.data) {
+        const favoritePlaces: FavoritePlace[] = response.data.map((savedPlace) => ({
+          id: savedPlace.poi_place.poi_place_id,
+          savedPlaceId: savedPlace.saved_place_id,
+          name: savedPlace.poi_place.name,
+          address: savedPlace.poi_place.address,
+          distance: "거리", // TODO: 거리 계산 필요 시 추가
+          icon: getCategoryIcon(savedPlace.category),
+          isFavorited: true,
+          coordinates: savedPlace.poi_place.coordinates,
+        }));
+        setFavorites(favoritePlaces);
+        
+        // 초기 상태 저장 (모두 true)
+        const initialState = new Map<number, boolean>();
+        favoritePlaces.forEach((place) => {
+          initialState.set(place.id, true);
+        });
+        setInitialFavoritesState(initialState);
       }
-    };
+    } catch (err) {
+      console.error("즐겨찾기 목록 로드 실패:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    loadFavorites();
+  // 즐겨찾기 목록 로드 (모달 열릴 때 한 번만)
+  // 팝업이 열려 있는 동안에는 로컬 상태(favorites)를 기준으로 토글만 왔다 갔다 하고,
+  // 닫을 때(handleClose) 실제 삭제/동기화를 처리한다.
+  useEffect(() => {
+    if (isOpen) {
+      loadFavorites();
+    }
   }, [isOpen]);
 
   // 즐겨찾기 토글 (즉시 API 호출)
@@ -139,8 +144,10 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
       setSelectedPlace({ ...selectedPlace, isFavorited: next });
     }
 
-    // 즐겨찾기 해제 시 즉시 API 호출
     if (!next) {
+      // 즐겨찾기 해제: 클릭 즉시 토스트, 서버에는 삭제 요청
+      showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
       try {
         await placeService.deleteSavedPlace(place.savedPlaceId);
         // 삭제 성공 시 initialFavoritesState도 업데이트 (중복 호출 방지)
@@ -149,7 +156,13 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           newState.set(id, false);
           return newState;
         });
-        showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
+        // 다른 페이지(SearchResultsPage, PlaceDetailPage 등)와 동기화
+        window.dispatchEvent(
+          new CustomEvent("favoritesUpdated", {
+            detail: { deletedPoiIds: [id] },
+          })
+        );
       } catch (err: any) {
         // 404는 이미 삭제된 것이므로 성공으로 처리
         if (err?.response?.status === 404) {
@@ -158,7 +171,13 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
             newState.set(id, false);
             return newState;
           });
-          showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
+          // 이미 삭제된 경우라도 동기화 이벤트는 날려서 프론트 상태를 맞춰준다
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { deletedPoiIds: [id] },
+            })
+          );
         } else {
           // 실패 시 롤백
           console.error("즐겨찾기 삭제 실패:", err);
@@ -168,11 +187,57 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           if (selectedPlace && selectedPlace.id === id) {
             setSelectedPlace({ ...selectedPlace, isFavorited: true });
           }
+          // 실패한 경우에는 에러 토스트로 덮어쓴다
           showToast("삭제에 실패했습니다. 다시 시도해주세요.");
         }
       }
     } else {
+      // 즐겨찾기 추가: 서버에도 즉시 반영
       showToast(`${place.name}${particle} 즐겨찾기에 추가됐습니다.`);
+      try {
+        const response = await placeService.addSavedPlace({ poi_place_id: id });
+        if (response.status === "success" && response.data) {
+          // 새 savedPlaceId를 반영
+          setFavorites((prev) =>
+            prev.map((p) =>
+              p.id !== id ? p : { ...p, savedPlaceId: response.data!.saved_place_id, isFavorited: true }
+            )
+          );
+          setInitialFavoritesState((prev) => {
+            const newState = new Map(prev);
+            newState.set(id, true);
+            return newState;
+          });
+
+          // 다른 페이지들과 동기화
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { addedPoiId: id, savedPlaceId: response.data.saved_place_id },
+            })
+          );
+        } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
+          // 이미 서버에 즐겨찾기가 있는 경우: 목록 재로딩으로 정합성 맞춤
+          loadFavorites();
+        } else {
+          // 실패 시 롤백
+          setFavorites((prev) =>
+            prev.map((p) => (p.id !== id ? p : { ...p, isFavorited: false }))
+          );
+          if (selectedPlace && selectedPlace.id === id) {
+            setSelectedPlace({ ...selectedPlace, isFavorited: false });
+          }
+          showToast("즐겨찾기 추가에 실패했습니다. 다시 시도해주세요.");
+        }
+      } catch (err) {
+        console.error("즐겨찾기 추가 실패:", err);
+        setFavorites((prev) =>
+          prev.map((p) => (p.id !== id ? p : { ...p, isFavorited: false }))
+        );
+        if (selectedPlace && selectedPlace.id === id) {
+          setSelectedPlace({ ...selectedPlace, isFavorited: false });
+        }
+        showToast("즐겨찾기 추가에 실패했습니다. 다시 시도해주세요.");
+      }
     }
   };
 
@@ -194,8 +259,10 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
       setSelectedPlace({ ...selectedPlace, isFavorited: next });
     }
 
-    // 즐겨찾기 해제 시 즉시 API 호출
     if (!next) {
+      // 즐겨찾기 해제: 클릭 즉시 토스트, 서버에는 삭제 요청
+      showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
       try {
         await placeService.deleteSavedPlace(place.savedPlaceId);
         // 삭제 성공 시 initialFavoritesState도 업데이트 (중복 호출 방지)
@@ -204,7 +271,13 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           newState.set(numId, false);
           return newState;
         });
-        showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
+        // 다른 페이지(SearchResultsPage, PlaceDetailPage 등)와 동기화
+        window.dispatchEvent(
+          new CustomEvent("favoritesUpdated", {
+            detail: { deletedPoiIds: [numId] },
+          })
+        );
       } catch (err: any) {
         // 404는 이미 삭제된 것이므로 성공으로 처리
         if (err?.response?.status === 404) {
@@ -213,7 +286,13 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
             newState.set(numId, false);
             return newState;
           });
-          showToast(`${place.name}${particle} 즐겨찾기에서 삭제됐습니다.`);
+
+          // 이미 삭제된 경우라도 동기화 이벤트는 날려서 프론트 상태를 맞춰준다
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { deletedPoiIds: [numId] },
+            })
+          );
         } else {
           // 실패 시 롤백
           console.error("즐겨찾기 삭제 실패:", err);
@@ -223,11 +302,57 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           if (selectedPlace && selectedPlace.id === numId) {
             setSelectedPlace({ ...selectedPlace, isFavorited: true });
           }
+          // 실패한 경우에는 에러 토스트로 덮어쓴다
           showToast("삭제에 실패했습니다. 다시 시도해주세요.");
         }
       }
     } else {
+      // 즐겨찾기 추가: 서버에도 즉시 반영
       showToast(`${place.name}${particle} 즐겨찾기에 추가됐습니다.`);
+      try {
+        const response = await placeService.addSavedPlace({ poi_place_id: numId });
+        if (response.status === "success" && response.data) {
+          // 새 savedPlaceId를 반영
+          setFavorites((prev) =>
+            prev.map((p) =>
+              p.id !== numId ? p : { ...p, savedPlaceId: response.data!.saved_place_id, isFavorited: true }
+            )
+          );
+          setInitialFavoritesState((prev) => {
+            const newState = new Map(prev);
+            newState.set(numId, true);
+            return newState;
+          });
+
+          // 다른 페이지들과 동기화
+          window.dispatchEvent(
+            new CustomEvent("favoritesUpdated", {
+              detail: { addedPoiId: numId, savedPlaceId: response.data.saved_place_id },
+            })
+          );
+        } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
+          // 이미 서버에 즐겨찾기가 있는 경우: 목록 재로딩으로 정합성 맞춤
+          loadFavorites();
+        } else {
+          // 실패 시 롤백
+          setFavorites((prev) =>
+            prev.map((p) => (p.id !== numId ? p : { ...p, isFavorited: false }))
+          );
+          if (selectedPlace && selectedPlace.id === numId) {
+            setSelectedPlace({ ...selectedPlace, isFavorited: false });
+          }
+          showToast("즐겨찾기 추가에 실패했습니다. 다시 시도해주세요.");
+        }
+      } catch (err) {
+        console.error("즐겨찾기 추가 실패:", err);
+        setFavorites((prev) =>
+          prev.map((p) => (p.id !== numId ? p : { ...p, isFavorited: false }))
+        );
+        if (selectedPlace && selectedPlace.id === numId) {
+          setSelectedPlace({ ...selectedPlace, isFavorited: false });
+        }
+        showToast("즐겨찾기 추가에 실패했습니다. 다시 시도해주세요.");
+      }
     }
   };
 
@@ -403,6 +528,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
             icon: selectedPlace.icon,
             isFavorited: selectedPlace.isFavorited,
             coordinates: selectedPlace.coordinates,
+            _poiPlaceId: selectedPlace.id, // POI Place ID 전달 (id가 poi_place_id)
           }}
           onToggleFavorite={toggleFavoriteById}
           onStartNavigation={() => {

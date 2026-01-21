@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { MapView, type RouteLineInfo, type EndpointMarker, type PlayerMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
-import { getRouteLegDetail } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, MODE_ICONS } from "@/types/route";
+import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
+import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import * as turf from "@turf/turf";
 
@@ -24,6 +24,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     assignments,
     legDetails,
     setLegDetail,
+    userRouteId,
+    createRouteResponse,
   } = useRouteStore();
 
   const [sheetHeight, setSheetHeight] = useState(50);
@@ -34,6 +36,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [isWebView, setIsWebView] = useState(false);
   const [showResultPopup, setShowResultPopup] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // 경주 결과 상태
+  const [routeResult, setRouteResult] = useState<RouteResultResponse | null>(null);
+  const [isLoadingResult, setIsLoadingResult] = useState(false);
 
   // 시뮬레이션 상태
   const [isSimulating, setIsSimulating] = useState(false);
@@ -250,7 +256,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           return prevTimes;
         });
         // 도착 완료 팝업 표시
-        setShowResultPopup(true);
+        openResultPopup();
         // TODO: 백엔드에 도착 완료 API 호출
         // fetch(`/api/v1/routes/${routeId}`, { method: 'PATCH', body: JSON.stringify({ status: 'FINISHED' }) });
       }
@@ -375,7 +381,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           return prevTimes;
         });
         stopGpsTestMode();
-        setShowResultPopup(true);
+        openResultPopup();
       }
     }
 
@@ -467,7 +473,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     if (isSimulating) return;
 
     setIsSimulating(true);
-    lastUpdateTime.current = Date.now();
+    const now = Date.now();
+    lastUpdateTime.current = now;
+    setSimulationStartTime(now); // 시뮬레이션 시작 시간 기록
 
     // 플레이어별 속도 (봇들은 약간씩 다르게)
     const speeds: Record<Player, number> = {
@@ -529,7 +537,177 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     stopSimulation();
     setPlayerProgress(new Map([['user', 0], ['bot1', 0], ['bot2', 0]]));
     setFinishTimes(new Map()); // 도착 시간 기록도 초기화
+    setSimulationStartTime(null); // 시작 시간도 초기화
   }, [stopSimulation]);
+
+  // 시뮬레이션 시작 시간 기록
+  const [simulationStartTime, setSimulationStartTime] = useState<number | null>(null);
+
+  // 시뮬레이션 결과를 기반으로 결과 데이터 생성
+  const generateResultFromSimulation = useCallback((): RouteResultResponse => {
+    const routeId = userRouteId || 1;
+    const now = new Date().toISOString();
+    const startTime = simulationStartTime ? new Date(simulationStartTime).toISOString() : now;
+
+    // createRouteResponse에서 실제 봇 정보 가져오기
+    const bot1Participant = createRouteResponse?.participants.find(p => p.type === 'BOT' && p.name === 'Bot 1');
+    const bot2Participant = createRouteResponse?.participants.find(p => p.type === 'BOT' && p.name === 'Bot 2');
+
+    // 봇 participants가 없을 때 fallback (순서대로 가져오기)
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+
+    // 플레이어 정보 매핑 (실제 route_id 사용)
+    const playerInfo: Record<Player, { route_id: number; bot_id: number | null; name: string }> = {
+      user: { route_id: routeId, bot_id: null, name: '나' },
+      bot1: {
+        route_id: bot1Participant?.route_id || botParticipants[0]?.route_id || 101,
+        bot_id: bot1Participant?.bot_id || botParticipants[0]?.bot_id || 1,
+        name: bot1Participant?.name || botParticipants[0]?.name || 'Bot 1'
+      },
+      bot2: {
+        route_id: bot2Participant?.route_id || botParticipants[1]?.route_id || 102,
+        bot_id: bot2Participant?.bot_id || botParticipants[1]?.bot_id || 2,
+        name: bot2Participant?.name || botParticipants[1]?.name || 'Bot 2'
+      },
+    };
+
+    // 도착 시간 기반으로 순위 계산
+    const players: Player[] = ['user', 'bot1', 'bot2'];
+    const results = players.map((player) => {
+      const finishTime = finishTimes.get(player);
+      const progress = playerProgress.get(player) || 0;
+
+      // duration 계산 (시뮬레이션 시작 시간부터 도착 시간까지, 초 단위)
+      let duration: number | null = null;
+      if (finishTime && simulationStartTime) {
+        duration = Math.round((finishTime - simulationStartTime) / 1000);
+      } else if (progress >= 1 && simulationStartTime) {
+        // 이미 도착했지만 finishTime이 없는 경우 현재 시간 기준
+        duration = Math.round((Date.now() - simulationStartTime) / 1000);
+      }
+
+      return {
+        player,
+        progress,
+        finishTime,
+        duration,
+        ...playerInfo[player],
+      };
+    });
+
+    // 순위 정렬: 도착한 사람은 duration 순, 미도착은 progress 순
+    results.sort((a, b) => {
+      const aFinished = a.progress >= 1;
+      const bFinished = b.progress >= 1;
+
+      if (aFinished && bFinished) {
+        return (a.duration || Infinity) - (b.duration || Infinity);
+      }
+      if (aFinished && !bFinished) return -1;
+      if (!aFinished && bFinished) return 1;
+      return b.progress - a.progress;
+    });
+
+    // 순위 매기기
+    const rankings = results.map((r, index) => ({
+      rank: index + 1,
+      route_id: r.route_id,
+      type: r.player === 'user' ? 'USER' as const : 'BOT' as const,
+      duration: r.duration,
+      end_time: r.finishTime ? new Date(r.finishTime).toISOString() : null,
+      user_id: r.player === 'user' ? 1 : null,
+      bot_id: r.bot_id,
+      name: r.name,
+    }));
+
+    // 유저 결과 찾기
+    const userRanking = rankings.find(r => r.type === 'USER');
+    const userRank = userRanking?.rank || null;
+    const isWin = userRank === 1;
+
+    console.log('시뮬레이션 결과 생성:', { rankings, userRank, isWin });
+
+    return {
+      route_id: routeId,
+      route_itinerary_id: 1,
+      status: 'FINISHED',
+      start_time: startTime,
+      end_time: now,
+      route_info: {
+        departure: departure ? { name: departure.name, lat: departure.lat, lon: departure.lon } : { name: null, lat: null, lon: null },
+        arrival: arrival ? { name: arrival.name, lat: arrival.lat, lon: arrival.lon } : { name: null, lat: null, lon: null },
+      },
+      rankings,
+      user_result: {
+        rank: userRank,
+        is_win: isWin,
+        duration: userRanking?.duration || null,
+      },
+    };
+  }, [userRouteId, simulationStartTime, finishTimes, playerProgress, departure, arrival, createRouteResponse]);
+
+  // 경주 결과 조회 (백엔드 API 사용 시)
+  const fetchRouteResult = useCallback(async () => {
+    const routeId = userRouteId || 1;
+
+    setIsLoadingResult(true);
+    try {
+      const result = await getRouteResult(routeId);
+      setRouteResult(result);
+    } catch (error) {
+      console.error('경주 결과 조회 실패:', error);
+    } finally {
+      setIsLoadingResult(false);
+    }
+  }, [userRouteId]);
+
+  // 도착 완료 처리 (상태 변경 + 결과 생성)
+  const handleFinishRoute = useCallback(async () => {
+    const routeId = userRouteId || 1;
+
+    setShowResultPopup(true);
+    setIsLoadingResult(true);
+
+    try {
+      // 유저 경주 상태를 FINISHED로 변경 (백엔드에서 봇들도 자동으로 FINISHED 처리)
+      await updateRouteStatus(routeId, { status: 'FINISHED' });
+      console.log('경주 상태 변경 완료: FINISHED (유저 + 봇 모두)');
+
+      // 시뮬레이션 결과 기반으로 결과 데이터 생성
+      const result = generateResultFromSimulation();
+      setRouteResult(result);
+    } catch (error) {
+      console.error('도착 완료 처리 실패:', error);
+      // 에러 발생해도 시뮬레이션 결과 표시
+      const result = generateResultFromSimulation();
+      setRouteResult(result);
+    } finally {
+      setIsLoadingResult(false);
+    }
+  }, [userRouteId, generateResultFromSimulation]);
+
+  // 경주 취소 처리
+  const handleCancelRoute = useCallback(async () => {
+    const routeId = userRouteId || 1;
+
+    try {
+      // 유저 경주 상태를 CANCELED로 변경 (백엔드에서 봇들도 자동으로 CANCELED 처리)
+      await updateRouteStatus(routeId, { status: 'CANCELED' });
+      console.log('경주 상태 변경 완료: CANCELED (유저 + 봇 모두)');
+
+      // 이전 페이지로 이동
+      onBack?.();
+    } catch (error) {
+      console.error('경주 취소 실패:', error);
+      // 실패해도 이전 페이지로 이동
+      onBack?.();
+    }
+  }, [userRouteId, onBack]);
+
+  // 결과 팝업 열기 (GPS/시뮬레이션으로 자동 도착 시 사용)
+  const openResultPopup = useCallback(async () => {
+    await handleFinishRoute();
+  }, [handleFinishRoute]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -604,6 +782,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         return b.progress - a.progress;
       });
   }, [playerProgress, finishTimes]);
+
+  // 모든 플레이어가 도착했는지 확인
+  const allPlayersFinished = useMemo(() => {
+    const players: Player[] = ['user', 'bot1', 'bot2'];
+    return players.every((player) => (playerProgress.get(player) || 0) >= 1);
+  }, [playerProgress]);
 
   // 드래그 시작
   const handleDragStart = (clientY: number) => {
@@ -945,7 +1129,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           {/* 헤더 */}
           <div className="relative px-8 pt-6 pb-4 border-b-[3px] border-black bg-[#80cee1]">
             <button
-              onClick={onBack}
+              onClick={handleCancelRoute}
               className="absolute top-6 right-8 bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-10"
             >
               <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[18px]">
@@ -976,14 +1160,19 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           {/* 하단 고정 버튼 */}
           <div className="p-5 bg-white border-t-[3px] border-black">
             <button
-              onClick={() => setShowResultPopup(true)}
-              className="w-full bg-[#00d9ff] h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
+              onClick={handleFinishRoute}
+              disabled={!allPlayersFinished}
+              className={`w-full h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] transition-all ${
+                allPlayersFinished
+                  ? 'bg-[#00d9ff] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer'
+                  : 'bg-gray-400 cursor-not-allowed opacity-60'
+              }`}
             >
               <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[21px]">
-                도착 완료
+                {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
               </p>
               <p className="text-[14px] text-white leading-[21px]">
-                🚀
+                {allPlayersFinished ? '🚀' : '⏳'}
               </p>
             </button>
           </div>
@@ -1000,6 +1189,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           onClose={() => setShowResultPopup(false)}
           onNavigate={onNavigate}
           onOpenDashboard={onOpenDashboard}
+          result={routeResult}
+          isLoading={isLoadingResult}
         />
       </div>
     );
@@ -1015,7 +1206,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
       {/* 경주취소 버튼 */}
       <button
-        onClick={onBack}
+        onClick={handleCancelRoute}
         className="absolute right-[5.97%] top-[1.5%] bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-30"
       >
         <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[18px]">
@@ -1136,17 +1327,19 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
       {/* 도착 완료 버튼 - 하단 고정 */}
       <button
-        onClick={() => {
-          console.log("도착 완료 버튼 클릭됨");
-          setShowResultPopup(true);
-        }}
-        className="fixed bottom-[24px] left-[24px] right-[24px] bg-[#00d9ff] h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all z-50"
+        onClick={handleFinishRoute}
+        disabled={!allPlayersFinished}
+        className={`fixed bottom-[24px] left-[24px] right-[24px] h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] transition-all z-50 ${
+          allPlayersFinished
+            ? 'bg-[#00d9ff] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer'
+            : 'bg-gray-400 cursor-not-allowed opacity-60'
+        }`}
       >
         <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[21px]">
-          도착 완료
+          {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
         </p>
         <p className="text-[14px] text-white leading-[21px]">
-          🚀
+          {allPlayersFinished ? '🚀' : '⏳'}
         </p>
       </button>
 
@@ -1156,6 +1349,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         onClose={() => setShowResultPopup(false)}
         onNavigate={onNavigate}
         onOpenDashboard={onOpenDashboard}
+        result={routeResult}
+        isLoading={isLoadingResult}
       />
     </div>
   );

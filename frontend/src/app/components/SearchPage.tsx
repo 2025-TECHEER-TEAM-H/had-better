@@ -1,7 +1,6 @@
-import { AppHeader } from "@/app/components/AppHeader";
-import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
-import imgCoinGold2 from "@/assets/coin-gold.png";
-import imgGemGreen1 from "@/assets/gem-green.png";
+import { AppHeader } from "@/app/components/AppHeader";                                                                           import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
+import imgCoinGold2 from "@/assets/coin-gold.png";                                                                              
+import imgGemGreen1 from "@/assets/gem-green.png";                                                                              
 import imgGemRed1 from "@/assets/gem-red.png";
 import imgSaw1 from "@/assets/saw.png";
 import imgStar1 from "@/assets/star.png";
@@ -9,9 +8,18 @@ import subwayMapImage from "@/assets/subway-map-image.png";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
+import placeService, { type SearchPlaceHistory } from "@/services/placeService";
 import { useAuthStore } from "@/stores/authStore";
+import { useRouteStore } from "@/stores/routeStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// 좌표 포함 장소 타입
+interface LocationWithCoords {
+  name: string;
+  lat: number;
+  lon: number;
+}
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -43,11 +51,16 @@ interface FavoriteLocations {
 export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
   const navigate = useNavigate();
   const { refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
+  const { setDepartureArrival, resetRoute } = useRouteStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startLocation, setStartLocation] = useState("");
   const [endLocation, setEndLocation] = useState("");
   const [isWebView, setIsWebView] = useState(false);
+
+  // 출발지/도착지 좌표 포함 상태
+  const [selectedDeparture, setSelectedDeparture] = useState<LocationWithCoords | null>(null);
+  const [selectedArrival, setSelectedArrival] = useState<LocationWithCoords | null>(null);
 
   // 장소 검색 모달 상태
   const [isPlaceSearchOpen, setIsPlaceSearchOpen] = useState(false);
@@ -67,6 +80,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     const t = window.setTimeout(() => setFavoriteSavedToast(null), 2000);
     return () => window.clearTimeout(t);
   }, [favoriteSavedToast]);
+
+  // 최근 검색 기록 상태
+  const [searchHistories, setSearchHistories] = useState<SearchPlaceHistory[]>([]);
+  const [isLoadingHistories, setIsLoadingHistories] = useState(false);
 
   // 웹/앱 화면 감지
   useEffect(() => {
@@ -95,6 +112,46 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const handleToggleProfileMenu = () => {
     setIsProfileMenuOpen((prev) => !prev);
   };
+
+  // 최근 검색 기록 불러오기
+  const loadSearchHistories = async () => {
+    try {
+      setIsLoadingHistories(true);
+      const response = await placeService.getSearchPlaceHistories();
+      if (response.status === "success" && response.data) {
+        // UI에서는 최신 5개까지만 사용
+        setSearchHistories(response.data.slice(0, 5));
+      } else {
+        setSearchHistories([]);
+      }
+    } catch (error) {
+      console.error("최근 검색 기록 불러오기 실패:", error);
+      setSearchHistories([]);
+    } finally {
+      setIsLoadingHistories(false);
+    }
+  };
+
+  // 초기 마운트 시 최근 검색 기록 로드
+  useEffect(() => {
+    loadSearchHistories();
+  }, []);
+
+  // SearchResultsPage 등에서 검색 기록이 갱신되었을 때 이벤트로 동기화
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ histories: SearchPlaceHistory[] }>;
+      if (customEvent.detail?.histories) {
+        // UI에서는 최신 5개까지만 사용
+        setSearchHistories(customEvent.detail.histories.slice(0, 5));
+      }
+    };
+
+    window.addEventListener("searchHistoriesUpdated", handler as EventListener);
+    return () => {
+      window.removeEventListener("searchHistoriesUpdated", handler as EventListener);
+    };
+  }, []);
 
   const handleEditProfileClick = () => {
     setIsProfileMenuOpen(false);
@@ -190,6 +247,40 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const handleSubwayWheel = (e: React.WheelEvent) => {
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setSubwayZoom((prev) => Math.max(0.5, Math.min(3, prev + delta)));
+  };
+
+  // 최근 기록 항목 클릭 시: 검색어 입력 + 검색 실행
+  const handleHistoryClick = async (history: SearchPlaceHistory) => {
+    const keyword = history.keyword.trim();
+    if (!keyword) return;
+
+    setSearchQuery(keyword);
+    if (onSearchSubmit) {
+      onSearchSubmit(keyword);
+    }
+  };
+
+  // 최근 기록 단건 삭제
+  const handleDeleteHistory = async (historyId: number) => {
+    try {
+      // 먼저 화면에서 바로 제거 (UI 우선)
+      setSearchHistories((prev) => prev.filter((h) => h.id !== historyId));
+      // 이후 서버에 삭제 요청 (실패해도 UI는 유지)
+      await placeService.deleteSearchPlaceHistory(historyId);
+    } catch {
+      // 에러는 콘솔만 조용히 무시 (UI는 유지)
+    }
+  };
+
+  // 최근 기록 전체 삭제
+  const handleClearHistories = async () => {
+    if (searchHistories.length === 0) return;
+    try {
+      await placeService.clearSearchPlaceHistories();
+      setSearchHistories([]);
+    } catch (error) {
+      console.error("검색 기록 전체 삭제 실패:", error);
+    }
   };
 
   return (
@@ -334,11 +425,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             onMenuClick={handleToggleProfileMenu}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSearchSubmit={() => {
-              if (searchQuery.trim()) {
-                if (onSearchSubmit) {
-                  onSearchSubmit(searchQuery);
-                }
+            onSearchSubmit={async (value) => {
+              const keyword = value.trim();
+              if (!keyword) return;
+
+              // 헤더 입력값을 로컬 상태에도 반영
+              setSearchQuery(keyword);
+
+              if (onSearchSubmit) {
+                onSearchSubmit(keyword);
               }
             }}
             currentPage="subway"
@@ -385,11 +480,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             onMenuClick={handleToggleProfileMenu}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSearchSubmit={() => {
-              if (searchQuery.trim()) {
-                if (onSearchSubmit) {
-                  onSearchSubmit(searchQuery);
-                }
+            onSearchSubmit={async (value) => {
+              const keyword = value.trim();
+              if (!keyword) return;
+
+              // 헤더 입력값을 로컬 상태에도 반영
+              setSearchQuery(keyword);
+
+              if (onSearchSubmit) {
+                onSearchSubmit(keyword);
               }
             }}
             currentPage="search"
@@ -439,7 +538,16 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           {/* 길 찾기 버튼 */}
           <div className="absolute content-stretch flex flex-col h-[42.691px] items-start justify-end left-[27.96px] right-[27.93px] top-[353.5px] z-10">
             <button
-              onClick={() => onNavigate?.("route")}
+              onClick={() => {
+                // 출발지/도착지 좌표가 있으면 routeStore에 저장
+                if (selectedDeparture && selectedArrival) {
+                  // 기존 검색 결과 초기화 (새로운 경로 검색을 위해)
+                  resetRoute();
+                  // 새 출발지/도착지 설정
+                  setDepartureArrival(selectedDeparture, selectedArrival);
+                }
+                onNavigate?.("route");
+              }}
               className="bg-[#4a9960] h-[44px] relative rounded-[25px] shrink-0 w-full hover:bg-[#3d7f50] transition-colors flex items-center justify-center"
             >
               <div aria-hidden="true" className="absolute border-3 border-black border-solid inset-0 pointer-events-none rounded-[25px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]" />
@@ -534,20 +642,61 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           {/* 최근 기록 섹션 */}
           <div className="absolute left-[24.96px] right-[30.93px] top-[571.4px] z-10">
             <p className="absolute css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium h-[28.137px] leading-[30px] left-[27.94px] text-[12px] text-black text-center top-0 tracking-[0.6px] translate-x-[-50%] w-[55.885px]">최근 기록</p>
-            <button
-              onClick={() => alert('최근 검색 기록 삭제됨')}
-              className="absolute css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium h-[28.137px] leading-[30px] right-[27.45px] text-[12px] text-black text-center top-0 tracking-[0.6px] translate-x-[50%] w-[54.904px] hover:text-[#4a9960] transition-colors"
+            <button 
+              onClick={handleClearHistories}
+              disabled={searchHistories.length === 0 || isLoadingHistories}
+              className="absolute css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium h-[28.137px] leading-[30px] right-[27.45px] text-[12px] text-black text-center top-0 tracking-[0.6px] translate-x-[50%] w-[54.904px] hover:text-[#4a9960] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               전체 삭제
             </button>
+            {/* 최근 기록 리스트 (최대 5개, 화면 전체 스크롤로 표시) */}
+            <div className="mt-8 space-y-2">
+              {isLoadingHistories && (
+                <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  최근 검색 기록을 불러오는 중...
+                </p>
+              )}
+              {!isLoadingHistories && searchHistories.length === 0 && (
+                <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  최근 검색 기록이 없습니다.
+                </p>
+              )}
+              {searchHistories.map((history) => (
+                <div
+                  key={history.id}
+                  className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
+                >
+                  <span 
+                    className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                    onClick={() => handleHistoryClick(history)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {history.keyword}
+                  </span>
+                  <button
+                    type="button"
+                    className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
+                    style={{ touchAction: 'manipulation' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteHistory(history.id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* 안내 메시지 */}
-          <div className="absolute bottom-[228.5px] font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium h-[186.288px] leading-[50px] left-[23px] right-[32.89px] text-[0px] text-[rgba(0,0,0,0.2)] text-center tracking-[0.6px] translate-y-[100%] z-10">
-            <p className="css-4hzbpn mb-0 text-[20px]">오늘은</p>
-            <p className="css-4hzbpn mb-0 text-[40px]">{`어디로 `}</p>
-            <p className="css-4hzbpn text-[40px]">안내할까요?</p>
-          </div>
+          {/* 안내 메시지 (검색 기록이 없을 때만 표시) */}
+          {searchHistories.length === 0 && !isLoadingHistories && (
+            <div className="absolute bottom-[228.5px] font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium h-[186.288px] leading-[50px] left-[23px] right-[32.89px] text-[0px] text-[rgba(0,0,0,0.2)] text-center tracking-[0.6px] translate-y-[100%] z-10">
+              <p className="css-4hzbpn mb-0 text-[20px]">오늘은</p>
+              <p className="css-4hzbpn mb-0 text-[40px]">{`어디로 `}</p>
+              <p className="css-4hzbpn text-[40px]">안내할까요?</p>
+            </div>
+          )}
         </>
       )}
 

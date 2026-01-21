@@ -1,4 +1,6 @@
 import svgPaths from "@/imports/svg-wsb2k3tlfm";
+import type { RouteResultResponse } from "@/types/route";
+import { formatDuration } from "@/types/route";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -7,9 +9,38 @@ interface ResultPopupProps {
   onClose: () => void;
   onNavigate?: (page: PageType) => void;
   onOpenDashboard?: () => void;
+  result?: RouteResultResponse | null; // 경주 결과 데이터
+  isLoading?: boolean; // 로딩 상태
 }
 
-export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard }: ResultPopupProps) {
+// 순위별 메달 이모지
+const RANK_MEDALS: Record<number, string> = {
+  1: '🏆',
+  2: '🥈',
+  3: '🥉',
+};
+
+// 순위별 배경 그라데이션
+const RANK_GRADIENTS: Record<number, string> = {
+  1: 'from-[#ffd700] to-[#f4c430]', // 골드
+  2: 'from-[#c0c0c0] to-[#a8a8a8]', // 실버
+  3: 'from-[#cd7f32] to-[#b5692d]', // 브론즈
+};
+
+// 카드 배경 그라데이션 (순위순)
+const CARD_GRADIENTS = [
+  'from-[#ffd700] to-[#f4c430]', // 1위: 골드
+  'from-[#ff94c2] to-[#ff6ba8]', // 2위: 핑크
+  'from-[#9ae6b4] to-[#68d391]', // 3위: 그린
+];
+
+// 참가자 타입별 아이콘
+const PARTICIPANT_ICONS: Record<string, string> = {
+  USER: '👤',
+  BOT: '🤖',
+};
+
+export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, result, isLoading }: ResultPopupProps) {
   if (!isOpen) return null;
 
   // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
@@ -79,71 +110,85 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard }: Re
           </button>
         </div>
 
+        {/* 로딩 상태 */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="font-['Wittgenstein',sans-serif] text-[14px] text-black">결과 로딩 중...</p>
+          </div>
+        )}
+
         {/* 순위 표시 */}
-        <div className="absolute left-[61.01px] top-[116.83px] w-[255.999px] h-[146.974px] flex gap-[16px] items-end justify-center">
-          {/* 2위 - 고스트2 */}
-          <div className="w-[64px] h-[122.974px] flex flex-col items-center">
-            <div className="bg-gradient-to-b from-[#c0c0c0] to-[#a8a8a8] size-[64px] rounded-full border-[3px] border-black shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] flex items-center justify-center">
-              <p className="text-[30px] leading-[36px]">🥈</p>
-            </div>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[8px]">2위</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#6b9080] mt-[4px]">고스트2</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[4px]">19분 50초</p>
-          </div>
+        {!isLoading && result && (
+          <div className="absolute left-[61.01px] top-[116.83px] w-[255.999px] h-[170.974px] flex gap-[16px] items-end justify-center">
+            {/* 순위를 2위-1위-3위 순서로 배치 */}
+            {[1, 0, 2].map((displayIndex) => {
+              const ranking = result.rankings[displayIndex];
+              if (!ranking) return null;
 
-          {/* 1위 - 나 */}
-          <div className="w-[95.999px] h-[170.974px] flex flex-col items-center">
-            <div className="relative">
-              <div className="bg-gradient-to-b from-[#ffd700] to-[#f4c430] size-[95.999px] rounded-full border-[3px] border-black shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] flex items-center justify-center">
-                <p className="text-[48px] leading-[48px]">🏆</p>
-              </div>
-              <p className="absolute text-[24px] leading-[32px] left-[36.1px] top-[-13.96px]">⭐</p>
-            </div>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[12px]">1위</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#6b9080] mt-[4px]">나</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[4px]">18분 30초</p>
-          </div>
+              const rank = ranking.rank || displayIndex + 1;
+              const isFirst = rank === 1;
+              const gradient = RANK_GRADIENTS[rank] || RANK_GRADIENTS[3];
+              const medal = RANK_MEDALS[rank] || '🏅';
+              const displayName = ranking.type === 'USER' ? '나' : ranking.name || `Bot ${ranking.bot_id}`;
+              const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
 
-          {/* 3위 - 고스트1 */}
-          <div className="w-[64px] h-[122.974px] flex flex-col items-center">
-            <div className="bg-gradient-to-b from-[#cd7f32] to-[#b5692d] size-[64px] rounded-full border-[3px] border-black shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] flex items-center justify-center">
-              <p className="text-[24px] leading-[32px]">🥉</p>
-            </div>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[8px]">3위</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#6b9080] mt-[4px]">고스트1</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[4px]">28분 15초</p>
+              return (
+                <div
+                  key={ranking.route_id}
+                  className={`flex flex-col items-center ${isFirst ? 'w-[95.999px]' : 'w-[64px]'}`}
+                >
+                  <div className="relative">
+                    <div
+                      className={`bg-gradient-to-b ${gradient} ${isFirst ? 'size-[95.999px]' : 'size-[64px]'} rounded-full border-[3px] border-black ${isFirst ? 'shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]' : 'shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]'} flex items-center justify-center`}
+                    >
+                      <p className={`${isFirst ? 'text-[48px] leading-[48px]' : 'text-[30px] leading-[36px]'}`}>{medal}</p>
+                    </div>
+                    {isFirst && <p className="absolute text-[24px] leading-[32px] left-[36.1px] top-[-13.96px]">⭐</p>}
+                  </div>
+                  <p className={`font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
+                    {rank}위
+                  </p>
+                  <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#6b9080] mt-[4px]">{displayName}</p>
+                  <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[4px]">{duration}</p>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
 
         {/* 축하 메시지 */}
-        <div className="absolute bg-gradient-to-b from-[#7fb8cc] to-[#6ba9bd] left-[24px] top-[279.8px] w-[330.038px] h-[77.683px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
+        <div className="absolute bg-gradient-to-b from-[#7fb8cc] to-[#6ba9bd] left-[24px] top-[299.8px] w-[330.038px] h-[77.683px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
           <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white text-center">
-            오늘은 내가 제일 먼저 도착했어요!
+            {result?.user_result.is_win
+              ? '오늘은 내가 제일 빨리 도착했어요!'
+              : result?.user_result.rank
+                ? `${result.user_result.rank}위로 도착했어요!`
+                : '경주가 종료되었습니다!'}
           </p>
           <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-white text-center">
-            🌈BEST CHOICE!🌈
+            {result?.user_result.is_win ? '🌈BEST CHOICE!🌈' : '🏁FINISHED!🏁'}
           </p>
         </div>
 
         {/* 기록 카드들 */}
-        <div className="absolute left-[24px] top-[397.49px] w-[330.038px] flex flex-col gap-[11.995px]">
-          {/* 내 기록 - 골드 */}
-          <div className="bg-gradient-to-b from-[#ffd700] to-[#f4c430] h-[64px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center">
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f]">내 기록</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[3.995px]">18분 30초</p>
-          </div>
+        <div className="absolute left-[24px] top-[417.49px] w-[330.038px] flex flex-col gap-[11.995px]">
+          {result?.rankings.map((ranking, index) => {
+            const gradient = CARD_GRADIENTS[index] || CARD_GRADIENTS[2];
+            const isFirstCard = index === 0;
+            const displayName = ranking.type === 'USER' ? '내 기록' : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
+            const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
+            const textColor = isFirstCard ? 'text-[#2d5f3f]' : index === 1 ? 'text-white' : 'text-[#2d5f3f]';
 
-          {/* 고스트2 기록 - 핑크 */}
-          <div className="bg-gradient-to-b from-[#ff94c2] to-[#ff6ba8] h-[64px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center">
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white">고스트2 기록</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white mt-[3.995px]">19분 50초</p>
-          </div>
-
-          {/* 고스트1 기록 - 그린 */}
-          <div className="bg-gradient-to-b from-[#9ae6b4] to-[#68d391] h-[64px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center">
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f]">고스트 1 기록</p>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-[#2d5f3f] mt-[3.995px]">28분 15초</p>
-          </div>
+            return (
+              <div
+                key={ranking.route_id}
+                className={`bg-gradient-to-b ${gradient} h-[64px] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] flex flex-col items-center justify-center`}
+              >
+                <p className={`font-['Wittgenstein',sans-serif] text-[12px] ${textColor}`}>{displayName}</p>
+                <p className={`font-['Wittgenstein',sans-serif] text-[12px] ${textColor} mt-[3.995px]`}>{duration}</p>
+              </div>
+            );
+          })}
         </div>
 
         {/* 하단 버튼들 */}

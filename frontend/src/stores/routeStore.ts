@@ -9,6 +9,7 @@ import type {
   RouteSearchResponse,
   RouteLegSummary,
   RouteLegDetailResponse,
+  CreateRouteResponse,
 } from '@/types/route';
 
 // 플레이어 타입 (유저 + 봇들)
@@ -35,6 +36,10 @@ interface RouteState {
   // 경로 상세 정보 캐시
   legDetails: Map<number, RouteLegDetailResponse>; // route_leg_id -> detail
 
+  // 경주 생성 응답
+  createRouteResponse: CreateRouteResponse | null;
+  userRouteId: number | null; // 유저의 route_id (결과 조회용)
+
   // 로딩 상태
   isLoading: boolean;
   error: string | null;
@@ -48,6 +53,7 @@ interface RouteState {
   assignRoute: (player: Player, routeLegId: number) => void;
   unassignRoute: (player: Player) => void;
   setLegDetail: (routeLegId: number, detail: RouteLegDetailResponse) => void;
+  setCreateRouteResponse: (response: CreateRouteResponse, userRouteId: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   resetRoute: () => void;
@@ -66,6 +72,8 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   arrival: null,
   assignments: new Map(),
   legDetails: new Map(),
+  createRouteResponse: null,
+  userRouteId: null,
   isLoading: false,
   error: null,
 
@@ -108,6 +116,10 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     set({ legDetails: newLegDetails });
   },
 
+  setCreateRouteResponse: (response, userRouteId) => {
+    set({ createRouteResponse: response, userRouteId });
+  },
+
   setLoading: (loading) => {
     set({ isLoading: loading });
   },
@@ -123,6 +135,8 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       arrival: null,
       assignments: new Map(),
       legDetails: new Map(),
+      createRouteResponse: null,
+      userRouteId: null,
       isLoading: false,
       error: null,
     });

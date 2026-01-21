@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { MapView, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
-import { searchRoutes, getRouteLegDetail } from "@/services/routeService";
+import { searchRoutes, getRouteLegDetail, createRoute } from "@/services/routeService";
 import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 
@@ -26,6 +26,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     setSearchResponse,
     setDepartureArrival,
     setLegDetail,
+    setCreateRouteResponse,
     assignRoute,
     unassignRoute,
     getAssignedRouteId,
@@ -58,26 +59,42 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   // 경로 검색 (컴포넌트 마운트 시 또는 출발지/도착지 변경 시)
   useEffect(() => {
     const loadRoutes = async () => {
-      // 이미 검색 결과가 있으면 스킵
-      if (searchResponse) return;
+      // store에 출발지/도착지가 없으면 기본값 설정 (데모용)
+      if (!departure || !arrival) {
+        const defaultDeparture = { name: "명동역", lat: 37.560970, lon: 126.985856 };
+        const defaultArrival = { name: "이태원역", lat: 37.534542, lon: 126.994596 };
+        setDepartureArrival(defaultDeparture, defaultArrival);
+        // 상태 변경 후 다음 렌더링에서 검색 실행
+        return;
+      }
 
-      // TODO: 실제로는 이전 페이지에서 출발지/도착지를 전달받아야 함
-      // 데모용: 명동역 -> 이태원역
-      const tempDeparture = { name: "명동역", lat: 37.560970, lon: 126.985856 };
-      const tempArrival = { name: "이태원역", lat: 37.534542, lon: 126.994596 };
+      // 이미 검색 결과가 있고, 출발지/도착지가 같으면 스킵
+      if (searchResponse) {
+        const isSameDeparture =
+          searchResponse.requestParameters.startX === departure.lon.toString() &&
+          searchResponse.requestParameters.startY === departure.lat.toString();
+        const isSameArrival =
+          searchResponse.requestParameters.endX === arrival.lon.toString() &&
+          searchResponse.requestParameters.endY === arrival.lat.toString();
 
-      setDepartureArrival(tempDeparture, tempArrival);
+        if (isSameDeparture && isSameArrival) {
+          console.log('[Route] 동일 경로 - 기존 검색 결과 사용');
+          return;
+        }
+        console.log('[Route] 다른 경로 - 새로 검색');
+      }
+
       setLoading(true);
       setError(null);
 
       try {
         const response = await searchRoutes({
-          startX: tempDeparture.lon.toString(),
-          startY: tempDeparture.lat.toString(),
-          endX: tempArrival.lon.toString(),
-          endY: tempArrival.lat.toString(),
-          departure_name: tempDeparture.name,
-          arrival_name: tempArrival.name,
+          startX: departure.lon.toString(),
+          startY: departure.lat.toString(),
+          endX: arrival.lon.toString(),
+          endY: arrival.lat.toString(),
+          departure_name: departure.name,
+          arrival_name: arrival.name,
           count: 5, // 5개 경로 요청
         });
 
@@ -90,7 +107,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     };
 
     loadRoutes();
-  }, []);
+  }, [departure, arrival]);
 
   // 경로 상세 정보 로드 (지도에 표시하기 위해)
   useEffect(() => {
@@ -298,10 +315,54 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     };
   }, [isDragging, startY, startHeight]);
 
-  const handleStartNavigation = () => {
-    if (areAllAssigned() && onNavigate) {
-      console.log("경로 시작:", Object.fromEntries(assignments));
+  // 경주 생성 중 상태
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+
+  const handleStartNavigation = async () => {
+    if (!areAllAssigned() || !onNavigate || !searchResponse) return;
+
+    const userLegId = assignments.get('user');
+    const bot1LegId = assignments.get('bot1');
+    const bot2LegId = assignments.get('bot2');
+
+    if (!userLegId || !bot1LegId || !bot2LegId) {
+      console.error("모든 플레이어에게 경로가 할당되어야 합니다.");
+      return;
+    }
+
+    setIsCreatingRoute(true);
+
+    try {
+      console.log("경주 생성 요청:", {
+        route_itinerary_id: searchResponse.route_itinerary_id,
+        user_leg_id: userLegId,
+        bot_leg_ids: [bot1LegId, bot2LegId],
+      });
+
+      const response = await createRoute({
+        route_itinerary_id: searchResponse.route_itinerary_id,
+        user_leg_id: userLegId,
+        bot_leg_ids: [bot1LegId, bot2LegId],
+      });
+
+      console.log("경주 생성 응답:", response);
+
+      // 유저의 route_id 찾기
+      const userParticipant = response.participants.find(p => p.type === 'USER');
+      if (!userParticipant) {
+        throw new Error("유저 참가자 정보를 찾을 수 없습니다.");
+      }
+
+      // 스토어에 저장
+      setCreateRouteResponse(response, userParticipant.route_id);
+
+      // 경로 상세 페이지로 이동
       onNavigate("routeDetail");
+    } catch (err) {
+      console.error("경주 생성 실패:", err);
+      setError(err instanceof Error ? err.message : "경주 생성에 실패했습니다.");
+    } finally {
+      setIsCreatingRoute(false);
     }
   };
 
@@ -476,6 +537,8 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
   // 모든 플레이어가 경로를 선택했는지 확인
   const allAssigned = areAllAssigned();
+  // 버튼 활성화 조건
+  const canStartNavigation = allAssigned && !isCreatingRoute;
 
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)
   if (isWebView) {
@@ -505,19 +568,19 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           <div className="p-5 bg-white border-t-[3px] border-black">
             <button
               onClick={handleStartNavigation}
-              disabled={!allAssigned}
+              disabled={!canStartNavigation}
               className={`w-full h-[60px] rounded-[10px] border-[3px] border-black transition-all ${
-                allAssigned
+                canStartNavigation
                   ? "bg-[#48d448] hover:bg-[#3db83d] cursor-pointer shadow-[0px_4px_0px_0px_#2d8b2d] active:shadow-[0px_2px_0px_0px_#2d8b2d] active:translate-y-[2px]"
                   : "bg-[#99a1af] cursor-not-allowed"
               }`}
             >
               <p
                 className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                  allAssigned ? "text-white" : "text-[#4a5565]"
+                  canStartNavigation ? "text-white" : "text-[#4a5565]"
                 }`}
               >
-                이동 시작! 🏁
+                {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
               </p>
             </button>
           </div>
@@ -572,19 +635,19 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         <div className="absolute bottom-0 left-0 right-0 p-5 bg-white">
           <button
             onClick={handleStartNavigation}
-            disabled={!allAssigned}
+            disabled={!canStartNavigation}
             className={`w-full h-[60px] rounded-[10px] border-[3px] border-black transition-all ${
-              allAssigned
+              canStartNavigation
                 ? "bg-[#48d448] hover:bg-[#3db83d] cursor-pointer shadow-[0px_4px_0px_0px_#2d8b2d] active:shadow-[0px_2px_0px_0px_#2d8b2d] active:translate-y-[2px]"
                 : "bg-[#99a1af] cursor-not-allowed"
             }`}
           >
             <p
               className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                allAssigned ? "text-white" : "text-[#4a5565]"
+                canStartNavigation ? "text-white" : "text-[#4a5565]"
               }`}
             >
-              이동 시작! 🏁
+              {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
             </p>
           </button>
         </div>

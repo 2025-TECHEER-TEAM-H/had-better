@@ -3,17 +3,22 @@ from urllib.parse import quote  # noqa: F401
 import requests
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.utils import timezone
 from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated  # noqa: F401
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from config.responses import success_response
 
 from .models import PoiPlace, SearchPlaceHistory
-from .serializers import PoiPlaceDetailSerializer, PoiPlaceSerializer
+from .serializers import (
+    PoiPlaceDetailSerializer,
+    PoiPlaceSerializer,
+    SearchPlaceHistorySerializer,
+)
 
 
 class PlaceSearchView(APIView):
@@ -93,6 +98,15 @@ class PlaceSearchView(APIView):
 
         # 로그인 사용자인 경우 검색 기록 저장
         if request.user.is_authenticated:
+            # 동일 키워드에 대한 이전 검색 기록은 soft delete 처리하여
+            # 항상 "가장 최근 검색 1개만" 활성 상태로 남도록 정리
+            SearchPlaceHistory.objects.filter(
+                user=request.user,
+                keyword=q,
+                deleted_at__isnull=True,
+            ).update(deleted_at=timezone.now())
+
+            # 새 기록 생성 (DB에는 개수 제한 없이 누적 저장)
             SearchPlaceHistory.objects.create(user=request.user, keyword=q)
 
         # TMap API 호출
@@ -356,3 +370,94 @@ class PlaceDetailView(APIView):
         serializer = PoiPlaceDetailSerializer(poi_place, context=context)
 
         return success_response(serializer.data)
+
+
+class SearchPlaceHistoryListView(APIView):
+    """
+    장소 검색 기록 목록 조회/전체 삭제 API
+
+    - GET /api/v1/places/search-histories
+    - DELETE /api/v1/places/search-histories
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="places_search_history_list",
+        summary="장소 검색 기록 목록 조회",
+        description="로그인한 사용자의 장소 검색 기록을 최신순으로 조회합니다.",
+        responses={200: SearchPlaceHistorySerializer(many=True)},
+        tags=["Places"],
+    )
+    def get(self, request):
+        histories = (
+            SearchPlaceHistory.objects.filter(
+                user=request.user,
+                deleted_at__isnull=True,
+            )
+            .order_by("-created_at")
+        )
+        serializer = SearchPlaceHistorySerializer(histories, many=True)
+        return success_response(serializer.data)
+
+    @extend_schema(
+        operation_id="places_search_history_clear",
+        summary="장소 검색 기록 전체 삭제",
+        description="로그인한 사용자의 장소 검색 기록을 모두 삭제(soft delete)합니다.",
+        responses={200: {"description": "삭제된 개수 반환"}},
+        tags=["Places"],
+    )
+    def delete(self, request):
+        qs = SearchPlaceHistory.objects.filter(
+            user=request.user,
+            deleted_at__isnull=True,
+        )
+        deleted_count = qs.count()
+        if deleted_count > 0:
+            qs.update(deleted_at=timezone.now())
+
+        return success_response({"deleted_count": deleted_count})
+
+
+class SearchPlaceHistoryDetailView(APIView):
+    """
+    장소 검색 기록 단건 삭제 API
+
+    - DELETE /api/v1/places/search-histories/{history_id}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="places_search_history_delete",
+        summary="장소 검색 기록 단건 삭제",
+        description="로그인한 사용자의 특정 장소 검색 기록을 삭제(soft delete)합니다.",
+        responses={
+            200: {"description": "삭제된 기록의 ID 반환"},
+            404: {"description": "검색 기록을 찾을 수 없음"},
+        },
+        tags=["Places"],
+    )
+    def delete(self, request, history_id: int):
+        try:
+            history = SearchPlaceHistory.objects.get(
+                id=history_id,
+                user=request.user,
+                deleted_at__isnull=True,
+            )
+        except SearchPlaceHistory.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "message": "해당 검색 기록을 찾을 수 없습니다.",
+                    },
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        history.deleted_at = timezone.now()
+        history.save(update_fields=["deleted_at"])
+
+        return success_response({"id": history.id})
