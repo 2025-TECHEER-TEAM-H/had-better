@@ -68,7 +68,11 @@ export function RaceTestPage() {
         addLog(`✅ SSE 연결됨: ${data.message}`);
       },
       onBotStatusUpdate: (data) => {
-        addLog(`🤖 봇 ${data.bot_id}: ${data.status} (${data.progress_percent.toFixed(1)}%) @ [${data.position.lon.toFixed(4)}, ${data.position.lat.toFixed(4)}]`);
+        // position이 있을 때만 좌표 표시
+        const positionStr = data.position
+          ? `@ [${data.position.lon.toFixed(4)}, ${data.position.lat.toFixed(4)}]`
+          : '(위치 정보 없음)';
+        addLog(`🤖 봇 ${data.bot_id}: ${data.status} (${data.progress_percent.toFixed(1)}%) ${positionStr}`);
         setBotPositions((prev) => {
           const next = new Map(prev);
           next.set(data.bot_id, data);

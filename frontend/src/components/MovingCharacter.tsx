@@ -123,6 +123,14 @@ export function MovingCharacter({
     }
   }, [routeSegments, botId]);
 
+  // 처음 위치를 받으면 바로 displayPosition 설정
+  useEffect(() => {
+    if (currentPosition && !displayPosition) {
+      console.log(`🎯 봇 ${botId} 초기 위치 설정:`, currentPosition);
+      setDisplayPosition([currentPosition.lon, currentPosition.lat]);
+    }
+  }, [currentPosition, botId]); // displayPosition은 의존성에서 제외
+
   // 새 위치 수신 시 보간 상태 생성
   useEffect(() => {
     if (!currentPosition) return;
