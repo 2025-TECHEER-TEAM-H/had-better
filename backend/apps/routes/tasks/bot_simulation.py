@@ -1225,6 +1225,25 @@ def _handle_riding_subway(
         )
         progress_percent = max(progress_percent, station_based_total)
 
+    # 🚇 지하철 위치 업데이트 (현재 역 좌표 추정)
+    if current_idx >= 0:
+        pass_shape = public_leg.get("pass_shape", [])
+        if pass_shape and len(pass_shape) > current_idx:
+            coord = pass_shape[current_idx]
+            BotStateManager.update_position(
+                route_id=route_id,
+                lon=coord[0],
+                lat=coord[1]
+            )
+        elif pass_stops and len(pass_stops) > current_idx:
+            # pass_shape이 없으면 정류장 좌표 사용
+            station = pass_stops[current_idx]
+            BotStateManager.update_position(
+                route_id=route_id,
+                lon=float(station.get("lon", 0)),
+                lat=float(station.get("lat", 0))
+            )
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**bot_state, "progress_percent": progress_percent},

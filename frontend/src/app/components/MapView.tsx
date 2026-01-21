@@ -2,8 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useLocation } from "react-router-dom";
+import { useMapStore } from "@/stores/mapStore";
+import { MapCharacter } from "@/components/MapCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway";
+
+// 마커 정보 타입
+interface MarkerInfo {
+  id: string;
+  coordinates: [number, number]; // [경도, 위도]
+  name: string;
+  icon?: string;
+}
 
 interface MapViewProps {
   onNavigate?: (page: PageType) => void;
@@ -13,17 +23,33 @@ interface MapViewProps {
    * - 값이 없으면 내부에서 location 기반으로 판단합니다.
    */
   currentPage?: PageType;
+  /**
+   * 이동할 목표 좌표 (선택)
+   * - [경도, 위도] 형식
+   * - 값이 변경되면 해당 위치로 지도 이동
+   */
+  targetLocation?: [number, number] | null;
+  /**
+   * 표시할 마커 목록 (선택)
+   */
+  markers?: MarkerInfo[];
 }
 
 // Mapbox Access Token 설정
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "";
 
-export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
+export function MapView({ onNavigate, currentPage, targetLocation, markers = [] }: MapViewProps = {}) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const placeMarkers = useRef<mapboxgl.Marker[]>([]); // 검색 결과 마커들
+  const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
+
+  // 지도 상태 저장 store
+  const { lastCenter, lastZoom, hasHydrated, setMapView } = useMapStore();
 
   const resolvedCurrentPage: PageType =
     currentPage ??
@@ -43,11 +69,15 @@ export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // 저장된 위치가 있으면 그 위치로, 없으면 기본값으로 시작
+    const initialCenter = lastCenter || defaultCenter;
+    const initialZoom = lastZoom || defaultZoom;
+
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/outdoors-v12",
-      center: defaultCenter,
-      zoom: defaultZoom,
+      center: initialCenter,
+      zoom: initialZoom,
       // 한국어 라벨 표시
       locale: {
         "NavigationControl.ZoomIn": "확대",
@@ -77,7 +107,18 @@ export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
           });
         }
       }
-      getUserLocation();
+      // 지도 로드 완료 상태 설정
+      setIsMapLoaded(true);
+    });
+
+    // 지도 이동/줌 완료 시 상태 저장 (moveend 이벤트)
+    map.current.on("moveend", () => {
+      const mapInstance = map.current;
+      if (mapInstance) {
+        const center = mapInstance.getCenter();
+        const zoom = mapInstance.getZoom();
+        setMapView([center.lng, center.lat], zoom);
+      }
     });
 
     // 클린업
@@ -88,6 +129,113 @@ export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
       }
     };
   }, []);
+
+  // 지도 로드 후 저장된 위치로 이동 (hydration 완료 후, 한 번만 실행)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+    if (!hasHydrated) return; // hydration 완료 대기
+    if (initialLocationApplied.current) return; // 이미 적용됨
+
+    // 저장된 위치가 있으면 해당 위치로 이동
+    if (lastCenter && lastZoom) {
+      map.current.jumpTo({
+        center: lastCenter,
+        zoom: lastZoom,
+      });
+    }
+
+    initialLocationApplied.current = true;
+  }, [isMapLoaded, hasHydrated, lastCenter, lastZoom]);
+
+  // 목표 좌표가 변경되면 해당 위치로 이동
+  useEffect(() => {
+    if (!map.current || !targetLocation) return;
+
+    // 지도가 로드된 후에 이동
+    if (map.current.loaded()) {
+      map.current.flyTo({
+        center: targetLocation,
+        zoom: 15,
+        duration: 1500,
+      });
+    } else {
+      // 지도가 아직 로드되지 않았으면 로드 후 이동
+      map.current.once("load", () => {
+        map.current?.flyTo({
+          center: targetLocation,
+          zoom: 15,
+          duration: 1500,
+        });
+      });
+    }
+  }, [targetLocation]);
+
+  // 마커 표시 (지도 로드 완료 후에만)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 마커들 제거
+    placeMarkers.current.forEach((marker) => marker.remove());
+    placeMarkers.current = [];
+
+    // 새 마커들 추가
+    markers.forEach((markerInfo, index) => {
+      // 마커 엘리먼트 생성
+      const el = document.createElement("div");
+      el.className = "place-marker";
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          cursor: pointer;
+        ">
+          <div style="
+            width: 40px;
+            height: 40px;
+            background: ${index === 0 ? '#4a9960' : 'white'};
+            border: 3px solid black;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          ">${markerInfo.icon || '📍'}</div>
+          <div style="
+            margin-top: 4px;
+            padding: 2px 6px;
+            background: white;
+            border: 2px solid black;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          ">${markerInfo.name}</div>
+        </div>
+      `;
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat(markerInfo.coordinates)
+        .addTo(map.current!);
+
+      placeMarkers.current.push(marker);
+    });
+
+    // 클린업: 컴포넌트 언마운트 시 마커 제거
+    return () => {
+      placeMarkers.current.forEach((marker) => marker.remove());
+      placeMarkers.current = [];
+    };
+  }, [markers, isMapLoaded]);
+
+  // 자동 현재 위치 이동 제거
+  // - 저장된 위치가 있으면 그 위치로 시작 (지도 초기화 시 처리)
+  // - 저장된 위치가 없으면 기본값(서울 시청)으로 시작
+  // - 현재 위치는 사용자가 "내 위치" 버튼을 눌러야만 이동
 
   // 사용자 위치 가져오기
   const getUserLocation = () => {
@@ -202,6 +350,32 @@ export function MapView({ onNavigate, currentPage }: MapViewProps = {}) {
           }
         }
       `}</style>
+
+      {/* 애니메이션 캐릭터 테스트 - 실제 지도 좌표에 고정 */}
+      {/* Green 캐릭터 - 서울역 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="green"
+        coordinates={[126.9708, 37.5547]}
+        size={80}
+        animationSpeed={150}
+      />
+      {/* Pink 캐릭터 - 광화문 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="pink"
+        coordinates={[126.9769, 37.5759]}
+        size={80}
+        animationSpeed={180}
+      />
+      {/* Yellow 캐릭터 - 강남역 근처 */}
+      <MapCharacter
+        map={map.current}
+        color="yellow"
+        coordinates={[127.0276, 37.4979]}
+        size={80}
+        animationSpeed={200}
+      />
 
       {/* 지도 컨트롤 버튼들 */}
       <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-10">
