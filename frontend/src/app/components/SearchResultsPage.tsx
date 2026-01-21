@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import placeService from "@/services/placeService";
+import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
-import placeService, { type PlaceSearchResult } from "@/services/placeService";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -19,32 +19,32 @@ interface SearchResult {
 
 // 카테고리별 아이콘 매핑
 const getCategoryIcon = (category: string): string => {
-  const iconMap: Record<string, string> = {
-    "카페": "☕",
-    "음식점": "🍽️",
-    "편의점": "🏪",
-    "병원": "🏥",
-    "약국": "💊",
-    "공원": "🏞️",
-    "학교": "🏫",
-    "은행": "🏦",
-    "주유소": "⛽",
-    "주차장": "🅿️",
-    "지하철": "🚇",
-    "버스": "🚌",
-    "호텔": "🏨",
-    "마트": "🛒",
-    "백화점": "🏬",
-  };
-  // 카테고리에 포함된 키워드로 아이콘 찾기
-  for (const [key, icon] of Object.entries(iconMap)) {
-    if (category.includes(key)) return icon;
-  }
+  const c = (category || "").toLowerCase();
+  const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+
+  // NOTE: 백엔드 category는 TMap mlClass 기반이라 포맷이 제각각(영문/복합/약어)일 수 있음.
+  // 화면에서 확실히 구분되도록 "결과 이모지"는 고정(요청한 매핑) + 매칭 키워드는 넓게 커버.
+  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
+  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
+  if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
+  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
+  if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
+  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
+  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
+  if (hasAny(["은행", "bank", "atm"])) return "🏦";
+  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
+  if (hasAny(["주차", "parking"])) return "🅿️";
+  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+  if (hasAny(["버스", "bus"])) return "🚌";
+  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
+  if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
+  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+
   return "📍"; // 기본 아이콘
 };
 
 // 카테고리별 배경색 매핑
-const getCategoryColor = (category: string, index: number): string => {
+const getCategoryColor = (_category: string, index: number): string => {
   const colors = ["#7ed321", "#00d9ff", "white", "#ffc107", "#ff9ff3", "#54a0ff"];
   return colors[index % colors.length];
 };
@@ -145,7 +145,7 @@ export function SearchResultsPage({
     const checkViewport = () => {
       setIsWebView(window.innerWidth > 768);
     };
-    
+
     checkViewport();
     window.addEventListener('resize', checkViewport);
     return () => window.removeEventListener('resize', checkViewport);
@@ -161,12 +161,12 @@ export function SearchResultsPage({
   // 드래그 중
   const handleDragMove = (clientY: number) => {
     if (!isDragging || !containerRef.current) return;
-    
+
     const deltaY = startY - clientY;
     const containerHeight = containerRef.current.offsetHeight;
     const deltaPercent = (deltaY / containerHeight) * 100;
     const newHeight = Math.min(Math.max(startHeight + deltaPercent, 35), 85);
-    
+
     setSheetHeight(newHeight);
   };
 
@@ -191,7 +191,7 @@ export function SearchResultsPage({
       const handleGlobalMouseMove = (e: MouseEvent) => {
         handleDragMove(e.clientY);
       };
-      
+
       const handleGlobalMouseUp = () => {
         handleDragEnd();
       };
@@ -220,6 +220,13 @@ export function SearchResultsPage({
 
   if (!isOpen) return null;
 
+  const buildSubline = (result: SearchResult) => {
+    const status = (result.status || "").trim();
+    const distance = (result.distance || "").trim();
+    if (status && distance) return `${status} · ${distance}`;
+    return status || distance || "";
+  };
+
   // 검색 결과 카드 컴포넌트
   const ResultCard = ({ result }: { result: SearchResult }) => (
     <div
@@ -242,9 +249,14 @@ export function SearchResultsPage({
         {/* 장소 이름 */}
         <div className="flex-[1_0_0] min-h-px min-w-px relative">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex flex-col items-start relative w-full">
-            <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[15px] text-[10px] text-black text-left">
+            <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-extrabold leading-[18px] text-[14px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap">
               {result.name}
             </p>
+            {buildSubline(result) && (
+              <p className="css-ew64yg font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                {buildSubline(result)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -376,7 +388,7 @@ export function SearchResultsPage({
 
   // 모바일 뷰 (전체 화면 + 하단 슬라이드 시트)
   return (
-    <div 
+    <div
       ref={containerRef}
       className="fixed inset-0 z-50"
       style={{
@@ -398,7 +410,7 @@ export function SearchResultsPage({
       </div>
 
       {/* 슬라이드 가능한 하단 시트 */}
-      <div 
+      <div
         className="absolute left-0 right-0 bg-white border-black border-l-[3.366px] border-r-[3.366px] border-solid border-t-[3.366px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all"
         style={{
           bottom: 0,
@@ -407,7 +419,7 @@ export function SearchResultsPage({
         }}
       >
         {/* 드래그 핸들 */}
-        <div 
+        <div
           className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-[#d1d5dc] h-[5.996px] w-[48px] rounded-full cursor-grab active:cursor-grabbing"
           onMouseDown={(e) => handleDragStart(e.clientY)}
           onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}

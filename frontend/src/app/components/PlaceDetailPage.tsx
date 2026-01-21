@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
+import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
 
 interface PlaceDetailPageProps {
@@ -27,11 +27,9 @@ export function PlaceDetailPage({
   onClose,
   place,
   onToggleFavorite,
-  onStartNavigation,
   onSearchSubmit,
   onNavigate,
   onOpenDashboard,
-  onOpenSubway,
 }: PlaceDetailPageProps) {
   const [sheetHeight, setSheetHeight] = useState(35); // 초기 높이 35%
   const [isDragging, setIsDragging] = useState(false);
@@ -46,7 +44,7 @@ export function PlaceDetailPage({
     const checkViewport = () => {
       setIsWebView(window.innerWidth > 768);
     };
-    
+
     checkViewport();
     window.addEventListener('resize', checkViewport);
     return () => window.removeEventListener('resize', checkViewport);
@@ -62,19 +60,19 @@ export function PlaceDetailPage({
   // 드래그 중
   const handleDragMove = (clientY: number) => {
     if (!isDragging || !containerRef.current) return;
-    
+
     const deltaY = startY - clientY;
     const containerHeight = containerRef.current.offsetHeight;
     const deltaPercent = (deltaY / containerHeight) * 100;
     const newHeight = Math.min(Math.max(startHeight + deltaPercent, 35), 85);
-    
+
     setSheetHeight(newHeight);
   };
 
   // 드래그 종료
   const handleDragEnd = () => {
     setIsDragging(false);
-    
+
     // 스냅 포인트: 35%, 60%, 85%
     if (sheetHeight < 47.5) {
       setSheetHeight(35);
@@ -90,26 +88,14 @@ export function PlaceDetailPage({
     handleDragStart(e.clientY);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    handleDragMove(e.clientY);
-  };
-
-  const handleMouseUp = () => {
-    handleDragEnd();
-  };
+  // NOTE: 현재 컴포넌트에서는 sheet 드래그를 터치 중심으로만 사용 (web handlers는 추후 연결)
 
   // 터치 이벤트
   const handleTouchStart = (e: React.TouchEvent) => {
     handleDragStart(e.touches[0].clientY);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    handleDragMove(e.touches[0].clientY);
-  };
-
-  const handleTouchEnd = () => {
-    handleDragEnd();
-  };
+  // NOTE: touch move/end는 전역 리스너에서 처리
 
   // 전역 마우스/터치 이벤트 리스너
   useEffect(() => {
@@ -117,7 +103,7 @@ export function PlaceDetailPage({
       const handleGlobalMouseMove = (e: MouseEvent) => {
         handleDragMove(e.clientY);
       };
-      
+
       const handleGlobalMouseUp = () => {
         handleDragEnd();
       };
@@ -316,7 +302,7 @@ export function PlaceDetailPage({
                 >
                   <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지도</p>
                 </button>
-                
+
                 {/* 검색 버튼 - PlaceDetailPage를 닫고 검색 페이지로 이동 */}
                 <button
                   onClick={() => {
@@ -327,7 +313,7 @@ export function PlaceDetailPage({
                 >
                   <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">검색</p>
                 </button>
-                
+
                 {/* 지하철 버튼 - PlaceDetailPage를 닫고 지하철 노선도 오버레이 열기 */}
                 <button
                   onClick={() => {
@@ -338,7 +324,7 @@ export function PlaceDetailPage({
                 >
                   <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지하철</p>
                 </button>
-                
+
                 {/* MY 버튼 - PlaceDetailPage를 닫고 대시보드 팝업 열기 */}
                 <button
                   onClick={() => {
@@ -421,7 +407,7 @@ export function PlaceDetailPage({
 
   // 모바일 뷰 (전체 화면 + 하단 슬라이드 시트)
   return (
-    <div 
+    <div
       ref={containerRef}
       className="fixed inset-0 z-50"
       style={{
@@ -443,7 +429,7 @@ export function PlaceDetailPage({
       </div>
 
       {/* 슬라이드 가능한 하단 시트 */}
-      <div 
+      <div
         className="absolute left-0 right-0 bg-white border-black border-l-[3px] border-r-[3px] border-solid border-t-[3px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all"
         style={{
           bottom: 0,
@@ -452,7 +438,7 @@ export function PlaceDetailPage({
         }}
       >
         {/* 드래그 핸들 */}
-        <div 
+        <div
           className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-[#d1d5dc] h-[5.996px] w-[48px] rounded-full cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
