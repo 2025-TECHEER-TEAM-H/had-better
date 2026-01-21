@@ -263,7 +263,15 @@ class PlaceSearchView(APIView):
                         "pkey": poi.get("pkey"),  # 고유 식별자 (정문/후문 등 구분)
                         "name": poi.get("name", ""),
                         "address": address,
-                        "category": poi.get("mlClass", ""),  # mlClass: 분류
+                        # TMap 분류는 코드(mlClass)로 오는 경우가 많아 프론트에서 활용이 어려움.
+                        # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback.
+                        "category": (
+                            # 더 구체적인 분류가 우선
+                            poi.get("lowerBizName")
+                            or poi.get("middleBizName")
+                            or poi.get("upperBizName")
+                            or poi.get("mlClass", "")
+                        ),
                         "lat": lat,
                         "lon": lon,
                     }

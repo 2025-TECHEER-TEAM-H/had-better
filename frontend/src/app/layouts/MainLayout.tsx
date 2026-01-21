@@ -3,18 +3,17 @@
  * 인증 후 페이지들의 공통 레이아웃 (팝업, 오버레이 등)
  */
 
-import { useState } from "react";
-import { Outlet, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { AnimatePresence } from "motion/react";
-import { MapView } from "@/app/components/MapView";
 import { DashboardPopup } from "@/app/components/DashboardPopup";
 import { FavoritesPlaces } from "@/app/components/FavoritesPlaces";
-import { SearchResultsPage } from "@/app/components/SearchResultsPage";
+import { MapView } from "@/app/components/MapView";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
+import { SearchResultsPage } from "@/app/components/SearchResultsPage";
+import { useState } from "react";
+import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 // [로그인 API 작업] 로그아웃 기능을 위해 추가 - feature/front-login-api 브랜치
-import { useAuthStore } from "@/stores/authStore";
-import authService from "@/services/authService";
 import subwayMapImage from "@/assets/subway-map-image.png";
+import authService from "@/services/authService";
+import { useAuthStore } from "@/stores/authStore";
 
 export function MainLayout() {
   const navigate = useNavigate();
@@ -34,8 +33,8 @@ export function MainLayout() {
   const isSearchResultsOpen = searchParams.has("q");
 
   // 장소 상세 상태 (URL 쿼리 파라미터로 관리)
-  const placeId = searchParams.get("place");
-  const isPlaceDetailOpen = !!placeId;
+  const _placeId = searchParams.get("place");
+  const isPlaceDetailOpen = !!_placeId;
   const [selectedPlace, setSelectedPlace] = useState<{
     id: string;
     name: string;
@@ -326,7 +325,7 @@ export function MainLayout() {
         isOpen={isPlaceDetailOpen}
         onClose={handleClosePlaceDetail}
         place={selectedPlace}
-        onToggleFavorite={(placeId) => {
+        onToggleFavorite={(_placeId) => {
           if (selectedPlace) {
             setSelectedPlace({
               ...selectedPlace,

@@ -66,6 +66,64 @@ interface SearchParams {
   limit?: number;
 }
 
+// 즐겨찾기 타입
+export interface SavedPlace {
+  saved_place_id: number;
+  category: "home" | "work" | "school" | null;
+  poi_place: {
+    poi_place_id: number;
+    name: string;
+    address: string;
+    coordinates: Coordinates;
+  };
+  created_at: string;
+}
+
+// 즐겨찾기 목록 응답 타입
+interface SavedPlaceListResponse {
+  status: "success" | "error";
+  data?: SavedPlace[];
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+// 즐겨찾기 추가 요청 타입
+interface AddSavedPlaceRequest {
+  poi_place_id: number;
+  category?: "home" | "work" | "school" | null;
+}
+
+// 즐겨찾기 추가 응답 타입
+interface SavedPlaceResponse {
+  status: "success" | "error";
+  data?: {
+    saved_place_id: number;
+    poi_place_id: number;
+    category: "home" | "work" | "school" | null;
+    name: string;
+    created_at: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+// 즐겨찾기 삭제 응답 타입
+interface DeleteSavedPlaceResponse {
+  status: "success" | "error";
+  data?: {
+    saved_place_id: number;
+    deleted_at: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 /**
  * 장소 검색 API
  * @param params 검색 파라미터
@@ -105,10 +163,45 @@ export async function getPlaceDetail(
   return response.data;
 }
 
+/**
+ * 즐겨찾기 목록 조회 API
+ * @param category 카테고리 필터 (선택)
+ * @returns 즐겨찾기 목록
+ */
+export async function getSavedPlaces(category?: string): Promise<SavedPlaceListResponse> {
+  const response = await api.get<SavedPlaceListResponse>("/saved-places", {
+    params: category ? { category } : {},
+  });
+  return response.data;
+}
+
+/**
+ * 즐겨찾기 추가 API
+ * @param data 즐겨찾기 추가 요청 데이터
+ * @returns 즐겨찾기 정보
+ */
+export async function addSavedPlace(data: AddSavedPlaceRequest): Promise<SavedPlaceResponse> {
+  const response = await api.post<SavedPlaceResponse>("/saved-places", data);
+  return response.data;
+}
+
+/**
+ * 즐겨찾기 삭제 API
+ * @param savedPlaceId 즐겨찾기 ID
+ * @returns 삭제 결과
+ */
+export async function deleteSavedPlace(savedPlaceId: number): Promise<DeleteSavedPlaceResponse> {
+  const response = await api.delete<DeleteSavedPlaceResponse>(`/saved-places/${savedPlaceId}`);
+  return response.data;
+}
+
 // 기본 내보내기
 const placeService = {
   searchPlaces,
   getPlaceDetail,
+  getSavedPlaces,
+  addSavedPlace,
+  deleteSavedPlace,
 };
 
 export default placeService;
