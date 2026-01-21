@@ -138,6 +138,63 @@ class SeoulBusAPIClient:
             logger.error(f"정류소 API 요청 실패: {e}")
             return []
 
+    def get_station_by_route(self, bus_route_id: str) -> list[dict]:
+        """
+        노선의 정류소 목록 조회 (API 호출)
+
+        Args:
+            bus_route_id: 노선 ID (예: "100100303")
+
+        Returns:
+            정류소 목록 [{ seq, stationNm, stationId, arsId, ... }]
+        """
+        url = f"{self.BASE_URL}/busRouteInfo/getStaionByRoute"
+        params = {
+            "serviceKey": self.api_key,
+            "busRouteId": bus_route_id,
+            "resultType": "json",
+        }
+
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+
+            # JSON 파싱
+            data = response.json()
+
+            # 에러 체크
+            msg_header = data.get("msgHeader", {})
+            result_code = msg_header.get("headerCd")
+
+            if result_code not in ("0", "4"):
+                logger.warning(
+                    f"노선 정류소 조회 오류: [{result_code}] "
+                    f"{msg_header.get('headerMsg', '알 수 없는 오류')}"
+                )
+                return []
+
+            # itemList 추출
+            msg_body = data.get("msgBody", {})
+            items = msg_body.get("itemList") or []
+
+            # 디버깅: 첫 번째 정류소 구조 확인
+            if items:
+                logger.info(
+                    f"노선 정류소 API 응답 (첫 번째 항목): bus_route_id={bus_route_id}, "
+                    f"keys={list(items[0].keys())}"
+                )
+                logger.info(f"샘플 데이터: {items[0]}")
+
+            return items
+        except requests.RequestException as e:
+            logger.error(f"노선 정류소 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            return []
+        except (ValueError, KeyError) as e:
+            logger.error(
+                f"노선 정류소 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}"
+            )
+            return []
+
     def get_arrival_info(
         self, st_id: str, bus_route_id: str, ord: Optional[int] = None
     ) -> Optional[dict]:
@@ -159,17 +216,83 @@ class SeoulBusAPIClient:
                 ...
             } 또는 None
         """
-        url = f"{self.BASE_URL}/arrive/getArrInfoByRouteAll"
-        params = {
-            "serviceKey": self.api_key,
-            "stId": st_id,
-            "busRouteId": bus_route_id,
-            "resultType": "json",  # JSON 형식으로 요청
-        }
+        # ord가 없으면 노선 정류소 목록에서 찾기
+        if ord is None:
+            logger.info(
+                f"ord 없음, 노선 정류소 목록에서 검색: "
+                f"st_id={st_id}, bus_route_id={bus_route_id}"
+            )
+            stations = self.get_station_by_route(bus_route_id)
 
-        # ord가 제공된 경우에만 파라미터에 추가
+            # 디버깅: 찾는 중인 st_id와 비교
+            found = False
+            for i, station in enumerate(stations):
+                # 가능한 모든 필드명 시도 (API 문서마다 필드명이 다를 수 있음)
+                station_id_fields = ["stationId", "stId", "station"]
+                seq_fields = ["seq", "staOrder", "stationSeq"]
+
+                station_id = None
+                for field in station_id_fields:
+                    if field in station:
+                        station_id = station.get(field)
+                        break
+
+                if i < 3:  # 처음 3개만 디버깅 출력
+                    logger.info(
+                        f"정류소 #{i}: station_id={station_id}, st_id_target={st_id}, "
+                        f"keys={list(station.keys())[:10]}"
+                    )
+
+                if station_id == st_id:
+                    # seq 찾기
+                    for field in seq_fields:
+                        if field in station:
+                            ord = int(station.get(field, 0))
+                            logger.info(
+                                f"ord 찾음: st_id={st_id}, "
+                                f"stationNm={station.get('stationNm') or station.get('stNm')}, "
+                                f"ord={ord}, seq_field={field}"
+                            )
+                            found = True
+                            break
+                    break
+
+            if not found:
+                logger.warning(
+                    f"ord를 찾을 수 없음: st_id={st_id}, bus_route_id={bus_route_id}, "
+                    f"노선 정류소 개수={len(stations)}"
+                )
+                # ord 없이 시도
+                ord = None
+
+        # ord가 있으면 getArrInfoByRoute (단일 정류소), 없으면 getArrInfoByRouteAll 사용
         if ord is not None:
-            params["ord"] = ord
+            # 특정 정류소의 도착정보만 조회
+            url = f"{self.BASE_URL}/arrive/getArrInfoByRoute"
+            params = {
+                "serviceKey": self.api_key,
+                "stId": st_id,
+                "busRouteId": bus_route_id,
+                "ord": ord,
+                "resultType": "json",
+            }
+            logger.info(
+                f"버스 도착정보 API 호출 (단일 정류소): st_id={st_id}, "
+                f"bus_route_id={bus_route_id}, ord={ord}"
+            )
+        else:
+            # ord 없이 모든 정류소 조회
+            url = f"{self.BASE_URL}/arrive/getArrInfoByRouteAll"
+            params = {
+                "serviceKey": self.api_key,
+                "stId": st_id,
+                "busRouteId": bus_route_id,
+                "resultType": "json",
+            }
+            logger.info(
+                f"버스 도착정보 API 호출 (모든 정류소): st_id={st_id}, "
+                f"bus_route_id={bus_route_id}"
+            )
 
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
@@ -196,25 +319,58 @@ class SeoulBusAPIClient:
             # API 응답 로깅 강화
             logger.info(
                 f"버스 API 응답: st_id={st_id}, bus_route_id={bus_route_id}, "
-                f"result_count={len(items)}"
+                f"ord={ord}, result_count={len(items)}"
             )
 
-            # busRouteId가 일치하는 항목 찾기
-            for item in items:
-                if item.get("busRouteId") == bus_route_id:
-                    logger.info(
-                        f"일치하는 노선 발견: bus_route_id={bus_route_id}, "
-                        f"vehId1={item.get('vehId1')}, "
-                        f"arrmsg1={item.get('arrmsg1')}"
-                    )
-                    return item
+            if not items:
+                logger.warning(
+                    f"버스 도착정보 없음: st_id={st_id}, bus_route_id={bus_route_id}, ord={ord}"
+                )
+                return None
 
-            # 일치하는 노선이 없으면 None 반환
-            logger.warning(
-                f"일치하는 노선 없음: bus_route_id={bus_route_id}, "
-                f"검색된 항목 수={len(items)}"
-            )
-            return None
+            # ord가 있으면 단일 정류소 응답 (첫 번째 항목만 사용)
+            if ord is not None:
+                item = items[0]
+                logger.info(
+                    f"단일 정류소 도착정보: bus_route_id={bus_route_id}, ord={ord}, "
+                    f"stNm={item.get('stNm')}, "
+                    f"arsId={item.get('arsId')}, "
+                    f"vehId1={item.get('vehId1')}, "
+                    f"traTime1={item.get('traTime1')}, "
+                    f"arrmsg1={item.get('arrmsg1')}, "
+                    f"vehId2={item.get('vehId2')}, "
+                    f"traTime2={item.get('traTime2')}, "
+                    f"arrmsg2={item.get('arrmsg2')}"
+                )
+                return item
+            else:
+                # ord 없이 전체 조회한 경우 busRouteId로 필터링
+                route_ids = [item.get("busRouteId") for item in items[:10]]
+                logger.info(
+                    f"API 응답 노선 목록 (상위 10개): {route_ids}, "
+                    f"찾는 노선: {bus_route_id}"
+                )
+
+                for item in items:
+                    if item.get("busRouteId") == bus_route_id:
+                        logger.info(
+                            f"일치하는 노선 발견: bus_route_id={bus_route_id}, "
+                            f"stNm={item.get('stNm')}, "
+                            f"arsId={item.get('arsId')}, "
+                            f"vehId1={item.get('vehId1')}, "
+                            f"traTime1={item.get('traTime1')}, "
+                            f"arrmsg1={item.get('arrmsg1')}, "
+                            f"vehId2={item.get('vehId2')}, "
+                            f"traTime2={item.get('traTime2')}, "
+                            f"arrmsg2={item.get('arrmsg2')}"
+                        )
+                        return item
+
+                logger.warning(
+                    f"일치하는 노선 없음: bus_route_id={bus_route_id}, "
+                    f"검색된 항목 수={len(items)}"
+                )
+                return None
         except requests.RequestException as e:
             logger.error(
                 f"버스 도착정보 API 요청 실패: st_id={st_id}, "

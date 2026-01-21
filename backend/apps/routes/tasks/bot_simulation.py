@@ -732,7 +732,11 @@ def _handle_waiting_bus(
                 pass
 
     # 탑승 여부 확인
-    if tra_time <= 0 or "도착" in arrmsg:
+    # traTime 기준만 사용: 30초 이하면 탑승 가능
+    # 메시지 기준 제거: "곧 도착"이 93초 남았을 때도 나오므로 신뢰 불가
+    is_boarding_time = tra_time <= 30  # 30초 이하만
+
+    if is_boarding_time:
         # vehId가 유효한지 확인 (vehId1, vehId2 모두 없는 경우)
         if not veh_id or veh_id == "0":
             # 대기 시간 체크 (최대 30분)
@@ -777,7 +781,8 @@ def _handle_waiting_bus(
         # 탑승!
         logger.info(
             f"버스 탑승 판정: route_id={route_id}, veh_id={veh_id}, "
-            f"tra_time={tra_time}, arrmsg={arrmsg}"
+            f"tra_time={tra_time}, arrmsg={arrmsg}, "
+            f"탑승조건=traTime<={tra_time}초"
         )
         BotStateManager.transition_to_riding_bus(route_id, veh_id)
 
@@ -841,6 +846,14 @@ def _handle_riding_bus(
     if leg_started_at.tzinfo is None:
         leg_started_at = timezone.make_aware(leg_started_at)
     elapsed = (timezone.now() - leg_started_at).total_seconds()
+
+    # 디버깅: current_leg 데이터 확인
+    logger.info(
+        f"current_leg 데이터: keys={list(current_leg.keys())}, "
+        f"sectionTime={current_leg.get('sectionTime')}, "
+        f"route_id={route_id}"
+    )
+
     section_time = current_leg.get("sectionTime", 600)
 
     # leg 기준 진행률 (하차 판정용)
@@ -874,7 +887,7 @@ def _handle_riding_bus(
     except (ValueError, TypeError):
         return 30
 
-    # 하차 정류소 도착 확인 (좌표 기반 + 시간 기반 보조)
+    # 하차 정류소 도착 확인 (거리 기반만 사용)
     end_station = public_leg.get("end_station", {})
     should_alight = False
 
@@ -884,14 +897,14 @@ def _handle_riding_bus(
 
         if end_lon and end_lat:
             distance = calculate_distance(bus_lat, bus_lon, end_lat, end_lon)
-            if distance < 100:  # 100m 이내면 하차 (50m → 100m로 완화)
+            logger.info(
+                f"버스 위치 확인: route_id={route_id}, "
+                f"distance_to_end={int(distance)}m, bus_pos=({bus_lat:.6f}, {bus_lon:.6f}), "
+                f"end_pos=({end_lat:.6f}, {end_lon:.6f})"
+            )
+            if distance < 100:  # 100m 이내면 하차
                 should_alight = True
                 logger.info(f"버스 하차 판정 (거리): distance={distance}m")
-
-    # 시간 기반 보조 하차 판정: leg 기준 90% 경과 시 하차
-    if not should_alight and leg_progress >= 90:
-        should_alight = True
-        logger.info(f"버스 하차 판정 (시간): leg_progress={leg_progress}%")
 
     if should_alight:
         return _alight_from_bus(
@@ -1140,6 +1153,14 @@ def _handle_riding_subway(
     if leg_started_at.tzinfo is None:
         leg_started_at = timezone.make_aware(leg_started_at)
     elapsed = (timezone.now() - leg_started_at).total_seconds()
+
+    # 디버깅: current_leg 데이터 확인
+    logger.info(
+        f"current_leg 데이터: keys={list(current_leg.keys())}, "
+        f"sectionTime={current_leg.get('sectionTime')}, "
+        f"route_id={route_id}"
+    )
+
     section_time = current_leg.get("sectionTime", 600)
 
     # leg 기준 진행률 (하차 판정용)
@@ -1188,11 +1209,6 @@ def _handle_riding_subway(
             f"지하철 하차 판정 (인덱스): current_idx={current_idx}, end_idx={end_idx}, "
             f"current={current_station}, end={end_station}"
         )
-
-    # 3. 시간 기반 보조 하차 판정: leg 기준 95% 경과 시 하차
-    elif leg_progress >= 95:
-        should_alight = True
-        logger.info(f"지하철 하차 판정 (시간): leg_progress={leg_progress}%")
 
     if should_alight:
         return _alight_from_subway(
