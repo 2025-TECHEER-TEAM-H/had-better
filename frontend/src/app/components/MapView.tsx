@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useLocation } from "react-router-dom";
+import { MapCharacter } from "@/components/MapCharacter";
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
 import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
 import { trackBusPositions, getBusRoutePath } from "@/lib/api";
@@ -801,18 +802,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
     const mapInstance = map.current;
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    let isCancelled = false; // 비동기 작업 취소 플래그
 
     if (isBusLinesEnabled && trackedBusNumbers.length > 0) {
       // 사용자가 입력한 버스 번호로 실시간 위치 조회
       const loadBusPositions = async () => {
         try {
-          if (isCancelled) return; // 취소된 경우 중단
           console.log("[BusLayer] 추적 버스 API 호출:", trackedBusNumbers);
 
           const response = await trackBusPositions(trackedBusNumbers);
 
-          if (isCancelled) return; // 취소된 경우 중단
           console.log(`[BusLayer] API 응답: ${response.buses.length}대 버스`);
 
           if (response.buses.length > 0) {
@@ -822,24 +820,19 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           // 경로 데이터 로드 (최초 1회만 - 경로는 변하지 않음)
           if (response.meta.routes.length > 0) {
             for (const route of response.meta.routes) {
-              if (isCancelled) return; // 취소된 경우 중단
               const pathData = await getBusRoutePath(route.route_id);
-              if (isCancelled) return; // 취소된 경우 중단
               if (pathData?.geojson) {
                 addBusRoutePath(mapInstance, route.route_id, route.bus_number, pathData.geojson);
               }
             }
           }
         } catch (error) {
-          if (!isCancelled) {
-            console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
-          }
+          console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
         }
       };
 
       // 레이어 추가 후 데이터 로드
       addBusLayers(mapInstance).then(() => {
-        if (isCancelled) return; // 취소된 경우 중단
         toggleBusLayers(mapInstance, true);
         loadBusPositions();
       });
@@ -855,7 +848,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     }
 
     return () => {
-      isCancelled = true; // 비동기 작업 취소
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -1242,7 +1234,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       `}</style>
 
       {/* 우상단 컨트롤 버튼들 - 지도가 표시되는 모든 페이지에서 표시 */}
-      {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route") && (
+      {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
         <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
           {/* 검색 버튼 - 모바일에서만 표시 */}
           {onNavigate && (
