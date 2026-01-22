@@ -443,6 +443,70 @@ class SeoulBusAPIClient:
             logger.error(f"버스 위치 API JSON 파싱 오류: {e}")
             return None
 
+    def get_bus_positions_by_route(self, bus_route_id: str) -> list[dict]:
+        """
+        노선의 모든 버스 실시간 위치 조회 (JSON 형식)
+
+        Args:
+            bus_route_id: 노선 ID (예: "100100303")
+
+        Returns:
+            버스 위치 목록 [{
+                vehId: 차량 ID,
+                tmX: 경도,
+                tmY: 위도,
+                sectOrd: 현재 구간 순번,
+                stopFlag: 정차 여부 (0: 운행중, 1: 정차중),
+                dataTm: 데이터 수신 시간,
+                plainNo: 차량 번호판,
+                busType: 버스 타입 (0: 일반, 1: 저상),
+                isFullFlag: 만차 여부,
+                congetion: 혼잡도,
+                ...
+            }]
+        """
+        url = f"{self.BASE_URL}/buspos/getBusPosByRtid"
+        params = {
+            "serviceKey": self.api_key,
+            "busRouteId": bus_route_id,
+            "resultType": "json",
+        }
+
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+
+            # JSON 파싱
+            data = response.json()
+
+            # 에러 체크
+            msg_header = data.get("msgHeader", {})
+            result_code = msg_header.get("headerCd")
+
+            if result_code not in ("0", "4"):
+                logger.warning(
+                    f"노선 버스 위치 조회 오류: [{result_code}] "
+                    f"{msg_header.get('headerMsg', '알 수 없는 오류')}"
+                )
+                return []
+
+            # itemList 추출
+            msg_body = data.get("msgBody", {})
+            items = msg_body.get("itemList") or []
+
+            logger.info(
+                f"노선 버스 위치 조회: bus_route_id={bus_route_id}, "
+                f"운행중인 버스 수={len(items)}"
+            )
+
+            return items
+        except requests.RequestException as e:
+            logger.error(f"노선 버스 위치 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            return []
+        except (ValueError, KeyError) as e:
+            logger.error(f"노선 버스 위치 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}")
+            return []
+
 
 # 싱글톤 인스턴스
 bus_api_client = SeoulBusAPIClient()
