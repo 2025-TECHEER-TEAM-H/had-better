@@ -141,13 +141,6 @@ export function MovingCharacter({
       prevPos.lon !== currentPosition.lon ||
       prevPos.lat !== currentPosition.lat;
 
-    console.log(`🤖 봇 ${botId} 위치 업데이트:`, {
-      prev: prevPos ? `(${prevPos.lon.toFixed(6)}, ${prevPos.lat.toFixed(6)})` : 'null',
-      curr: `(${currentPosition.lon.toFixed(6)}, ${currentPosition.lat.toFixed(6)})`,
-      changed: hasChanged,
-      status: status
-    });
-
     // 경로선이 있으면 경로 기반 보간, 없으면 직선 보간
     if (routeLineRef.current) {
       interpolationStateRef.current = createInterpolationState(

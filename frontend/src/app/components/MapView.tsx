@@ -3,8 +3,9 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useLocation } from "react-router-dom";
+import { MapCharacter } from "@/components/MapCharacter";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route";
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
 
 // 지도 스타일 타입
 type MapStyleType = "default" | "dark" | "satellite-streets";
@@ -1108,8 +1109,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         </>
       )}
 
-      {/* 우상단 컨트롤 버튼들 */}
-      {resolvedCurrentPage === "map" && (
+      {/* 우상단 컨트롤 버튼들 - 지도가 표시되는 모든 페이지에서 표시 */}
+      {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
         <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
           {/* 검색 버튼 - 모바일에서만 표시 */}
           {onNavigate && (

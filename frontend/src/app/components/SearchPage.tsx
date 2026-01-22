@@ -71,6 +71,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [selectedDeparture, setSelectedDeparture] = useState<LocationWithCoords | null>(null);
   const [selectedArrival, setSelectedArrival] = useState<LocationWithCoords | null>(null);
 
+  // 경로 검색 로딩 상태
+  const [isSearchingRoute, setIsSearchingRoute] = useState(false);
+
   // 장소 검색 모달 상태
   const [isPlaceSearchOpen, setIsPlaceSearchOpen] = useState(false);
   const [selectedFavoriteType, setSelectedFavoriteType] = useState<"home" | "school" | "work" | null>(null);
@@ -1030,20 +1033,99 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 {/* CTA */}
             <button
                   type="button"
-              onClick={() => {
-                // 출발지/도착지 좌표가 있으면 routeStore에 저장
-                if (selectedDeparture && selectedArrival) {
-                  // 기존 검색 결과 초기화 (새로운 경로 검색을 위해)
-                  resetRoute();
-                  // 새 출발지/도착지 설정
-                  setDepartureArrival(selectedDeparture, selectedArrival);
+                  disabled={isSearchingRoute}
+              onClick={async () => {
+                // 입력값 검증
+                const start = startLocation.trim();
+                const end = endLocation.trim();
+
+                if (!start || !end) {
+                  alert("출발지와 도착지를 입력해주세요.");
+                  return;
                 }
-                onNavigate?.("route");
+
+                setIsSearchingRoute(true);
+
+                try {
+                  let departureLocation: LocationWithCoords | null = null;
+                  let arrivalLocation: LocationWithCoords | null = null;
+
+                  // 출발지가 "현재 위치"인 경우 GPS로 좌표 가져오기
+                  if (start === "현재 위치" || start === "현재위치") {
+                    try {
+                      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        if (!navigator.geolocation) {
+                          reject(new Error("Geolocation not supported"));
+                          return;
+                        }
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                          enableHighAccuracy: true,
+                          timeout: 15000,
+                          maximumAge: 0,
+                        });
+                      });
+                      departureLocation = {
+                        name: "현재 위치",
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                      };
+                    } catch (geoError) {
+                      console.warn("현재 위치 가져오기 실패:", geoError);
+                      alert("현재 위치를 가져올 수 없습니다. 출발지를 직접 입력해주세요.");
+                      setIsSearchingRoute(false);
+                      return;
+                    }
+                  } else {
+                    // 출발지 검색
+                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1 });
+                    if (departureResult.status === "success" && departureResult.data && departureResult.data.length > 0) {
+                      const place = departureResult.data[0];
+                      departureLocation = {
+                        name: place.name,
+                        lat: place.coordinates.lat,
+                        lon: place.coordinates.lon,
+                      };
+                    } else {
+                      alert(`"${start}" 출발지를 찾을 수 없습니다.`);
+                      setIsSearchingRoute(false);
+                      return;
+                    }
+                  }
+
+                  // 도착지 검색
+                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1 });
+                  if (arrivalResult.status === "success" && arrivalResult.data && arrivalResult.data.length > 0) {
+                    const place = arrivalResult.data[0];
+                    arrivalLocation = {
+                      name: place.name,
+                      lat: place.coordinates.lat,
+                      lon: place.coordinates.lon,
+                    };
+                  } else {
+                    alert(`"${end}" 도착지를 찾을 수 없습니다.`);
+                    setIsSearchingRoute(false);
+                    return;
+                  }
+
+                  // 경로 설정 및 페이지 이동
+                  if (departureLocation && arrivalLocation) {
+                    resetRoute();
+                    setDepartureArrival(departureLocation, arrivalLocation);
+                    setSelectedDeparture(departureLocation);
+                    setSelectedArrival(arrivalLocation);
+                    onNavigate?.("route");
+                  }
+                } catch (error) {
+                  console.error("경로 검색 실패:", error);
+                  alert("경로 검색 중 오류가 발생했습니다.");
+                } finally {
+                  setIsSearchingRoute(false);
+                }
               }}
-                  className="mt-4 w-full h-[48px] rounded-[18px] bg-[#4a9960] hover:bg-[#3d7f50] transition-colors border border-white/35 flex items-center justify-center active:translate-y-[1px]"
+                  className="mt-4 w-full h-[48px] rounded-[18px] bg-[#4a9960] hover:bg-[#3d7f50] disabled:bg-[#9cba9c] disabled:cursor-not-allowed transition-colors border border-white/35 flex items-center justify-center active:translate-y-[1px]"
             >
                   <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[14px] text-white">
-                    길 찾기
+                    {isSearchingRoute ? "검색 중..." : "길 찾기"}
                   </span>
             </button>
           </div>

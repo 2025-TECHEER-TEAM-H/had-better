@@ -7,6 +7,9 @@ import { ROUTE_COLORS } from "@/mocks/routeData";
 import { useRouteSSE } from "@/hooks/useRouteSSE";
 import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
 
+// 숫자 이모지 배열 (1~10)
+const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
 interface RouteSelectionPageProps {
@@ -152,7 +155,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           endY: arrival.lat.toString(),
           departure_name: departure.name,
           arrival_name: arrival.name,
-          count: 5, // 5개 경로 요청
+          count: 10, // 10개 경로 요청
         });
 
         setSearchResponse(response);
@@ -226,20 +229,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         };
       }
 
-      // 경로 상세가 없으면 출발지-도착지 직선
-      if (departure && arrival) {
-        return {
-          id: `route-${leg.route_leg_id}`,
-          coordinates: [
-            [departure.lon, departure.lat],
-            [arrival.lon, arrival.lat],
-          ],
-          color: colorScheme.line,
-          width: 4,
-          opacity: 0.5,
-        };
-      }
-
+      // 경로 상세가 없으면 그리지 않음 (로딩 중)
       return {
         id: `route-${leg.route_leg_id}`,
         coordinates: [],
@@ -526,7 +516,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                   {/* 경로 번호 아이콘 */}
                   <div className="bg-white size-[48px] border-[3px] border-black flex items-center justify-center shrink-0">
                     <p className="text-[24px]">
-                      {routeNumber === 1 ? "1️⃣" : routeNumber === 2 ? "2️⃣" : "3️⃣"}
+                      {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
                     </p>
                   </div>
 
