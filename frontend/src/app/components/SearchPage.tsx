@@ -1,6 +1,8 @@
-import { AppHeader } from "@/app/components/AppHeader";                                                                           import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
-import imgCoinGold2 from "@/assets/coin-gold.png";                                                                              
-import imgGemGreen1 from "@/assets/gem-green.png";                                                                              
+import { AppHeader } from "@/app/components/AppHeader";
+import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
+import { PlaceSearchModal } from "@/app/components/PlaceSearchModal";
+import imgCoinGold2 from "@/assets/coin-gold.png";
+import imgGemGreen1 from "@/assets/gem-green.png";
 import imgGemRed1 from "@/assets/gem-red.png";
 import imgSaw1 from "@/assets/saw.png";
 import imgStar1 from "@/assets/star.png";
@@ -8,7 +10,7 @@ import subwayMapImage from "@/assets/subway-map-image.png";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
-import placeService, { type SearchPlaceHistory } from "@/services/placeService";
+import placeService, { type SearchPlaceHistory, type SavedPlace } from "@/services/placeService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
 import { useEffect, useState } from "react";
@@ -40,6 +42,12 @@ interface Place {
   time: string;
   icon: string;
   color: string;
+  coordinates?: {
+    lon: number;
+    lat: number;
+  };
+  _poiPlaceId?: number;
+  _savedPlaceId?: number;
 }
 
 interface FavoriteLocations {
@@ -73,6 +81,18 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [favoriteSavedToast, setFavoriteSavedToast] = useState<{
     type: "home" | "school" | "work";
     placeName: string;
+  } | null>(null);
+
+  // PlaceDetailPage 상태
+  const [selectedPlaceForDetail, setSelectedPlaceForDetail] = useState<{
+    id: string;
+    name: string;
+    address: string;
+    distance: string;
+    icon: string;
+    isFavorited?: boolean;
+    coordinates?: { lon: number; lat: number };
+    _poiPlaceId?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -151,6 +171,62 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     return () => {
       window.removeEventListener("searchHistoriesUpdated", handler as EventListener);
     };
+  }, []);
+
+  // 저장된 장소 목록 불러오기
+  const loadFavoriteLocations = async () => {
+    try {
+      const [homeResponse, schoolResponse, workResponse] = await Promise.all([
+        placeService.getSavedPlaces("home"),
+        placeService.getSavedPlaces("school"),
+        placeService.getSavedPlaces("work"),
+      ]);
+
+      const convertSavedPlaceToPlace = (saved: SavedPlace): Place => ({
+        id: `saved-${saved.saved_place_id}`,
+        name: saved.poi_place.name,
+        detail: saved.poi_place.address,
+        distance: "",
+        time: "",
+        icon: "📍", // 기본 아이콘 (나중에 카테고리 기반으로 변경 가능)
+        color: "#7ed321",
+        coordinates: saved.poi_place.coordinates,
+        _poiPlaceId: saved.poi_place.poi_place_id,
+        _savedPlaceId: saved.saved_place_id,
+      });
+
+      // 각 카테고리별로 성공한 경우에만 업데이트, 실패 시 기존 상태 유지
+      setFavoriteLocations((prev) => ({
+        home: homeResponse.status === "success" && homeResponse.data
+          ? homeResponse.data.map(convertSavedPlaceToPlace)
+          : prev.home,
+        school: schoolResponse.status === "success" && schoolResponse.data
+          ? schoolResponse.data.map(convertSavedPlaceToPlace)
+          : prev.school,
+        work: workResponse.status === "success" && workResponse.data
+          ? workResponse.data.map(convertSavedPlaceToPlace)
+          : prev.work,
+      }));
+    } catch (error) {
+      console.error("저장된 장소 목록 불러오기 실패:", error);
+      // 에러 발생 시에도 기존 상태 유지
+    }
+  };
+
+  // 초기 마운트 시 저장된 장소 목록 로드
+  useEffect(() => {
+    loadFavoriteLocations();
+  }, []);
+
+  // 저장된 장소 업데이트 이벤트 리스너
+  useEffect(() => {
+    const handler = (event: Event) => {
+      // 특정 카테고리가 업데이트된 경우에도 전체를 다시 로드하여 일관성 유지
+      // 에러 발생 시에도 기존 상태를 유지하도록 loadFavoriteLocations에서 처리됨
+      loadFavoriteLocations();
+    };
+    window.addEventListener("savedPlaceUpdated", handler);
+    return () => window.removeEventListener("savedPlaceUpdated", handler);
   }, []);
 
   const handleEditProfileClick = () => {
@@ -563,15 +639,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             {/* 집 */}
             <button
               onClick={() => {
-                if (favoriteLocations.home.length > 0) {
-                  const place = favoriteLocations.home[0];
-                  setStartLocation("현재 위치");
-                  setEndLocation(place.name);
-                  onNavigate?.("route");
-                } else {
-                  setSelectedFavoriteType("home");
-                  setIsPlaceSearchOpen(true);
-                }
+                // 저장된 장소가 있든 없든 PlaceSearchModal 열기 (등록된 장소 목록 화면)
+                setSelectedFavoriteType("home");
+                setIsPlaceSearchOpen(true);
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
@@ -585,15 +655,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             {/* 학교 */}
             <button
               onClick={() => {
-                if (favoriteLocations.school.length > 0) {
-                  const place = favoriteLocations.school[0];
-                  setStartLocation("현재 위치");
-                  setEndLocation(place.name);
-                  onNavigate?.("route");
-                } else {
-                  setSelectedFavoriteType("school");
-                  setIsPlaceSearchOpen(true);
-                }
+                // 저장된 장소가 있든 없든 PlaceSearchModal 열기 (등록된 장소 목록 화면)
+                setSelectedFavoriteType("school");
+                setIsPlaceSearchOpen(true);
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
@@ -607,15 +671,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             {/* 회사 */}
             <button
               onClick={() => {
-                if (favoriteLocations.work.length > 0) {
-                  const place = favoriteLocations.work[0];
-                  setStartLocation("현재 위치");
-                  setEndLocation(place.name);
-                  onNavigate?.("route");
-                } else {
-                  setSelectedFavoriteType("work");
-                  setIsPlaceSearchOpen(true);
-                }
+                // 저장된 장소가 있든 없든 PlaceSearchModal 열기 (등록된 장소 목록 화면)
+                setSelectedFavoriteType("work");
+                setIsPlaceSearchOpen(true);
               }}
               className="flex flex-col items-center relative hover:scale-105 transition-transform"
             >
@@ -709,13 +767,24 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
         }}
         onSelectPlace={(place) => {
           if (selectedFavoriteType) {
-            // 자주 가는 곳에 저장 (최신이 위로 오도록 unshift, 중복 id는 제거)
+            // 자주 가는 곳에 저장 (각 카테고리는 하나만 저장 가능)
+            // API 응답에서 받은 정보로 직접 업데이트
+            const updatedPlace: Place = {
+              id: place.id,
+              name: place.name,
+              detail: place.detail,
+              distance: place.distance,
+              time: place.time,
+              icon: place.icon,
+              color: place.color,
+              coordinates: place.coordinates,
+              _poiPlaceId: place._poiPlaceId,
+              _savedPlaceId: place._savedPlaceId,
+            };
+            
             setFavoriteLocations((prev) => ({
               ...prev,
-              [selectedFavoriteType]: [
-                place,
-                ...prev[selectedFavoriteType].filter((p) => p.id !== place.id),
-              ],
+              [selectedFavoriteType]: [updatedPlace], // 각 카테고리는 하나만 저장 가능
             }));
             setFavoriteSavedToast({ type: selectedFavoriteType, placeName: place.name });
             // 모달은 PlaceSearchModal이 UX 흐름에 맞게 제어(저장 후 초기 화면으로 돌아가게)
@@ -734,9 +803,86 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           // 모달 닫고 경로 안내로 이동: 현재 위치 -> 선택된 장소
           setIsPlaceSearchOpen(false);
           setSelectedFavoriteType(null);
+          
+          // routeStore에 출발지/도착지 설정
+          if (place.coordinates) {
+            // 출발지: 현재 위치 (사용자 위치 가져오기 시도)
+            const getCurrentLocation = () => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    // 사용자 위치를 성공적으로 가져온 경우
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    // 좌표 유효성 검증
+                    if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+                      console.warn("유효하지 않은 위치 좌표:", { lat, lon });
+                      alert("위치 정보가 유효하지 않습니다. 브라우저 설정에서 위치 권한을 확인해주세요.");
+                      return;
+                    }
+                    
+                    const currentLocation = {
+                      name: "현재 위치",
+                      lat: lat,
+                      lon: lon,
+                    };
+                    
+                    // 도착지: 선택된 장소
+                    const destination = {
+                      name: place.name,
+                      lat: place.coordinates!.lat,
+                      lon: place.coordinates!.lon,
+                    };
+                    
+                    // 도착지 좌표 유효성 검증
+                    if (isNaN(destination.lat) || isNaN(destination.lon) || destination.lat === 0 || destination.lon === 0) {
+                      console.warn("유효하지 않은 도착지 좌표:", destination);
+                      alert("도착지 정보가 유효하지 않습니다.");
+                      return;
+                    }
+                    
+                    console.log("경로 설정:", { currentLocation, destination });
+                    setDepartureArrival(currentLocation, destination);
+                    // 경로 선택 페이지로 이동
+                    onNavigate?.("route");
+                  },
+                  (error) => {
+                    // 위치 가져오기 실패 시 사용자에게 알림
+                    let errorMessage = "현재 위치를 가져올 수 없습니다.";
+                    if (error.code === error.PERMISSION_DENIED) {
+                      errorMessage = "위치 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                      errorMessage = "위치 정보를 사용할 수 없습니다.";
+                    } else if (error.code === error.TIMEOUT) {
+                      errorMessage = "위치 정보를 가져오는 데 시간이 초과되었습니다.";
+                    }
+                    
+                    console.warn("현재 위치를 가져올 수 없습니다:", error);
+                    alert(errorMessage + "\n\n경로 안내를 계속하려면 출발지를 직접 입력해주세요.");
+                    
+                    // 위치 가져오기 실패 시 경로 선택 페이지로 이동하지 않고
+                    // 사용자가 출발지를 직접 입력할 수 있도록 SearchPage에 머무름
+                    // (또는 출발지 입력 모달을 띄울 수도 있음)
+                  },
+                  {
+                    enableHighAccuracy: true,
+                    timeout: 15000, // 타임아웃을 15초로 증가
+                    maximumAge: 0, // 캐시된 위치 사용 안 함
+                  }
+                );
+              } else {
+                // Geolocation을 지원하지 않는 경우
+                alert("이 브라우저는 위치 정보를 지원하지 않습니다.\n\n경로 안내를 계속하려면 출발지를 직접 입력해주세요.");
+              }
+            };
+            
+            getCurrentLocation();
+          }
+          
+          // 로컬 state도 업데이트 (UI 표시용)
           setStartLocation("현재 위치");
           setEndLocation(place.name);
-          onNavigate?.("route");
         }}
         onNavigate={(page) => {
           if (page === "map") {
@@ -759,6 +905,18 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           }
         }}
       />
+
+      {/* PlaceDetailPage */}
+      {selectedPlaceForDetail && (
+        <PlaceDetailPage
+          isOpen={!!selectedPlaceForDetail}
+          onClose={() => setSelectedPlaceForDetail(null)}
+          place={selectedPlaceForDetail}
+          onNavigate={onNavigate}
+          onOpenDashboard={onOpenDashboard}
+          onSearchSubmit={onSearchSubmit}
+        />
+      )}
     </div>
   );
 }
