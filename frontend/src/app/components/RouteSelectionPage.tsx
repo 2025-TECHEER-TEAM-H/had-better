@@ -106,12 +106,22 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   // 경로 검색 (컴포넌트 마운트 시 또는 출발지/도착지 변경 시)
   useEffect(() => {
     const loadRoutes = async () => {
-      // store에 출발지/도착지가 없으면 기본값 설정 (데모용)
+      // store에 출발지/도착지가 없으면 에러 표시하고 검색하지 않음
       if (!departure || !arrival) {
-        const defaultDeparture = { name: "명동역", lat: 37.560970, lon: 126.985856 };
-        const defaultArrival = { name: "이태원역", lat: 37.534542, lon: 126.994596 };
-        setDepartureArrival(defaultDeparture, defaultArrival);
-        // 상태 변경 후 다음 렌더링에서 검색 실행
+        setError("출발지와 도착지를 설정해주세요.");
+        setLoading(false);
+        return;
+      }
+
+      // 좌표 유효성 검증
+      if (
+        isNaN(departure.lat) || isNaN(departure.lon) ||
+        isNaN(arrival.lat) || isNaN(arrival.lon) ||
+        departure.lat === 0 || departure.lon === 0 ||
+        arrival.lat === 0 || arrival.lon === 0
+      ) {
+        setError("출발지 또는 도착지 좌표가 유효하지 않습니다.");
+        setLoading(false);
         return;
       }
 
@@ -366,24 +376,53 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
 
   const handleStartNavigation = async () => {
-    if (!areAllAssigned() || !onNavigate || !searchResponse) return;
+    if (!areAllAssigned() || !onNavigate || !searchResponse) {
+      setError("모든 플레이어에게 경로를 할당해주세요.");
+      return;
+    }
+
+    // 출발지/도착지 검증
+    if (!departure || !arrival) {
+      setError("출발지와 도착지가 설정되지 않았습니다.");
+      return;
+    }
+
+    // 좌표 유효성 검증
+    if (
+      isNaN(departure.lat) || isNaN(departure.lon) ||
+      isNaN(arrival.lat) || isNaN(arrival.lon) ||
+      departure.lat === 0 || departure.lon === 0 ||
+      arrival.lat === 0 || arrival.lon === 0
+    ) {
+      setError("출발지 또는 도착지 좌표가 유효하지 않습니다.");
+      return;
+    }
 
     const userLegId = assignments.get('user');
     const bot1LegId = assignments.get('bot1');
     const bot2LegId = assignments.get('bot2');
 
     if (!userLegId || !bot1LegId || !bot2LegId) {
-      console.error("모든 플레이어에게 경로가 할당되어야 합니다.");
+      setError("모든 플레이어에게 경로가 할당되어야 합니다.");
+      return;
+    }
+
+    // route_itinerary_id 검증
+    if (!searchResponse.route_itinerary_id || searchResponse.route_itinerary_id <= 0) {
+      setError("경로 검색 결과가 유효하지 않습니다. 다시 검색해주세요.");
       return;
     }
 
     setIsCreatingRoute(true);
+    setError(null);
 
     try {
       console.log("경주 생성 요청:", {
         route_itinerary_id: searchResponse.route_itinerary_id,
         user_leg_id: userLegId,
         bot_leg_ids: [bot1LegId, bot2LegId],
+        departure,
+        arrival,
       });
 
       const response = await createRoute({
@@ -405,9 +444,32 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
       // 경로 상세 페이지로 이동 (RouteDetailPage에서 SSE가 자동으로 연결됨)
       onNavigate("routeDetail");
-    } catch (err) {
+    } catch (err: any) {
       console.error("경주 생성 실패:", err);
-      setError(err instanceof Error ? err.message : "경주 생성에 실패했습니다.");
+      
+      // Axios 에러인 경우 상세 메시지 추출
+      let errorMessage = "경주 생성에 실패했습니다.";
+      if (err?.response?.data?.error) {
+        const backendError = err.response.data.error;
+        errorMessage = backendError.message || errorMessage;
+        if (backendError.details) {
+          console.error("백엔드 에러 상세:", backendError.details);
+          // details가 객체인 경우 문자열로 변환
+          if (typeof backendError.details === 'object') {
+            const detailsStr = Object.entries(backendError.details)
+              .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+              .join(', ');
+            errorMessage += ` (${detailsStr})`;
+          } else {
+            errorMessage += ` (${backendError.details})`;
+          }
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      alert(`경주 생성 실패: ${errorMessage}\n\n출발지와 도착지를 확인하고 다시 시도해주세요.`);
     } finally {
       setIsCreatingRoute(false);
     }

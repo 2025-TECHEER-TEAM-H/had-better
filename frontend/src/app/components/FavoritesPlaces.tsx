@@ -89,7 +89,12 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
     try {
       const response = await placeService.getSavedPlaces();
       if (response.status === "success" && response.data) {
-        const favoritePlaces: FavoritePlace[] = response.data.map((savedPlace) => ({
+        // category가 null인 것만 필터링 (집/회사/학교는 제외)
+        const generalFavorites = response.data.filter(
+          (savedPlace) => savedPlace.category === null
+        );
+        
+        const favoritePlaces: FavoritePlace[] = generalFavorites.map((savedPlace) => ({
           id: savedPlace.poi_place.poi_place_id,
           savedPlaceId: savedPlace.saved_place_id,
           name: savedPlace.poi_place.name,

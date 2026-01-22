@@ -1,9 +1,10 @@
 import { AppHeader } from "@/app/components/AppHeader";
+import { MapView } from "@/app/components/MapView";
 import imgCoinGold2 from "@/assets/coin-gold.png";
-import mapImage from "@/assets/map-image.png";
 import imgSaw1 from "@/assets/saw.png";
 import imgWindow2 from "@/assets/window.png";
-import { useEffect, useRef, useState } from "react";
+import placeService from "@/services/placeService";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -15,6 +16,12 @@ interface Place {
   time: string;
   icon: string;
   color: string;
+  coordinates?: {
+    lon: number;
+    lat: number;
+  };
+  _poiPlaceId?: number; // API 호출용 POI Place ID
+  _savedPlaceId?: number; // 즐겨찾기 삭제용 Saved Place ID
 }
 
 interface PlaceSearchModalProps {
@@ -32,53 +39,37 @@ interface PlaceSearchModalProps {
   onOpenDashboard: () => void;
 }
 
-const mockPlaces: Place[] = [
-  {
-    id: "1",
-    name: "CENTRAL PARK",
-    detail: "5 Av To Central Park W, 59 St To 110 St",
-    distance: "2.3 KM",
-    time: "15 MIN",
-    icon: "🏞️",
-    color: "#c8f66f",
-  },
-  {
-    id: "2",
-    name: "PET SHOP",
-    detail: "123 PET STREET, NEAR CITY HALL",
-    distance: "1.5 KM",
-    time: "8 MIN",
-    icon: "🐾",
-    color: "#00d9ff",
-  },
-  {
-    id: "3",
-    name: "VET CLINIC",
-    detail: "24H ANIMAL HOSPITAL, BLDG 2F",
-    distance: "1.6 KM",
-    time: "10 MIN",
-    icon: "🏥",
-    color: "#ffffff",
-  },
-  {
-    id: "4",
-    name: "COFFEE HOUSE",
-    detail: "CORNER OF MAIN ST & 7TH AVE",
-    distance: "0.8 KM",
-    time: "5 MIN",
-    icon: "☕",
-    color: "#ffd93d",
-  },
-  {
-    id: "5",
-    name: "GYM FITNESS",
-    detail: "RIVERSIDE PLAZA, GATE B",
-    distance: "3.2 KM",
-    time: "20 MIN",
-    icon: "💪",
-    color: "#ff6b9d",
-  },
-];
+// 카테고리별 아이콘 매핑 (SearchResultsPage와 동일)
+const getCategoryIcon = (category: string): string => {
+  const c = (category || "").toLowerCase();
+  const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+
+  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
+  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
+  if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
+  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
+  if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
+  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
+  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
+  if (hasAny(["은행", "bank", "atm"])) return "🏦";
+  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
+  if (hasAny(["주차", "parking"])) return "🅿️";
+  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+  if (hasAny(["버스", "bus"])) return "🚌";
+  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
+  if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
+  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+
+  return "📍"; // 기본 아이콘
+};
+
+// 카테고리별 배경색 매핑
+const getCategoryColor = (_category: string, index: number): string => {
+  const colors = ["#7ed321", "#00d9ff", "white", "#ffc107", "#ff9ff3", "#54a0ff"];
+  return colors[index % colors.length];
+};
+
+// NOTE: 이전에는 모의 데이터(mockPlaces)를 사용했지만, 이제는 실제 API 검색 결과를 사용합니다.
 
 export function PlaceSearchModal({
   isOpen,
@@ -105,11 +96,110 @@ export function PlaceSearchModal({
   const [pendingPlace, setPendingPlace] = useState<Place | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // 검색 결과 상태
+  const [searchResults, setSearchResults] = useState<Place[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setShowResults(true);
-      setSheetHeight(60);
+  // 저장된 장소 목록 (API에서 가져옴)
+  const [savedPlaces, setSavedPlaces] = useState<Place[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+
+  // 저장된 장소 목록 불러오기
+  const loadSavedPlaces = async () => {
+    if (!targetType) return;
+
+    setIsLoadingSaved(true);
+    try {
+      const response = await placeService.getSavedPlaces(targetType);
+      if (response.status === "success" && response.data) {
+        const places: Place[] = response.data.map((saved) => ({
+          id: `saved-${saved.saved_place_id}`,
+          name: saved.poi_place.name,
+          detail: saved.poi_place.address,
+          distance: "",
+          time: "",
+          icon: "📍", // 기본 아이콘
+          color: "#7ed321",
+          coordinates: saved.poi_place.coordinates,
+          _poiPlaceId: saved.poi_place.poi_place_id,
+          _savedPlaceId: saved.saved_place_id,
+        }));
+        setSavedPlaces(places);
+      } else {
+        setSavedPlaces([]);
+      }
+    } catch (error) {
+      console.error("저장된 장소 목록 불러오기 실패:", error);
+      setSavedPlaces([]);
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  };
+
+  // 모달이 열리고 targetType이 있을 때 저장된 장소 목록 로드 및 초기 상태로 리셋
+  useEffect(() => {
+    if (isOpen && targetType) {
+      // 초기 화면으로 리셋 (등록된 장소 목록 화면)
+      setShowResults(false);
+      setSearchQuery("");
+      setSheetHeight(34);
+      loadSavedPlaces();
+    }
+  }, [isOpen, targetType]);
+
+  // 저장된 장소 업데이트 이벤트 리스너
+  useEffect(() => {
+    const handler = () => {
+      if (targetType) {
+        loadSavedPlaces();
+      }
+    };
+    window.addEventListener("savedPlaceUpdated", handler);
+    return () => window.removeEventListener("savedPlaceUpdated", handler);
+  }, [targetType]);
+
+  const handleSearch = async () => {
+    const keyword = searchQuery.trim();
+    if (!keyword) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await placeService.searchPlaces({ q: keyword, limit: 20 });
+
+      if (response.status === "success" && response.data) {
+        const places: Place[] = response.data.map((p, index) => ({
+          id: `${p.poi_place_id}-${index}`,
+          name: p.name,
+          detail: p.address,
+          // 거리/시간은 아직 백엔드에서 안 주므로 빈 값으로 두고 나중에 계산 가능
+          distance: "",
+          time: "",
+          // 카테고리에 따라 아이콘/색상 지정
+          icon: getCategoryIcon(p.category || ""),
+          color: getCategoryColor(p.category || "", index),
+          coordinates: p.coordinates,
+          _poiPlaceId: p.poi_place_id, // API 호출용
+        }));
+
+        setSearchResults(places);
+        setShowResults(true);
+        setSheetHeight(60);
+      } else {
+        setSearchResults([]);
+        setSearchError(response.error?.message || "장소 검색에 실패했습니다.");
+      }
+    } catch (error: any) {
+      // 서버 에러 메시지 우선 표시
+      const message =
+        error?.response?.data?.error?.message || "서버 오류로 장소를 검색할 수 없습니다.";
+      setSearchResults([]);
+      setSearchError(message);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -118,15 +208,50 @@ export function PlaceSearchModal({
     setIsConfirmOpen(true);
   };
 
-  const handleConfirmAdd = () => {
-    if (!pendingPlace) return;
-    onSelectPlace(pendingPlace);
-    setIsConfirmOpen(false);
-    setPendingPlace(null);
-    // 저장 후: 모달을 닫지 않고 "초기 화면"으로 돌아가서 하단에 등록된 장소가 보이게
-    setShowResults(false);
-    setSearchQuery("");
-    setSheetHeight(34);
+  const handleConfirmAdd = async () => {
+    if (!pendingPlace || !targetType || !pendingPlace._poiPlaceId) return;
+
+    try {
+      // API로 즐겨찾기 추가
+      const response = await placeService.addSavedPlace({
+        poi_place_id: pendingPlace._poiPlaceId,
+        category: targetType,
+      });
+
+      if (response.status === "success" && response.data) {
+        // 저장된 장소 정보 업데이트
+        const savedPlace: Place = {
+          ...pendingPlace,
+          _savedPlaceId: response.data.saved_place_id,
+        };
+
+        // 부모 컴포넌트에 알림 (SearchPage의 토스트 표시용)
+        onSelectPlace(savedPlace);
+
+        // 초기 화면으로 복귀
+        setIsConfirmOpen(false);
+        setPendingPlace(null);
+        setShowResults(false);
+        setSearchQuery("");
+        setSheetHeight(34);
+
+        // 저장된 장소 목록 다시 로드 (현재 카테고리만)
+        loadSavedPlaces();
+        
+        // 다른 컴포넌트에도 알림 (SearchPage의 상태 업데이트용)
+        window.dispatchEvent(new CustomEvent("savedPlaceUpdated", {
+          detail: { category: targetType }
+        }));
+      } else {
+        // 에러 처리
+        alert(response.error?.message || "장소 저장에 실패했습니다.");
+      }
+    } catch (error: any) {
+      console.error("즐겨찾기 추가 실패:", error);
+      const errorMessage =
+        error?.response?.data?.error?.message || "서버 오류로 장소를 저장할 수 없습니다.";
+      alert(errorMessage);
+    }
   };
 
   const handleCancelAdd = () => {
@@ -207,8 +332,6 @@ export function PlaceSearchModal({
     };
   }, [isDragging, startY, startHeight]);
 
-  if (!isOpen) return null;
-
   const titleText =
     targetType === "home"
       ? "집"
@@ -227,6 +350,59 @@ export function PlaceSearchModal({
           ? imgCoinGold2
           : null;
 
+  // 지도에 표시할 마커 생성
+  const mapMarkers = useMemo(() => {
+    const markers: Array<{
+      id: string;
+      coordinates: [number, number];
+      name: string;
+      address?: string;
+      icon?: string;
+    }> = [];
+
+    // 등록된 장소 마커
+    currentSavedPlaces.forEach((place) => {
+      if (place.coordinates) {
+        markers.push({
+          id: `saved-${place.id}`,
+          coordinates: [place.coordinates.lon, place.coordinates.lat],
+          name: place.name,
+          address: place.detail,
+          icon: place.icon,
+        });
+      }
+    });
+
+    // 검색 결과 마커 (showResults가 true일 때만)
+    if (showResults) {
+      searchResults.forEach((place) => {
+        if (place.coordinates) {
+          markers.push({
+            id: `search-${place.id}`,
+            coordinates: [place.coordinates.lon, place.coordinates.lat],
+            name: place.name,
+            address: place.detail,
+            icon: place.icon,
+          });
+        }
+      });
+    }
+
+    return markers;
+  }, [savedPlaces, searchResults, showResults]);
+
+  // 첫 번째 마커 위치 (지도 중심 이동용)
+  const targetLocation: [number, number] | null = useMemo(() => {
+    if (mapMarkers.length > 0) {
+      return mapMarkers[0].coordinates;
+    }
+    return null;
+  }, [mapMarkers]);
+
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <div ref={containerRef} className="fixed inset-0 z-50">
       {/* 헤더 */}
@@ -240,12 +416,13 @@ export function PlaceSearchModal({
         showSearchBar={true}
       />
 
-      {/* 백그라운드 지도 */}
+      {/* 백그라운드 지도 - MapView 컴포넌트 사용 */}
       <div className="absolute inset-0 z-0">
-        <img
-          src={mapImage}
-          alt="지도"
-          className="w-full h-full object-cover"
+        <MapView
+          currentPage="search"
+          targetLocation={targetLocation}
+          markers={mapMarkers}
+          onNavigate={onNavigate}
         />
       </div>
 
@@ -279,9 +456,15 @@ export function PlaceSearchModal({
                   등록된 {titleText} 장소
                 </p>
 
-                {currentSavedPlaces.length > 0 ? (
+                {isLoadingSaved ? (
+                  <div className="text-center py-4">
+                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                      로딩 중...
+                    </p>
+                  </div>
+                ) : savedPlaces.length > 0 ? (
                   <div className="flex flex-col gap-4">
-                    {currentSavedPlaces.map((saved) => (
+                    {savedPlaces.map((saved) => (
                       <div
                         key={saved.id}
                         className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 bg-white"
@@ -310,9 +493,22 @@ export function PlaceSearchModal({
                         <div className="mt-3 flex gap-2">
                           <button
                             type="button"
-                            onClick={() => onRemoveSavedPlace?.(saved.id)}
-                            disabled={!onRemoveSavedPlace}
-                            className="flex-1 bg-white border-3 border-black rounded-[14px] h-[40px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] disabled:opacity-60 disabled:cursor-not-allowed active:translate-y-[3px] active:shadow-none transition-all"
+                            onClick={async () => {
+                              if (!saved._savedPlaceId) return;
+                              try {
+                                await placeService.deleteSavedPlace(saved._savedPlaceId);
+                                // 저장된 장소 목록 다시 로드
+                                loadSavedPlaces();
+                                // 부모 컴포넌트에 알림
+                                onRemoveSavedPlace?.(saved.id);
+                                // 이벤트 발생
+                                window.dispatchEvent(new CustomEvent("savedPlaceUpdated"));
+                              } catch (error) {
+                                console.error("즐겨찾기 삭제 실패:", error);
+                                alert("삭제에 실패했습니다.");
+                              }
+                            }}
+                            className="flex-1 bg-white border-3 border-black rounded-[14px] h-[40px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] active:translate-y-[3px] active:shadow-none transition-all"
                           >
                             <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-black">
                               등록취소
@@ -345,40 +541,54 @@ export function PlaceSearchModal({
               </>
             ) : (
               <div className="flex flex-col gap-4">
-                {mockPlaces.map((place) => (
-                  <button
-                    key={place.id}
-                    onClick={() => handlePlaceClick(place)}
-                    className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_black] transition-all active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
-                    style={{ backgroundColor: place.color }}
-                  >
-                    <div className="flex gap-3 items-center">
-                      {/* 아이콘 */}
-                      <div className="bg-white size-[64px] border-[1.346px] border-black flex items-center justify-center shrink-0">
-                        <p className="text-[32px]">{place.icon}</p>
-                      </div>
+                {/* 로딩 상태 */}
+                {isSearching && (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="w-6 h-6 border-4 border-[#4a9960] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
 
-                      {/* 정보 */}
-                      <div className="flex-1 flex flex-col gap-2 items-start">
-                        <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black">
-                          {place.name}
-                        </p>
-                        <div className="flex gap-2">
-                          <div className="bg-[#ffd93d] h-[24px] px-[12px] py-[6px] border-[1.346px] border-black flex items-center justify-center">
-                            <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[8px] text-black leading-[12px]">
-                              {place.distance}
-                            </p>
-                          </div>
-                          <div className="bg-[#ff9ecd] h-[24px] px-[12px] py-[6px] border-[1.346px] border-black flex items-center justify-center">
-                            <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[8px] text-black leading-[12px]">
-                              {place.time}
-                            </p>
-                          </div>
+                {/* 에러 상태 */}
+                {searchError && !isSearching && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-red-600">
+                    {searchError}
+                  </p>
+                )}
+
+                {/* 결과 리스트 */}
+                {!isSearching &&
+                  !searchError &&
+                  searchResults.map((place) => (
+                    <button
+                      key={place.id}
+                      onClick={() => handlePlaceClick(place)}
+                      className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_black] transition-all active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
+                      style={{ backgroundColor: place.color }}
+                    >
+                      <div className="flex gap-3 items-center">
+                        {/* 아이콘 */}
+                        <div className="bg-white size-[64px] border-[1.346px] border-black flex items-center justify-center shrink-0">
+                          <p className="text-[32px]">{place.icon}</p>
+                        </div>
+
+                        {/* 정보 */}
+                        <div className="flex-1 flex flex-col gap-2 items-start">
+                          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black">
+                            {place.name}
+                          </p>
+                          <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-black/60 truncate w-full">
+                            {place.detail || "상세 주소 정보 없음"}
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+
+                {!isSearching && !searchError && searchResults.length === 0 && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-[rgba(0,0,0,0.35)]">
+                    검색 결과가 없습니다.
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -131,19 +131,35 @@ class PlaceSearchView(APIView):
             if not result.get("lon") or not result.get("lat"):
                 continue
 
-            poi_place, _ = PoiPlace.objects.update_or_create(
-                tmap_poi_id=result.get("id"),
-                defaults={
-                    "name": result.get("name"),
-                    "address": result.get("address"),
-                    "category": result.get("category", ""),
-                    "coordinates": {
-                        "lon": float(result["lon"]),
-                        "lat": float(result["lat"]),
+            # tmap_poi_id와 tmap_pkey 확인
+            tmap_poi_id = result.get("id")
+            tmap_pkey = result.get("pkey") or result.get("id")  # pkey가 없으면 id 사용
+            
+            # tmap_poi_id가 없으면 건너뛰기
+            if not tmap_poi_id:
+                continue
+
+            try:
+                poi_place, _ = PoiPlace.objects.update_or_create(
+                    tmap_pkey=tmap_pkey,  # unique 필드로 조회/생성
+                    defaults={
+                        "tmap_poi_id": tmap_poi_id,
+                        "name": result.get("name", ""),
+                        "address": result.get("address", ""),
+                        "category": result.get("category", ""),
+                        "coordinates": {
+                            "lon": float(result["lon"]),
+                            "lat": float(result["lat"]),
+                        },
                     },
-                },
-            )
-            poi_places.append(poi_place)
+                )
+                poi_places.append(poi_place)
+            except Exception as e:
+                # 개별 POI 저장 실패 시 로그만 남기고 계속 진행
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"POI 저장 실패: {result.get('name')} - {str(e)}")
+                continue
 
         # 페이지네이션
         paginator = Paginator(poi_places, limit)
@@ -272,6 +288,7 @@ class PlaceSearchView(APIView):
                 results.append(
                     {
                         "id": poi.get("id"),
+                        "pkey": poi.get("pkey") or poi.get("id"),  # pkey가 없으면 id 사용
                         "name": poi.get("name", ""),
                         "address": address,
 
