@@ -24,7 +24,7 @@ import {
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
 
 // 봇별 캐릭터 색상 매핑
-const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'purple', 'gray'];
+const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'purple'];
 
 interface RaceMapViewProps {
   // 경주 Itinerary ID (SSE 연결용)
