@@ -84,6 +84,8 @@ export function PlaceSearchModal({
 }: PlaceSearchModalProps) {
   // NOTE: 이 모달에서는 상단 메뉴/탭 UI를 숨깁니다. (다만, 경로 안내 등 일부 흐름에서 onNavigate를 사용할 수 있습니다.)
   void onOpenDashboard;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _onNavigate = onNavigate; // 향후 사용 예정
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -426,13 +428,18 @@ export function PlaceSearchModal({
         />
       </div>
 
-      {/* 바텀시트: 기본(등록된 장소 목록) / 검색 결과 */}
+      {/* 바텀시트: 기본(등록된 장소 목록) / 검색 결과 - Glassmorphism 스타일 */}
       {targetType && (
         <div
-          className="absolute bottom-0 left-0 right-0 bg-white border-black border-l-[3.366px] border-r-[3.366px] border-t-[3.366px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all z-10"
+          className="absolute bottom-0 left-0 right-0 rounded-tl-[24px] rounded-tr-[24px] transition-all z-10"
           style={{
             height: `${sheetHeight}%`,
             transitionDuration: isDragging ? "0ms" : "300ms",
+            background: "linear-gradient(135deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.75) 100%)",
+            border: "1px solid rgba(255,255,255,0.40)",
+            boxShadow: "0 -4px 8px 0px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.30)",
+            backdropFilter: "blur(18px) saturate(160%)",
+            WebkitBackdropFilter: "blur(18px) saturate(160%)",
           }}
         >
           {/* 드래그 핸들 */}
@@ -445,7 +452,7 @@ export function PlaceSearchModal({
             onMouseUp={handleDragEnd}
             onTouchEnd={handleDragEnd}
           >
-            <div className="bg-[#d1d5dc] h-[6px] w-[48px] rounded-full" />
+            <div className="bg-white/60 h-[6px] w-[48px] rounded-full" />
           </div>
 
           {/* 내용 */}
@@ -467,10 +474,26 @@ export function PlaceSearchModal({
                     {savedPlaces.map((saved) => (
                       <div
                         key={saved.id}
-                        className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 bg-white"
+                        className="rounded-[18px] p-4 relative overflow-hidden"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+                          border: "1px solid rgba(255,255,255,0.50)",
+                          boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+                          backdropFilter: "blur(16px) saturate(155%)",
+                          WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                        }}
                       >
                         <div className="flex gap-3 items-center">
-                          <div className="bg-[rgba(198,198,198,0.18)] size-[64px] border-[1.346px] border-black flex items-center justify-center shrink-0">
+                          <div
+                            className="size-[64px] rounded-[16px] flex items-center justify-center shrink-0"
+                            style={{
+                              background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+                              border: "1px solid rgba(255,255,255,0.50)",
+                              boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.40)",
+                              backdropFilter: "blur(12px) saturate(150%)",
+                              WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                            }}
+                          >
                             {contextIconSrc ? (
                               <img
                                 alt=""
@@ -508,7 +531,20 @@ export function PlaceSearchModal({
                                 alert("삭제에 실패했습니다.");
                               }
                             }}
-                            className="flex-1 bg-white border-3 border-black rounded-[14px] h-[40px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] active:translate-y-[3px] active:shadow-none transition-all"
+                            className="flex-1 rounded-[14px] h-[40px] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                            style={{
+                              background: "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)",
+                              border: "1px solid rgba(255,255,255,0.55)",
+                              boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.22)",
+                              backdropFilter: "blur(16px) saturate(155%)",
+                              WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.24) 100%)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)";
+                            }}
                           >
                             <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-black">
                               등록취소
@@ -518,9 +554,22 @@ export function PlaceSearchModal({
                             type="button"
                             onClick={() => onRequestRoute?.(saved)}
                             disabled={!onRequestRoute}
-                            className="flex-1 bg-[#4a9960] border-3 border-black rounded-[14px] h-[40px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:bg-[#3d7f50] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] disabled:opacity-60 disabled:cursor-not-allowed active:translate-y-[3px] active:shadow-none transition-all"
+                            className="flex-1 rounded-[14px] h-[40px] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                            style={{
+                              background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)",
+                              border: "1px solid rgba(255,255,255,0.35)",
+                              boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.22)",
+                              backdropFilter: "blur(16px) saturate(155%)",
+                              WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(61,127,80,0.90) 0%, rgba(61,127,80,0.75) 100%)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)";
+                            }}
                           >
-                            <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-black">
+                            <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-white">
                               경로 안내
                             </span>
                           </button>
@@ -529,7 +578,16 @@ export function PlaceSearchModal({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 bg-white">
+                  <div
+                    className="rounded-[18px] p-4 relative overflow-hidden"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+                      border: "1px solid rgba(255,255,255,0.50)",
+                      boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+                      backdropFilter: "blur(16px) saturate(155%)",
+                      WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                    }}
+                  >
                     <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">
                       아직 등록되지 않았어요
                     </p>
@@ -562,12 +620,35 @@ export function PlaceSearchModal({
                     <button
                       key={place.id}
                       onClick={() => handlePlaceClick(place)}
-                      className="rounded-[10px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-4 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_black] transition-all active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
-                      style={{ backgroundColor: place.color }}
+                      className="rounded-[18px] p-4 transition-all relative overflow-hidden"
+                      style={{
+                        background: `linear-gradient(135deg, ${place.color}CC 0%, ${place.color}AA 100%)`,
+                        border: "1px solid rgba(255,255,255,0.36)",
+                        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.24)",
+                        backdropFilter: "blur(16px) saturate(155%)",
+                        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 12px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.28)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.24)";
+                      }}
                     >
                       <div className="flex gap-3 items-center">
                         {/* 아이콘 */}
-                        <div className="bg-white size-[64px] border-[1.346px] border-black flex items-center justify-center shrink-0">
+                        <div
+                          className="size-[64px] rounded-[16px] flex items-center justify-center shrink-0"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 100%)",
+                            border: "1px solid rgba(255,255,255,0.45)",
+                            boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
+                            backdropFilter: "blur(12px) saturate(150%)",
+                            WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                          }}
+                        >
                           <p className="text-[32px]">{place.icon}</p>
                         </div>
 
@@ -605,13 +686,38 @@ export function PlaceSearchModal({
             onClick={handleCancelAdd}
           />
 
-          <div className="relative w-[340px] bg-white border-3 border-black rounded-[18px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.25)] px-5 py-4">
+          <div
+            className="relative w-[340px] rounded-[18px] px-5 py-4"
+            style={{
+              background: "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)",
+              border: "1px solid rgba(255,255,255,0.38)",
+              boxShadow: "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)",
+              backdropFilter: "blur(18px) saturate(160%)",
+              WebkitBackdropFilter: "blur(18px) saturate(160%)",
+            }}
+          >
             <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black leading-[20px]">
               {titleText}에 이 장소를 추가하시겠습니까?
             </p>
 
-            <div className="mt-3 bg-[rgba(198,198,198,0.18)] border-3 border-black rounded-[14px] px-4 py-3 flex items-center gap-3">
-              <div className="bg-white border-3 border-black rounded-[12px] size-[44px] flex items-center justify-center shrink-0">
+            <div
+              className="mt-3 rounded-[14px] px-4 py-3 flex items-center gap-3"
+              style={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.10) 100%)",
+                border: "1px solid rgba(255,255,255,0.32)",
+                backdropFilter: "blur(12px) saturate(150%)",
+                WebkitBackdropFilter: "blur(12px) saturate(150%)",
+              }}
+            >
+              <div
+                className="rounded-[12px] size-[44px] flex items-center justify-center shrink-0"
+                style={{
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 100%)",
+                  border: "1px solid rgba(255,255,255,0.45)",
+                  backdropFilter: "blur(8px) saturate(140%)",
+                  WebkitBackdropFilter: "blur(8px) saturate(140%)",
+                }}
+              >
                 {contextIconSrc ? (
                   <img
                     alt=""
@@ -635,7 +741,20 @@ export function PlaceSearchModal({
             <div className="mt-4 flex gap-3">
               <button
                 onClick={handleCancelAdd}
-                className="flex-1 bg-white border-3 border-black rounded-[14px] h-[44px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] active:translate-y-[3px] active:shadow-none transition-all"
+                className="flex-1 rounded-[14px] h-[44px] transition-all"
+                style={{
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)",
+                  border: "1px solid rgba(255,255,255,0.55)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.22)",
+                  backdropFilter: "blur(16px) saturate(155%)",
+                  WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.24) 100%)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)";
+                }}
               >
                 <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] text-black">
                   취소
@@ -643,9 +762,22 @@ export function PlaceSearchModal({
               </button>
               <button
                 onClick={handleConfirmAdd}
-                className="flex-1 bg-[#4a9960] border-3 border-black rounded-[14px] h-[44px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.22)] hover:bg-[#3d7f50] hover:translate-y-[1px] hover:shadow-[0px_3px_0px_0px_rgba(0,0,0,0.22)] active:translate-y-[3px] active:shadow-none transition-all"
+                className="flex-1 rounded-[14px] h-[44px] transition-all"
+                style={{
+                  background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)",
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.22)",
+                  backdropFilter: "blur(16px) saturate(155%)",
+                  WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(61,127,80,0.90) 0%, rgba(61,127,80,0.75) 100%)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)";
+                }}
               >
-                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] text-black">
+                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] text-white">
                   확인
                 </span>
               </button>

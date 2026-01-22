@@ -10,8 +10,21 @@ function Text() {
 
 function LogoutButton({ onClick }: { onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="bg-[#e02f2c] content-stretch flex flex-col items-start px-[130.366px] py-[25.366px] relative rounded-[16px] w-full hover:bg-[#c72825] active:bg-[#b01f1d] transition-colors cursor-pointer" data-name="Button">
-      <div aria-hidden="true" className="absolute border-[3.366px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[6px_6px_0px_0px_black]" />
+    <button
+      onClick={onClick}
+      className="content-stretch flex flex-col items-center justify-center px-[130.366px] py-[25.366px] relative rounded-full w-full transition-all cursor-pointer"
+      data-name="Button"
+      style={{
+        background: "black",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "rgba(0,0,0,0.85)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "black";
+      }}
+    >
       <Text />
     </button>
   );
