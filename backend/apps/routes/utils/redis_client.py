@@ -447,6 +447,72 @@ class RedisClient:
             return False
 
     # =========================================================================
+    # Celery Task ID 관리 (즉시 취소용)
+    # =========================================================================
+
+    def _get_task_id_key(self, route_id: int) -> str:
+        """Celery Task ID 키 생성"""
+        return f"celery_task:{route_id}"
+
+    def set_task_id(self, route_id: int, task_id: str, ttl: int = 3600) -> bool:
+        """
+        Celery Task ID 저장
+
+        Args:
+            route_id: 경주 ID
+            task_id: Celery Task ID
+            ttl: Time To Live (기본 1시간)
+
+        Returns:
+            저장 성공 여부
+        """
+        key = self._get_task_id_key(route_id)
+        try:
+            self._client.setex(key, ttl, task_id)
+            return True
+        except redis.RedisError as e:
+            logger.warning(f"Task ID 저장 실패: route_id={route_id}, error={e}")
+            return False
+
+    def get_task_id(self, route_id: int) -> Optional[str]:
+        """
+        Celery Task ID 조회
+
+        Args:
+            route_id: 경주 ID
+
+        Returns:
+            Task ID 또는 None
+        """
+        key = self._get_task_id_key(route_id)
+        try:
+            task_id = self._client.get(key)
+            if task_id:
+                return task_id.decode() if isinstance(task_id, bytes) else task_id
+            return None
+        except redis.RedisError as e:
+            logger.warning(f"Task ID 조회 실패: route_id={route_id}, error={e}")
+            return None
+
+    def delete_task_id(self, route_id: int) -> bool:
+        """
+        Celery Task ID 삭제
+
+        Args:
+            route_id: 경주 ID
+
+        Returns:
+            삭제 성공 여부
+        """
+        key = self._get_task_id_key(route_id)
+        try:
+            self._client.delete(key)
+            return True
+        except redis.RedisError as e:
+            logger.warning(f"Task ID 삭제 실패: route_id={route_id}, error={e}")
+            return False
+
+    # =========================================================================
     # 연결 테스트
     # =========================================================================
 

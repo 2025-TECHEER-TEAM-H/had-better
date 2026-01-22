@@ -36,7 +36,13 @@ class BotStateManager:
     """봇 상태 관리 서비스 (v3)"""
 
     @staticmethod
-    def initialize(route_id: int, bot_id: int, legs: list) -> dict:
+    def initialize(
+        route_id: int,
+        bot_id: int,
+        legs: list,
+        start_lon: float = None,
+        start_lat: float = None,
+    ) -> dict:
         """
         봇 초기 상태 생성
 
@@ -44,12 +50,24 @@ class BotStateManager:
             route_id: 경주 ID
             bot_id: 봇 ID
             legs: TMAP legs 배열
+            start_lon: 출발지 경도 (초기 위치)
+            start_lat: 출발지 위도 (초기 위치)
 
         Returns:
             생성된 봇 상태
         """
         # 첫 번째 leg의 mode에 따라 초기 상태 결정
         initial_status = BotStatus.WALKING.value
+
+        # 초기 위치 설정 (출발지 좌표 또는 첫 번째 leg의 시작점)
+        initial_position = None
+        if start_lon and start_lat:
+            initial_position = {"lon": start_lon, "lat": start_lat}
+        elif legs and len(legs) > 0:
+            first_leg = legs[0]
+            start = first_leg.get("start", {})
+            if start.get("lon") and start.get("lat"):
+                initial_position = {"lon": start["lon"], "lat": start["lat"]}
 
         state = {
             "route_id": route_id,
@@ -61,7 +79,8 @@ class BotStateManager:
             "vehicle_id": None,
             "arrival_time": None,  # v3: 도착 예정 시간 (초)
             "next_poll_interval": 30,  # v3: 다음 폴링 간격
-            "current_position": None,  # v3: 현재 위치 좌표
+            "current_position": initial_position,  # v3: 현재 위치 좌표 (출발지)
+            "progress_percent": 0,  # v3: 진행률 (0%)
         }
         redis_client.set_bot_state(route_id, state)
         return state

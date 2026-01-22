@@ -39,10 +39,12 @@ from .serializers import (
     RouteStatusUpdateSerializer,
 )
 from .services.bot_state import BotStateManager
+from .services.sse_publisher import SSEPublisher
 from .services.id_converter import PublicAPIIdConverter
 from .tasks.bot_simulation import update_bot_position
 from .utils.rabbitmq_client import rabbitmq_client
 from .utils.redis_client import redis_client
+from config.celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -290,8 +292,8 @@ class RouteListCreateView(APIView):
             )
             participants.append(user_route)
 
-            # 봇 타입 목록
-            bot_types = [Bot.BotType.RABBIT, Bot.BotType.CAT, Bot.BotType.DOG, Bot.BotType.MONKEY]
+            # 봇 타입 목록 (색깔)
+            bot_types = [Bot.BotType.PURPLE, Bot.BotType.YELLOW, Bot.BotType.PINK, Bot.BotType.GREEN]
 
             # 봇 Route 생성 및 시뮬레이션 시작
             bot_routes = []
@@ -325,20 +327,34 @@ class RouteListCreateView(APIView):
                 legs = bot_leg.raw_data.get("legs", [])
                 redis_client.set_public_ids(bot_route.id, public_ids)
 
-                # 봇 초기 상태 생성
-                BotStateManager.initialize(
+                # 봇 초기 상태 생성 (출발지 좌표 포함)
+                initial_state = BotStateManager.initialize(
                     route_id=bot_route.id,
                     bot_id=bot.id,
                     legs=legs,
+                    start_lon=start_lon,
+                    start_lat=start_lat,
+                )
+
+                # 초기 SSE 이벤트 즉시 발행 (프론트엔드에서 바로 봇 표시 가능)
+                SSEPublisher.publish_bot_status_update(
+                    route_itinerary_id=route_itinerary.id,
+                    bot_state={
+                        **initial_state,
+                        "progress_percent": 0,
+                    },
+                    next_update_in=30,
                 )
 
                 # 첫 번째 Task 즉시 실행
-                update_bot_position.apply_async(
+                result = update_bot_position.apply_async(
                     args=[bot_route.id],
                     countdown=0,
                 )
+                # Task ID 저장 (즉시 취소용)
+                redis_client.set_task_id(bot_route.id, result.id)
 
-                logger.info(f"봇 시뮬레이션 시작: route_id={bot_route.id}, bot_id={bot.id}")
+                logger.info(f"봇 시뮬레이션 시작: route_id={bot_route.id}, bot_id={bot.id}, task_id={result.id}")
 
             except Exception as e:
                 logger.error(f"봇 시뮬레이션 시작 실패: route_id={bot_route.id}, error={e}")
@@ -508,9 +524,14 @@ class RouteStatusUpdateView(APIView):
                 bot_route.end_time = now
                 bot_route.save()
 
+                # Celery Task 즉시 취소 (revoke)
+                task_id = redis_client.get_task_id(bot_route.id)
+                if task_id:
+                    celery_app.control.revoke(task_id, terminate=True)
+                    redis_client.delete_task_id(bot_route.id)
+                    logger.info(f"Celery Task 즉시 취소: route_id={bot_route.id}, task_id={task_id}")
+
                 # 봇 상태 정리 (Redis 캐시 삭제)
-                # 다음 Celery Task 실행 시 상태 체크로 인해 자동 종료되지만
-                # 즉시 정리하여 리소스 확보
                 BotStateManager.delete(bot_route.id)
                 logger.info(f"봇 시뮬레이션 중단: route_id={bot_route.id} (경주 취소)")
 

@@ -41,6 +41,49 @@ def is_night_time() -> bool:
     return 0 <= hour < 5
 
 
+def _parse_pass_shape(pass_shape) -> list:
+    """
+    pass_shape 데이터를 좌표 배열로 파싱
+
+    Args:
+        pass_shape: 다양한 형태의 pass_shape 데이터
+            - 문자열: "lon,lat lon,lat lon,lat ..."
+            - 리스트: [[lon, lat], [lon, lat], ...]
+            - None
+
+    Returns:
+        좌표 배열 [[lon, lat], [lon, lat], ...] 또는 빈 리스트
+    """
+    if not pass_shape:
+        return []
+
+    # 이미 리스트인 경우
+    if isinstance(pass_shape, list):
+        # 첫 번째 요소가 리스트/튜플인지 확인
+        if pass_shape and isinstance(pass_shape[0], (list, tuple)):
+            return pass_shape
+        return []
+
+    # 문자열인 경우 파싱
+    if isinstance(pass_shape, str):
+        try:
+            coords = []
+            # 공백으로 구분된 좌표들
+            for coord_str in pass_shape.strip().split():
+                if ',' in coord_str:
+                    parts = coord_str.split(',')
+                    if len(parts) >= 2:
+                        lon = float(parts[0])
+                        lat = float(parts[1])
+                        coords.append([lon, lat])
+            return coords
+        except (ValueError, IndexError) as e:
+            logger.warning(f"pass_shape 파싱 실패: {e}, value={pass_shape[:100]}...")
+            return []
+
+    return []
+
+
 def _estimate_current_station(
     elapsed: float, section_time: int, pass_stops: list
 ) -> str | None:
@@ -184,7 +227,7 @@ def update_bot_position(self, route_id: int) -> dict:
 
         elif bot_state["status"] == BotStatus.WAITING_BUS.value:
             next_interval = _handle_waiting_bus(
-                route_id, route_itinerary_id, bot_state, current_leg, current_public_leg
+                route_id, route_itinerary_id, bot_state, current_leg, current_public_leg, legs
             )
 
         elif bot_state["status"] == BotStatus.RIDING_BUS.value:
@@ -194,7 +237,7 @@ def update_bot_position(self, route_id: int) -> dict:
 
         elif bot_state["status"] == BotStatus.WAITING_SUBWAY.value:
             next_interval = _handle_waiting_subway(
-                route_id, route_itinerary_id, bot_state, current_leg, current_public_leg
+                route_id, route_itinerary_id, bot_state, current_leg, current_public_leg, legs
             )
 
         elif bot_state["status"] == BotStatus.RIDING_SUBWAY.value:
@@ -205,7 +248,9 @@ def update_bot_position(self, route_id: int) -> dict:
         # 6. 다음 Task 예약 (종료되지 않은 경우)
         updated_state = BotStateManager.get(route_id)
         if updated_state and updated_state["status"] != BotStatus.FINISHED.value:
-            update_bot_position.apply_async(args=[route_id], countdown=next_interval)
+            result = update_bot_position.apply_async(args=[route_id], countdown=next_interval)
+            # Task ID 저장 (즉시 취소용)
+            redis_client.set_task_id(route_id, result.id)
 
         return {
             "status": "updated",
@@ -217,7 +262,9 @@ def update_bot_position(self, route_id: int) -> dict:
         # 소프트 타임아웃: Task가 너무 오래 걸림 (60초 초과)
         logger.warning(f"봇 위치 업데이트 타임아웃: route_id={route_id}")
         # 다음 Task는 예약하고 현재 Task는 종료
-        update_bot_position.apply_async(args=[route_id], countdown=30)
+        result = update_bot_position.apply_async(args=[route_id], countdown=30)
+        # Task ID 저장 (즉시 취소용)
+        redis_client.set_task_id(route_id, result.id)
         return {"status": "timeout", "route_id": route_id}
 
     except RedisConnectionError as e:
@@ -229,6 +276,46 @@ def update_bot_position(self, route_id: int) -> dict:
         logger.exception(f"봇 위치 업데이트 실패: route_id={route_id}, error={e}")
         # 재시도
         raise self.retry(exc=e, countdown=30)
+
+
+def _calculate_walking_position(current_leg: dict, progress: float) -> tuple:
+    """
+    도보 구간에서 진행률 기반 현재 위치 계산
+
+    Args:
+        current_leg: 현재 leg 데이터
+        progress: 현재 leg 내 진행률 (0.0 ~ 1.0)
+
+    Returns:
+        (lon, lat) 튜플 또는 None
+    """
+    # pass_shape가 있으면 경로 위에서 보간
+    pass_shape = current_leg.get("passShape", {})
+    linestring = pass_shape.get("linestring") if isinstance(pass_shape, dict) else None
+
+    if linestring:
+        coords = _parse_pass_shape(linestring)
+        if coords and len(coords) >= 2:
+            # 진행률에 해당하는 좌표 인덱스 계산
+            idx = int(progress * (len(coords) - 1))
+            idx = max(0, min(idx, len(coords) - 1))
+            return coords[idx][0], coords[idx][1]
+
+    # pass_shape가 없으면 start/end 선형 보간
+    start = current_leg.get("start", {})
+    end = current_leg.get("end", {})
+
+    start_lon = start.get("lon", 0)
+    start_lat = start.get("lat", 0)
+    end_lon = end.get("lon", 0)
+    end_lat = end.get("lat", 0)
+
+    if start_lon and start_lat and end_lon and end_lat:
+        lon = start_lon + (end_lon - start_lon) * progress
+        lat = start_lat + (end_lat - start_lat) * progress
+        return lon, lat
+
+    return None
 
 
 def _handle_walking(
@@ -249,15 +336,26 @@ def _handle_walking(
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 0)
 
+    # 현재 leg 내 진행률 (0.0 ~ 1.0)
+    leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
+
+    # 현재 위치 계산 및 업데이트
+    position = _calculate_walking_position(current_leg, leg_progress)
+    if position:
+        BotStateManager.update_position(route_id, lon=position[0], lat=position[1])
+
     # 전체 경로 기준 진행률 계산
     progress_percent = _calculate_total_progress(
         legs, bot_state["current_leg_index"], elapsed, section_time
     )
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     # SSE 발행
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "progress_percent": progress_percent},
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
         next_update_in=30,
     )
 
@@ -287,6 +385,7 @@ def _handle_waiting_bus_fallback(
     bot_state: dict,
     current_leg: dict,
     public_leg: dict,
+    legs: list,
 ) -> int:
     """
     WAITING_BUS 시간 기반 fallback 처리
@@ -294,6 +393,18 @@ def _handle_waiting_bus_fallback(
     공공데이터 API를 사용할 수 없는 경우 (경기버스 등)
     TMAP 예상 시간의 20%를 대기 시간으로 사용
     """
+    # 대기 상태 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
+    )
+
+    # 정류장 위치로 봇 위치 업데이트
+    start_station = public_leg.get("start_station") or {}
+    station_lon = start_station.get("lon")
+    station_lat = start_station.get("lat")
+    if station_lon and station_lat:
+        BotStateManager.update_position(route_id, lon=float(station_lon), lat=float(station_lat))
+
     leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
     if leg_started_at.tzinfo is None:
         leg_started_at = timezone.make_aware(leg_started_at)
@@ -328,9 +439,12 @@ def _handle_waiting_bus_fallback(
     # 대기 중 - 남은 시간 계산
     remaining = int(wait_time - elapsed)
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "arrival_time": remaining},
+        bot_state={**updated_bot_state, "arrival_time": remaining, "progress_percent": progress_percent},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
@@ -435,9 +549,22 @@ def _handle_riding_bus_fallback(
     pass_stops = public_leg.get("pass_stops", [])
     current_station = _estimate_current_station(elapsed, section_time, pass_stops)
 
+    # 버스 위치 추정 (pass_shape 기반 보간)
+    leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
+    pass_shape = public_leg.get("pass_shape")
+    if pass_shape:
+        coords = _parse_pass_shape(pass_shape)
+        if coords and len(coords) >= 2:
+            idx = int(leg_progress * (len(coords) - 1))
+            idx = max(0, min(idx, len(coords) - 1))
+            BotStateManager.update_position(route_id, lon=coords[idx][0], lat=coords[idx][1])
+
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "progress_percent": progress_percent},
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
@@ -459,6 +586,7 @@ def _handle_waiting_subway_fallback(
     bot_state: dict,
     current_leg: dict,
     public_leg: dict,
+    legs: list,
 ) -> int:
     """
     WAITING_SUBWAY 시간 기반 fallback 처리
@@ -466,6 +594,18 @@ def _handle_waiting_subway_fallback(
     공공데이터 API를 사용할 수 없는 경우
     고정 대기 시간 (120초) 사용
     """
+    # 대기 상태 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
+    )
+
+    # 역 위치로 봇 위치 업데이트
+    start = current_leg.get("start", {})
+    start_lon = start.get("lon")
+    start_lat = start.get("lat")
+    if start_lon and start_lat:
+        BotStateManager.update_position(route_id, lon=float(start_lon), lat=float(start_lat))
+
     leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
     if leg_started_at.tzinfo is None:
         leg_started_at = timezone.make_aware(leg_started_at)
@@ -492,9 +632,12 @@ def _handle_waiting_subway_fallback(
 
     remaining = int(wait_time - elapsed)
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "arrival_time": remaining},
+        bot_state={**updated_bot_state, "arrival_time": remaining, "progress_percent": progress_percent},
         vehicle_info={
             "type": "SUBWAY",
             "route": public_leg.get("subway_line"),
@@ -595,9 +738,22 @@ def _handle_riding_subway_fallback(
     pass_stops = public_leg.get("pass_stops", [])
     current_station = _estimate_current_station(elapsed, section_time, pass_stops)
 
+    # 지하철 위치 추정 (pass_shape 기반 보간)
+    leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
+    pass_shape = public_leg.get("pass_shape")
+    if pass_shape:
+        coords = _parse_pass_shape(pass_shape)
+        if coords and len(coords) >= 2:
+            idx = int(leg_progress * (len(coords) - 1))
+            idx = max(0, min(idx, len(coords) - 1))
+            BotStateManager.update_position(route_id, lon=coords[idx][0], lat=coords[idx][1])
+
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "progress_percent": progress_percent},
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "SUBWAY",
             "route": public_leg.get("subway_line"),
@@ -618,11 +774,25 @@ def _handle_waiting_bus(
     bot_state: dict,
     current_leg: dict,
     public_leg: dict,
+    legs: list,
 ) -> int:
     """WAITING_BUS 상태 처리"""
     bus_route_id = public_leg.get("bus_route_id")
     start_station = public_leg.get("start_station", {})
     st_id = start_station.get("stId") if start_station else None
+
+    # 대기 상태 진행률 계산 (이전 leg들의 완료 시간 / 전체 시간)
+    # 현재 leg는 아직 시작 안 했으므로 현재 leg 진행률 = 0
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
+    )
+
+    # 정류장 위치로 봇 위치 업데이트
+    if start_station:
+        station_lon = start_station.get("lon")
+        station_lat = start_station.get("lat")
+        if station_lon and station_lat:
+            BotStateManager.update_position(route_id, lon=float(station_lon), lat=float(station_lat))
 
     # 디버깅: 버스 정보 확인
     logger.info(
@@ -678,9 +848,12 @@ def _handle_waiting_bus(
             wait_multiplier = 2.0 if is_night_time() else 1.0
             retry_interval = int(API_RETRY_INTERVAL * wait_multiplier)
 
+            # 업데이트된 봇 상태 조회 (current_position 포함)
+            updated_bot_state = BotStateManager.get(route_id) or bot_state
+
             SSEPublisher.publish_bot_status_update(
                 route_itinerary_id=route_itinerary_id,
-                bot_state={**bot_state, "arrival_time": None},
+                bot_state={**updated_bot_state, "arrival_time": None, "progress_percent": progress_percent},
                 vehicle_info={
                     "type": "BUS",
                     "route": public_leg.get("bus_route_name"),
@@ -696,7 +869,7 @@ def _handle_waiting_bus(
             )
             BotStateManager.reset_retry_count(route_id)
             return _handle_waiting_bus_fallback(
-                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs
             )
 
     # API 성공 → 재시도 카운터 리셋
@@ -753,10 +926,13 @@ def _handle_waiting_bus(
                             f"경과시간={int(elapsed)}초, 최대={MAX_WAITING_TIME}초, "
                             f"arrmsg={arrmsg}"
                         )
+                        # 업데이트된 봇 상태 조회 (current_position 포함)
+                        updated_bot_state = BotStateManager.get(route_id) or bot_state
+
                         # 30초 후 재시도
                         SSEPublisher.publish_bot_status_update(
                             route_itinerary_id=route_itinerary_id,
-                            bot_state={**bot_state, "arrival_time": None},
+                            bot_state={**updated_bot_state, "arrival_time": None, "progress_percent": progress_percent},
                             vehicle_info={
                                 "type": "BUS",
                                 "route": public_leg.get("bus_route_name"),
@@ -775,7 +951,7 @@ def _handle_waiting_bus(
                 f"tra_time={tra_time}, arrmsg={arrmsg}"
             )
             return _handle_waiting_bus_fallback(
-                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs
             )
 
         # 탑승!
@@ -805,9 +981,12 @@ def _handle_waiting_bus(
     # vehId가 "0"이면 None으로 표시 (버스 배차 없음)
     display_veh_id = veh_id if veh_id and veh_id != "0" else None
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "arrival_time": tra_time},
+        bot_state={**updated_bot_state, "arrival_time": tra_time, "progress_percent": progress_percent},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
@@ -887,6 +1066,10 @@ def _handle_riding_bus(
     except (ValueError, TypeError):
         return 30
 
+    # 버스 위치로 봇 위치 업데이트
+    if bus_lon and bus_lat:
+        BotStateManager.update_position(route_id, lon=bus_lon, lat=bus_lat)
+
     # 하차 정류소 도착 확인 (거리 기반만 사용)
     end_station = public_leg.get("end_station", {})
     should_alight = False
@@ -911,10 +1094,13 @@ def _handle_riding_bus(
             route_id, route_itinerary_id, bot_state, public_leg, legs
         )
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     # 탑승 중 SSE 발행
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "progress_percent": progress_percent},
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "BUS",
             "route": public_leg.get("bus_route_name"),
@@ -969,12 +1155,25 @@ def _handle_waiting_subway(
     bot_state: dict,
     current_leg: dict,
     public_leg: dict,
+    legs: list,
 ) -> int:
     """WAITING_SUBWAY 상태 처리"""
     start_station = public_leg.get("start_station")
     end_station = public_leg.get("end_station")
     subway_line = public_leg.get("subway_line")
     subway_line_id = public_leg.get("subway_line_id")
+
+    # 대기 상태 진행률 계산
+    progress_percent = _calculate_total_progress(
+        legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
+    )
+
+    # 역 위치로 봇 위치 업데이트 (current_leg의 start 좌표 사용)
+    start = current_leg.get("start", {})
+    start_lon = start.get("lon")
+    start_lat = start.get("lat")
+    if start_lon and start_lat:
+        BotStateManager.update_position(route_id, lon=float(start_lon), lat=float(start_lat))
 
     # subway_line_id가 없으면 fallback 사용
     if not subway_line_id:
@@ -983,12 +1182,12 @@ def _handle_waiting_subway(
             f"subway_line={subway_line}"
         )
         return _handle_waiting_subway_fallback(
-            route_id, route_itinerary_id, bot_state, current_leg, public_leg
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs
         )
 
     if not start_station:
         return _handle_waiting_subway_fallback(
-            route_id, route_itinerary_id, bot_state, current_leg, public_leg
+            route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs
         )
 
     # 도착정보 조회
@@ -1017,9 +1216,12 @@ def _handle_waiting_subway(
             wait_multiplier = 2.0 if is_night_time() else 1.0
             retry_interval = int(API_RETRY_INTERVAL * wait_multiplier)
 
+            # 업데이트된 봇 상태 조회 (current_position 포함)
+            updated_bot_state = BotStateManager.get(route_id) or bot_state
+
             SSEPublisher.publish_bot_status_update(
                 route_itinerary_id=route_itinerary_id,
-                bot_state={**bot_state, "arrival_time": None},
+                bot_state={**updated_bot_state, "arrival_time": None, "progress_percent": progress_percent},
                 vehicle_info={
                     "type": "SUBWAY",
                     "route": subway_line,
@@ -1035,7 +1237,7 @@ def _handle_waiting_subway(
             )
             BotStateManager.reset_retry_count(route_id)
             return _handle_waiting_subway_fallback(
-                route_id, route_itinerary_id, bot_state, current_leg, public_leg
+                route_id, route_itinerary_id, bot_state, current_leg, public_leg, legs
             )
 
     # API 성공 → 재시도 카운터 리셋
@@ -1083,9 +1285,12 @@ def _handle_waiting_subway(
                 "train_status": pos.get("trainSttus"),
             }
 
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "arrival_time": arrival_time},
+        bot_state={**updated_bot_state, "arrival_time": arrival_time, "progress_percent": progress_percent},
         vehicle_info={
             "type": "SUBWAY",
             "route": subway_line,
@@ -1227,26 +1432,42 @@ def _handle_riding_subway(
 
     # 🚇 지하철 위치 업데이트 (현재 역 좌표 추정)
     if current_idx >= 0:
-        pass_shape = public_leg.get("pass_shape", [])
-        if pass_shape and len(pass_shape) > current_idx:
-            coord = pass_shape[current_idx]
+        raw_pass_shape = public_leg.get("pass_shape")
+        # pass_shape 문자열을 좌표 배열로 파싱
+        parsed_coords = _parse_pass_shape(raw_pass_shape)
+
+        # 디버깅 로그: pass_shape 데이터 확인
+        logger.info(
+            f"pass_shape 디버깅: route_id={route_id}, "
+            f"raw_type={type(raw_pass_shape).__name__}, "
+            f"parsed_len={len(parsed_coords)}, "
+            f"current_idx={current_idx}"
+        )
+
+        if parsed_coords and len(parsed_coords) > current_idx:
+            coord = parsed_coords[current_idx]
+            logger.info(
+                f"coord 디버깅: route_id={route_id}, "
+                f"coord={coord}"
+            )
             BotStateManager.update_position(
                 route_id=route_id,
                 lon=coord[0],
                 lat=coord[1]
             )
         elif pass_stops and len(pass_stops) > current_idx:
-            # pass_shape이 없으면 정류장 좌표 사용
-            station = pass_stops[current_idx]
-            BotStateManager.update_position(
-                route_id=route_id,
-                lon=float(station.get("lon", 0)),
-                lat=float(station.get("lat", 0))
+            # pass_shape이 없거나 파싱 실패 시 역명만 사용 (좌표 없음)
+            logger.info(
+                f"pass_shape 좌표 없음, 역명만 사용: route_id={route_id}, "
+                f"current_station={pass_stops[current_idx] if current_idx < len(pass_stops) else 'N/A'}"
             )
+
+    # 업데이트된 봇 상태 조회 (current_position 포함)
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
 
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
-        bot_state={**bot_state, "progress_percent": progress_percent},
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
         vehicle_info={
             "type": "SUBWAY",
             "route": subway_line,

@@ -76,8 +76,15 @@ class ParticipantSerializer(serializers.Serializer):
     type = serializers.CharField(source="participant_type")
     user_id = serializers.IntegerField(source="user.id", allow_null=True)
     bot_id = serializers.IntegerField(source="bot.id", allow_null=True)
+    bot_type = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     leg = serializers.SerializerMethodField()
+
+    def get_bot_type(self, obj):
+        """봇 타입 (색깔) 반환"""
+        if obj.participant_type == Route.ParticipantType.BOT and obj.bot:
+            return obj.bot.type
+        return None
 
     def get_name(self, obj):
         """참가자 이름 반환"""

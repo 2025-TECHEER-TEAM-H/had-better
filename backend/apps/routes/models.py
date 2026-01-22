@@ -20,17 +20,17 @@ class Bot(models.Model):
     """
 
     class BotType(models.TextChoices):
-        RABBIT = "rabbit", "토끼"
-        CAT = "cat", "고양이"
-        DOG = "dog", "강아지"
-        MONKEY = "monkey", "원숭이"
+        GREEN = "green", "초록"
+        PINK = "pink", "분홍"
+        YELLOW = "yellow", "노랑"
+        PURPLE = "purple", "보라"
 
     name = models.CharField(max_length=100, verbose_name="봇 이름")
     type = models.CharField(
         max_length=20,
         choices=BotType.choices,
-        default=BotType.RABBIT,
-        verbose_name="봇 타입 (생김새)",
+        default=BotType.PURPLE,
+        verbose_name="봇 타입 (색깔)",
     )
 
     # 타임스탬프
