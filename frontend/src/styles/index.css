@@ -1,3 +1,28 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* 지하철역 팝업 스타일 */
+.subway-popup-container .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.subway-popup-container .mapboxgl-popup-close-button {
+  color: white;
+  font-size: 20px;
+  padding: 4px 8px;
+  right: 4px;
+  top: 4px;
+}
+
+.subway-popup-container .mapboxgl-popup-close-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.subway-popup-container .mapboxgl-popup-tip {
+  display: none;
+}
