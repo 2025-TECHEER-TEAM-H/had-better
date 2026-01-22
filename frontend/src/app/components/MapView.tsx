@@ -801,15 +801,18 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
     const mapInstance = map.current;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isCancelled = false; // 비동기 작업 취소 플래그
 
     if (isBusLinesEnabled && trackedBusNumbers.length > 0) {
       // 사용자가 입력한 버스 번호로 실시간 위치 조회
       const loadBusPositions = async () => {
         try {
+          if (isCancelled) return; // 취소된 경우 중단
           console.log("[BusLayer] 추적 버스 API 호출:", trackedBusNumbers);
 
           const response = await trackBusPositions(trackedBusNumbers);
 
+          if (isCancelled) return; // 취소된 경우 중단
           console.log(`[BusLayer] API 응답: ${response.buses.length}대 버스`);
 
           if (response.buses.length > 0) {
@@ -819,19 +822,24 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           // 경로 데이터 로드 (최초 1회만 - 경로는 변하지 않음)
           if (response.meta.routes.length > 0) {
             for (const route of response.meta.routes) {
+              if (isCancelled) return; // 취소된 경우 중단
               const pathData = await getBusRoutePath(route.route_id);
+              if (isCancelled) return; // 취소된 경우 중단
               if (pathData?.geojson) {
                 addBusRoutePath(mapInstance, route.route_id, route.bus_number, pathData.geojson);
               }
             }
           }
         } catch (error) {
-          console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
+          if (!isCancelled) {
+            console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
+          }
         }
       };
 
       // 레이어 추가 후 데이터 로드
       addBusLayers(mapInstance).then(() => {
+        if (isCancelled) return; // 취소된 경우 중단
         toggleBusLayers(mapInstance, true);
         loadBusPositions();
       });
@@ -847,6 +855,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     }
 
     return () => {
+      isCancelled = true; // 비동기 작업 취소
       if (intervalId) {
         clearInterval(intervalId);
       }
@@ -877,6 +886,11 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       setIsBusLinesEnabled(false);
       setTrackedBusNumbers([]);
       setBusNumberInput("");
+      // 경로 및 마커 데이터 정리
+      if (map.current) {
+        clearBusData(map.current);
+        clearAllBusRoutePaths(map.current);
+      }
     }
   }, [isBusLinesEnabled]);
 

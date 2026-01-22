@@ -76,10 +76,9 @@ let mapInstance: mapboxgl.Map | null = null;
 export function getBusType(busNumber: string): keyof typeof BUS_COLORS {
   const num = parseInt(busNumber, 10);
 
-  // 공항버스
-  if (busNumber.startsWith("6") && busNumber.length === 4) {
-    const prefix = parseInt(busNumber.substring(0, 2), 10);
-    if (prefix >= 60 && prefix <= 69) return "airport";
+  // 공항버스 (60XX번대만 - 6001, 6002, 6009, 6011 등)
+  if (busNumber.startsWith("60") && busNumber.length === 4) {
+    return "airport";
   }
 
   // 심야버스
@@ -1035,10 +1034,12 @@ export function removeBusRoutePath(map: mapboxgl.Map, routeId: string): void {
  * 모든 버스 노선 경로 제거
  */
 export function clearAllBusRoutePaths(map: mapboxgl.Map): void {
-  routeLayerIds.forEach((_, routeId) => {
+  console.log(`[BusLayer] 경로 제거 시작, 등록된 경로 수: ${routeLayerIds.size}`, Array.from(routeLayerIds.keys()));
+  routeLayerIds.forEach((layers, routeId) => {
+    console.log(`[BusLayer] 경로 제거 중: ${routeId}`, layers);
     removeBusRoutePath(map, routeId);
   });
-  console.log("[BusLayer] 모든 경로 제거");
+  console.log("[BusLayer] 모든 경로 제거 완료");
 }
 
 /**
