@@ -150,4 +150,155 @@ api.interceptors.response.use(
   }
 );
 
+// 버스 노선 API
+export interface BusRouteInfo {
+  route_id: string;
+  route_name: string;
+  route_type: string;
+  start_station: string;
+  end_station: string;
+  first_bus: string;
+  last_bus: string;
+  term: string;
+}
+
+export interface BusStopInfo {
+  id: string;
+  name: string;
+  seq: number;
+  ars_id: string;
+  coordinates: [number, number] | null;
+}
+
+export interface BusRouteWithStops {
+  route_id: string;
+  stops: Array<{
+    id: string;
+    name: string;
+    coordinates: [number, number];
+    ars_id: string;
+  }>;
+}
+
+export interface BusRealtimePosition {
+  veh_id: string;
+  plate_no: string;
+  coordinates: [number, number];
+  sect_ord: number | null;
+  stop_flag: boolean;
+  bus_type: string;
+  is_full: boolean;
+  congestion: number;
+  data_time: string;
+  next_station: {
+    name: string;
+    ars_id: string;
+  } | null;
+}
+
+// 전체 버스 실시간 위치 (영역 기반)
+export interface BusAreaPosition {
+  veh_id: string;
+  route_id: string;
+  bus_number: string;
+  plate_no: string;
+  coordinates: [number, number];
+  sect_ord: number | null;
+  stop_flag: boolean;
+  bus_type: string;
+  is_full: boolean;
+  congestion: number;
+  data_time: string;
+}
+
+// 영역 범위 타입
+export interface MapBounds {
+  sw: [number, number]; // [경도, 위도]
+  ne: [number, number]; // [경도, 위도]
+}
+
+// 버스 노선 검색
+export const searchBusRoutes = async (query: string): Promise<BusRouteInfo[]> => {
+  const response = await api.get(`/bus/routes/search?q=${encodeURIComponent(query)}`);
+  return response.data.data || [];
+};
+
+// 버스 노선 정류소 목록
+export const getBusRouteStations = async (routeId: string): Promise<BusStopInfo[]> => {
+  const response = await api.get(`/bus/routes/${routeId}/stations`);
+  return response.data.data || [];
+};
+
+// 여러 버스 노선 한번에 조회
+export const getBusRoutesBatch = async (routeIds: string[]): Promise<BusRouteWithStops[]> => {
+  const response = await api.post('/bus/routes/batch', { route_ids: routeIds });
+  return response.data.data || [];
+};
+
+// 버스 실시간 위치 조회
+export const getBusRealtimePositions = async (routeId: string): Promise<BusRealtimePosition[]> => {
+  const response = await api.get(`/bus/routes/${routeId}/positions`);
+  return response.data.data || [];
+};
+
+// 영역 내 전체 버스 실시간 위치 조회
+export const getBusPositionsByArea = async (bounds?: MapBounds): Promise<BusAreaPosition[]> => {
+  const response = await api.post('/bus/positions/area', { bounds });
+  return response.data.data || [];
+};
+
+// 사용자 지정 버스 번호로 실시간 위치 추적
+export interface BusTrackResponse {
+  buses: BusAreaPosition[];
+  meta: {
+    total_buses: number;
+    routes_count: number;
+    routes: Array<{
+      bus_number: string;
+      route_id: string;
+      route_name: string;
+    }>;
+  };
+}
+
+export const trackBusPositions = async (busNumbers: string[]): Promise<BusTrackResponse> => {
+  const response = await api.post('/bus/positions/track', { bus_numbers: busNumbers });
+  return {
+    buses: response.data.data || [],
+    meta: response.data.meta || { total_buses: 0, routes_count: 0, routes: [] },
+  };
+};
+
+// 버스 노선 경로 조회
+export interface BusRouteStation {
+  name: string;
+  ars_id: string;
+}
+
+export interface BusRoutePathResponse {
+  geojson: {
+    type: "Feature";
+    properties: {
+      route_id: string;
+      station_count: number;
+      is_loop?: boolean;
+    };
+    geometry: {
+      type: "LineString" | "MultiLineString";
+      coordinates: [number, number][] | [number, number][][];
+    };
+  };
+  stations: BusRouteStation[];
+}
+
+export const getBusRoutePath = async (routeId: string): Promise<BusRoutePathResponse | null> => {
+  try {
+    const response = await api.get(`/bus/routes/${routeId}/path`);
+    return response.data.data || null;
+  } catch (error) {
+    console.error(`[API] 버스 경로 조회 실패: routeId=${routeId}`, error);
+    return null;
+  }
+};
+
 export default api;

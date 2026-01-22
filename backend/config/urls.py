@@ -12,6 +12,15 @@ from apps.users.views import UserMeView
 from apps.places.views_saved import SavedPlaceListCreateView
 from apps.routes.views import RouteListCreateView
 from apps.routes.urls import sse_urlpatterns as routes_sse_urlpatterns
+from apps.routes.views_bus import (
+    BusRouteSearchView,
+    BusRouteStationsView,
+    BusRoutePathView,
+    BusMultipleRoutesView,
+    BusRealtimePositionsView,
+    BusAllPositionsView,
+    BusTrackPositionsView,
+)
 
 urlpatterns = [
     # Admin
@@ -40,6 +49,15 @@ urlpatterns = [
 
     # API v1 - SSE 스트림
     path('api/v1/sse/routes/', include(routes_sse_urlpatterns)),
+
+    # API v1 - 버스 노선 정보
+    path('api/v1/bus/routes/search', BusRouteSearchView.as_view(), name='bus-route-search'),
+    path('api/v1/bus/routes/batch', BusMultipleRoutesView.as_view(), name='bus-routes-batch'),
+    path('api/v1/bus/routes/<str:route_id>/stations', BusRouteStationsView.as_view(), name='bus-route-stations'),
+    path('api/v1/bus/routes/<str:route_id>/path', BusRoutePathView.as_view(), name='bus-route-path'),
+    path('api/v1/bus/routes/<str:route_id>/positions', BusRealtimePositionsView.as_view(), name='bus-route-positions'),
+    path('api/v1/bus/positions/area', BusAllPositionsView.as_view(), name='bus-positions-area'),
+    path('api/v1/bus/positions/track', BusTrackPositionsView.as_view(), name='bus-positions-track'),
 
     # API 문서
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
