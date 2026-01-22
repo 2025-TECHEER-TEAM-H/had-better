@@ -1,13 +1,13 @@
 import imgCharacterGreenFront1 from "@/assets/character-green-front.png";
-import imgCharacterYellowFront1 from "@/assets/character-yellow-front.png";
 import imgCharacterPurpleFront1 from "@/assets/character-purple-front.png";
-import imgTerrainGrassHorizontalMiddle10 from "@/assets/terrain-grass-horizontal-middle.png";
+import imgCharacterYellowFront1 from "@/assets/character-yellow-front.png";
 import imgGemBlue1 from "@/assets/gem-blue.png";
 import imgStar1 from "@/assets/star.png";
+import imgTerrainGrassHorizontalMiddle10 from "@/assets/terrain-grass-horizontal-middle.png";
 
 function Frame() {
   return (
-    <div className="h-[159px] relative shrink-0 w-full">
+    <div className="h-[110px] md:h-[159px] relative shrink-0 w-full">
       {/* Distant hills behind characters (only inside character area, so it won't create a mid-screen band) */}
       <svg
         className="absolute inset-x-0 bottom-[10px] h-[90px] w-full pointer-events-none"
@@ -32,14 +32,14 @@ function Frame() {
       </svg>
 
       <div className="flex flex-row items-center justify-center size-full">
-        <div className="content-stretch flex items-center justify-center pl-[60px] pr-[111px] py-[117px] relative size-full">
-          <div className="mr-[-51px] relative shrink-0 size-[160.333px] z-10" data-name="character_green_front 1">
+        <div className="content-stretch flex items-center justify-center px-[40px] md:pl-[60px] md:pr-[111px] py-[60px] md:py-[117px] relative size-full">
+          <div className="mr-[-30px] md:mr-[-51px] relative shrink-0 size-[110px] md:size-[160.333px] z-10" data-name="character_green_front 1">
             <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCharacterGreenFront1} />
           </div>
-          <div className="mr-[-51px] relative shrink-0 size-[160.333px] z-10" data-name="character_yellow_front 1">
+          <div className="mr-[-30px] md:mr-[-51px] relative shrink-0 size-[110px] md:size-[160.333px] z-10" data-name="character_yellow_front 1">
             <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCharacterYellowFront1} />
           </div>
-          <div className="mr-[-51px] relative shrink-0 size-[160.333px] z-10" data-name="character_purple_front 1">
+          <div className="mr-[-30px] md:mr-[-51px] relative shrink-0 size-[110px] md:size-[160.333px] z-10" data-name="character_purple_front 1">
             <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCharacterPurpleFront1} />
           </div>
         </div>
@@ -51,43 +51,43 @@ function Frame() {
 function Frame1() {
   return (
     <div className="content-stretch flex items-center justify-center relative shrink-0 w-full">
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 10">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 10">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 9">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 9">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 8">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 8">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 7">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 7">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 6">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 6">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 4">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 4">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 2">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 2">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 3">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 3">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 5">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 5">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 11">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 11">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 12">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 12">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 13">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 13">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
-      <div className="relative shrink-0 size-[128px]" data-name="terrain_grass_horizontal_middle 14">
+      <div className="relative shrink-0 size-[90px] md:size-[128px]" data-name="terrain_grass_horizontal_middle 14">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgTerrainGrassHorizontalMiddle10} />
       </div>
     </div>
@@ -96,7 +96,7 @@ function Frame1() {
 
 function Frame3() {
   return (
-    <div className="absolute bottom-0 content-stretch flex flex-col h-[268px] items-center justify-end left-0 right-0 z-10">
+    <div className="absolute bottom-0 content-stretch flex flex-col h-[200px] md:h-[268px] items-center justify-end left-0 right-0 z-10">
       <Frame />
       <Frame1 />
     </div>

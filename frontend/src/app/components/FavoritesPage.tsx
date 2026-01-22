@@ -39,32 +39,32 @@ export function FavoritesPage({ onBack, onNavigate, isSubwayMode = false }: Favo
 
         {/* 탭 메뉴 */}
         <div className="flex mt-4 border-t-[1.36px] border-[rgba(255,255,255,0.2)] pt-[1.36px]">
-          <button 
+          <button
             onClick={() => onNavigate?.("map")}
             className="flex-1 h-[39.989px] css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] text-[rgba(255,255,255,0.7)] hover:text-white transition-colors"
           >
             지도
           </button>
-          <button 
+          <button
             onClick={() => onNavigate?.("search")}
             className="flex-1 h-[39.989px] css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] text-[rgba(255,255,255,0.7)] hover:text-white transition-colors"
           >
             검색
           </button>
-          <button 
+          <button
             onClick={() => onNavigate?.("subway")}
             className={`flex-1 css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] ${
-              isSubwayMode 
-                ? "h-[42.709px] text-[#48d448] border-b-[2.72px] border-[#48d448]" 
+              isSubwayMode
+                ? "h-[42.709px] text-[#48d448] border-b-[2.72px] border-[#48d448]"
                 : "h-[39.989px] text-[rgba(255,255,255,0.7)] hover:text-white transition-colors"
             }`}
           >
             지하철
           </button>
-          <button 
+          <button
             className={`flex-1 css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] ${
-              !isSubwayMode 
-                ? "h-[42.709px] text-[#48d448] border-b-[2.72px] border-[#48d448]" 
+              !isSubwayMode
+                ? "h-[42.709px] text-[#48d448] border-b-[2.72px] border-[#48d448]"
                 : "h-[39.989px] text-[rgba(255,255,255,0.7)] hover:text-white transition-colors"
             }`}
           >
@@ -91,7 +91,7 @@ export function FavoritesPage({ onBack, onNavigate, isSubwayMode = false }: Favo
 
             {/* 즐겨찾기 목록 */}
             <div className="space-y-4">
-              <button 
+              <button
                 onClick={() => alert('집으로 이동')}
                 className="w-full bg-[rgba(255,255,255,0.9)] rounded-[16px] border-[2.72px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] p-4 hover:shadow-[0px_6px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[-2px] transition-all"
               >
@@ -110,7 +110,7 @@ export function FavoritesPage({ onBack, onNavigate, isSubwayMode = false }: Favo
                 </div>
               </button>
 
-              <button 
+              <button
                 onClick={() => alert('회사 주소를 등록하세요')}
                 className="w-full bg-[rgba(198,198,198,0.9)] rounded-[16px] border-[2.72px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] p-4 hover:shadow-[0px_6px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[-2px] transition-all"
               >
@@ -129,7 +129,7 @@ export function FavoritesPage({ onBack, onNavigate, isSubwayMode = false }: Favo
                 </div>
               </button>
 
-              <button 
+              <button
                 onClick={() => alert('즐겨찾는 장소를 추가하세요')}
                 className="w-full bg-[rgba(175,175,175,0.9)] rounded-[16px] border-[2.72px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] p-4 hover:shadow-[0px_6px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[-2px] transition-all"
               >
@@ -150,7 +150,7 @@ export function FavoritesPage({ onBack, onNavigate, isSubwayMode = false }: Favo
             </div>
 
             {/* 새 장소 추가 버튼 */}
-            <button 
+            <button
               onClick={() => alert('새 장소 추가 화면')}
               className="w-full mt-6 bg-[#666] h-[56px] rounded-[16px] border-[2.72px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] flex items-center justify-center gap-2 hover:shadow-[0px_6px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[-2px] active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[2px] transition-all"
             >

@@ -1,6 +1,7 @@
 import svgPaths from "./svg-v94pfc0f1m";
 import { Container5 as DashboardProfileCard, Container12 as DashboardStatsCard, Container29 as DashboardRecentGames } from "./Container";
 import { LogoutButton } from "./Button";
+import characterGreenFront from "@/assets/character-green-front.png";
 
 function Container() {
   return <div className="h-0 shrink-0 w-[39.995px]" data-name="Container" />;
@@ -10,7 +11,7 @@ function Heading() {
   return (
     <div className="h-[23.995px] relative shrink-0 w-[159.968px]" data-name="Heading 1">
       <div className="bg-clip-padding border-0 border-[transparent] border-solid relative size-full">
-        <p className="absolute css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] left-0 not-italic text-[#2d5f3f] text-[16px] top-[-0.63px]">HAD BETTER</p>
+        <p className="absolute css-4hzbpn font-['Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[24px] left-0 not-italic text-black text-[18px] top-[-0.63px]">나노 바나나</p>
       </div>
     </div>
   );
@@ -28,9 +29,9 @@ function Text() {
 
 function Button({ onClick }: { onClick?: () => void }) {
   return (
-    <button 
+    <button
       onClick={onClick}
-      className="bg-white relative rounded-[14px] shrink-0 size-[39.995px] hover:bg-gray-100 active:bg-gray-200 transition-colors cursor-pointer" 
+      className="bg-white relative rounded-[14px] shrink-0 size-[39.995px] hover:bg-gray-100 active:bg-gray-200 transition-colors cursor-pointer"
       data-name="Button"
       aria-label="닫기"
     >
@@ -56,12 +57,37 @@ function Container1({ onClose }: { onClose?: () => void }) {
   );
 }
 
+function CharacterDisplay() {
+  return (
+    <div className="flex justify-center items-center py-4">
+      <div className="relative">
+        <img
+          src={characterGreenFront}
+          alt="Character"
+          className="w-[120px] h-[120px] object-contain"
+        />
+        {/* Sparkles around character */}
+        <div className="absolute top-2 left-2 w-2 h-2 bg-white rounded-full opacity-80" style={{ boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
+        <div className="absolute top-4 right-4 w-1.5 h-1.5 bg-white rounded-full opacity-70" style={{ boxShadow: "0 0 3px rgba(255,255,255,0.7)" }} />
+        <div className="absolute bottom-6 left-6 w-1.5 h-1.5 bg-white rounded-full opacity-70" style={{ boxShadow: "0 0 3px rgba(255,255,255,0.7)" }} />
+        <div className="absolute bottom-4 right-2 w-2 h-2 bg-white rounded-full opacity-80" style={{ boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
+      </div>
+    </div>
+  );
+}
+
 function Container2({ onClose }: { onClose?: () => void }) {
   return (
-    <div className="bg-gradient-to-b from-[#c5e7f5] h-[74.688px] relative shrink-0 to-[#b3ddf0] w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-b-[2.693px] border-black border-solid inset-0 pointer-events-none" />
-      <div className="content-stretch flex flex-col items-start pb-[2.693px] pt-[16px] px-[16px] relative size-full">
+    <div
+      className="relative shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(180deg, rgba(240,253,250,0.95) 0%, rgba(255,255,255,1) 100%)",
+      }}
+    >
+      <div className="content-stretch flex flex-col items-start pb-[2.693px] pt-[16px] px-[16px] relative">
         <Container1 onClose={onClose} />
+        <CharacterDisplay />
       </div>
     </div>
   );
@@ -69,8 +95,17 @@ function Container2({ onClose }: { onClose?: () => void }) {
 
 function Container3() {
   return (
-    <div className="bg-gradient-to-b from-[#48d448] relative rounded-[22590200px] shrink-0 size-[80px] to-[#3db83d]" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[22590200px]" />
+    <div
+      className="relative rounded-[22590200px] shrink-0 size-[80px]"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(110,231,183,0.75) 100%)",
+        border: "2px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
+        backdropFilter: "blur(12px) saturate(150%)",
+        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+      }}
+    >
       <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
         <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[40px] not-italic relative shrink-0 text-[#0a0a0a] text-[36px] tracking-[0.3691px]">👤</p>
       </div>
@@ -95,18 +130,17 @@ function Paragraph() {
 }
 
 function Container4() {
-  return <div className="bg-[#48d448] h-[5.302px] shrink-0 w-full" data-name="Container" />;
+  return <div className="bg-[#48d448] h-[8px] shrink-0 rounded-full" data-name="Container" style={{ width: "60%" }} />;
 }
 
 function Container5() {
   return (
-    <div className="bg-[#e5e7eb] h-[7.995px] relative rounded-[22590200px] shrink-0 w-full" data-name="Container">
+    <div className="bg-[#e5e7eb] h-[8px] relative rounded-full shrink-0 w-full" data-name="Container">
       <div className="overflow-clip rounded-[inherit] size-full">
-        <div className="content-stretch flex flex-col items-start pl-[1.346px] pr-[49.883px] py-[1.346px] relative size-full">
+        <div className="content-stretch flex flex-col items-start py-0 relative size-full">
           <Container4 />
         </div>
       </div>
-      <div aria-hidden="true" className="absolute border-[1.346px] border-black border-solid inset-0 pointer-events-none rounded-[22590200px]" />
     </div>
   );
 }
@@ -125,8 +159,21 @@ function Container6() {
 
 function Container7() {
   return (
-    <div className="content-stretch flex gap-[16px] h-[80px] items-center relative shrink-0 w-full" data-name="Container">
-      <Container3 />
+    <div className="content-stretch flex gap-[16px] items-center relative shrink-0 w-full" data-name="Container">
+      {/* 아바타 */}
+      <div
+        className="relative rounded-full shrink-0 size-[80px]"
+        data-name="Avatar"
+        style={{
+          background: "#48d448",
+          border: "2px solid black",
+        }}
+      >
+        <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
+          <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[40px] not-italic relative shrink-0 text-[#6b3fa0] text-[36px] tracking-[0.3691px]">👤</p>
+        </div>
+      </div>
+      {/* 사용자 정보 */}
       <Container6 />
     </div>
   );
@@ -134,9 +181,16 @@ function Container7() {
 
 function Container8() {
   return (
-    <div className="bg-white h-[133.375px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
-      <div className="content-stretch flex flex-col items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
+    <div
+      className="relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid black",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+      }}
+    >
+      <div className="content-stretch flex flex-row items-center pb-[16px] pt-[16px] px-[16px] relative size-full">
         <Container7 />
       </div>
     </div>
@@ -169,8 +223,15 @@ function Paragraph2() {
 
 function Container10() {
   return (
-    <div className="bg-white content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <Container9 />
       <Paragraph1 />
       <Paragraph2 />
@@ -204,8 +265,15 @@ function Paragraph4() {
 
 function Container12() {
   return (
-    <div className="bg-white content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <Container11 />
       <Paragraph3 />
       <Paragraph4 />
@@ -239,8 +307,15 @@ function Paragraph6() {
 
 function Container14() {
   return (
-    <div className="bg-white content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <Container13 />
       <Paragraph5 />
       <Paragraph6 />
@@ -1000,8 +1075,17 @@ function Container21() {
 
 function Container22() {
   return (
-    <div className="bg-white h-[321.367px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="h-[321.367px] relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
       <div className="content-stretch flex flex-col gap-[16px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
         <Heading2 />
         <Container16 />
@@ -1450,8 +1534,17 @@ function Container23() {
 
 function Container24() {
   return (
-    <div className="bg-white h-[289.367px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="h-[289.367px] relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
       <div className="content-stretch flex flex-col gap-[16px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
         <Heading3 />
         <Container23 />
@@ -1591,8 +1684,17 @@ function Container25() {
 
 function Container26() {
   return (
-    <div className="bg-white h-[289.367px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="h-[289.367px] relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
       <div className="content-stretch flex flex-col gap-[16px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
         <Heading4 />
         <Container25 />
@@ -1671,8 +1773,17 @@ function Container30() {
 
 function Container31() {
   return (
-    <div className="bg-[#f9fafb] h-[62.674px] relative rounded-[14px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[#e5e7eb] border-[1.346px] border-solid inset-0 pointer-events-none rounded-[14px]" />
+    <div
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.45) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 6px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
+        backdropFilter: "blur(12px) saturate(150%)",
+        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+      }}
+    >
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex items-center justify-between px-[13.338px] py-[1.346px] relative size-full">
           <Container29 />
@@ -1743,12 +1854,32 @@ function Container35() {
 
 function Container36() {
   return (
-    <div className="bg-[#f9fafb] h-[62.674px] relative rounded-[14px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[#e5e7eb] border-[1.346px] border-solid inset-0 pointer-events-none rounded-[14px]" />
+    <div
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex items-center justify-between px-[13.338px] py-[1.346px] relative size-full">
           <Container34 />
-          <Container35 />
+          <div className="flex flex-col gap-1">
+            <Container35 />
+            <div
+              className="h-[24px] px-2 rounded-[8px] flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(110,231,183,0.75) 100%)",
+                border: "1px solid rgba(255,255,255,0.50)",
+                backdropFilter: "blur(8px) saturate(140%)",
+                WebkitBackdropFilter: "blur(8px) saturate(140%)",
+              }}
+            >
+              <p className="css-4hzbpn font-['Inter:Bold',sans-serif] font-bold text-[12px] text-white">+500P</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1815,12 +1946,32 @@ function Container40() {
 
 function Container41() {
   return (
-    <div className="bg-[#f9fafb] h-[62.674px] relative rounded-[14px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[#e5e7eb] border-[1.346px] border-solid inset-0 pointer-events-none rounded-[14px]" />
+    <div
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex items-center justify-between px-[13.338px] py-[1.346px] relative size-full">
           <Container39 />
-          <Container40 />
+          <div className="flex flex-col gap-1">
+            <Container40 />
+            <div
+              className="h-[24px] px-2 rounded-[8px] flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(110,231,183,0.75) 100%)",
+                border: "1px solid rgba(255,255,255,0.50)",
+                backdropFilter: "blur(8px) saturate(140%)",
+                WebkitBackdropFilter: "blur(8px) saturate(140%)",
+              }}
+            >
+              <p className="css-4hzbpn font-['Inter:Bold',sans-serif] font-bold text-[12px] text-white">+500P</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1887,12 +2038,32 @@ function Container45() {
 
 function Container46() {
   return (
-    <div className="bg-[#f9fafb] h-[62.674px] relative rounded-[14px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[#e5e7eb] border-[1.346px] border-solid inset-0 pointer-events-none rounded-[14px]" />
+    <div
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "white",
+        border: "1px solid rgba(110,231,183,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex items-center justify-between px-[13.338px] py-[1.346px] relative size-full">
           <Container44 />
-          <Container45 />
+          <div className="flex flex-col gap-1">
+            <Container45 />
+            <div
+              className="h-[24px] px-2 rounded-[8px] flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(110,231,183,0.75) 100%)",
+                border: "1px solid rgba(255,255,255,0.50)",
+                backdropFilter: "blur(8px) saturate(140%)",
+                WebkitBackdropFilter: "blur(8px) saturate(140%)",
+              }}
+            >
+              <p className="css-4hzbpn font-['Inter:Bold',sans-serif] font-bold text-[12px] text-white">+500P</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1912,8 +2083,17 @@ function Container47() {
 
 function Container48() {
   return (
-    <div className="bg-white h-[376.046px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="h-[376.046px] relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
       <div className="content-stretch flex flex-col gap-[16px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
         <Heading5 />
         <Container47 />
@@ -2022,8 +2202,17 @@ function Container55() {
 
 function Container56() {
   return (
-    <div className="bg-white h-[172.044px] relative rounded-[16px] shrink-0 w-full" data-name="Container">
-      <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
+    <div
+      className="h-[172.044px] relative rounded-[16px] shrink-0 w-full"
+      data-name="Container"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
       <div className="content-stretch flex flex-col gap-[16px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative size-full">
         <Heading6 />
         <Container55 />
@@ -2047,7 +2236,13 @@ function Container57({ onLogout }: { onLogout?: () => void }) {
 
 function DashboardPage({ onClose, onLogout }: { onClose?: () => void; onLogout?: () => void }) {
   return (
-    <div className="bg-gradient-to-b content-stretch flex flex-col from-[#c5e7f5] h-[837.184px] items-start overflow-clip relative shrink-0 to-[#b3ddf0] w-full" data-name="DashboardPage">
+    <div
+      className="content-stretch flex flex-col h-[837.184px] items-start overflow-clip relative shrink-0 w-full"
+      data-name="DashboardPage"
+      style={{
+        background: "linear-gradient(180deg, rgba(240,253,250,1) 0%, rgba(255,255,255,1) 100%)",
+      }}
+    >
       <Container2 onClose={onClose} />
       <Container57 onLogout={onLogout} />
     </div>
