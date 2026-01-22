@@ -1,9 +1,8 @@
 import { useMapStore } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { useLocation } from "react-router-dom";
-import { MapCharacter } from "@/components/MapCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route";
 
@@ -81,7 +80,12 @@ interface MapViewProps {
 // Mapbox Access Token 설정
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "";
 
-export function MapView({
+// MapView에서 외부로 노출할 메서드/속성
+export interface MapViewRef {
+  map: mapboxgl.Map | null;
+}
+
+export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   onNavigate,
   currentPage,
   targetLocation,
@@ -90,7 +94,7 @@ export function MapView({
   endpoints = [],
   fitToRoutes = false,
   playerMarkers = [],
-}: MapViewProps = {}) {
+}, ref) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -123,6 +127,11 @@ export function MapView({
   // 서울 시청 좌표 (기본값)
   const defaultCenter: [number, number] = [126.9780, 37.5665];
   const defaultZoom = 14;
+
+  // ref로 map 객체 노출
+  useImperativeHandle(ref, () => ({
+    map: map.current,
+  }));
 
   // 지도 초기화
   useEffect(() => {
@@ -304,7 +313,6 @@ export function MapView({
       const innerFill = "white";
       // 핀 내부(흰 원)에는 아이콘/글자 없이 비워둠
 
-      const labelBg = pinBase;
       // 글씨색은 항상 검정으로 통일
       const labelText = "black";
       // SVG id는 XML Name 규칙을 타서 숫자 시작/특수문자에 취약할 수 있어 안전하게 sanitize + prefix
@@ -825,32 +833,6 @@ export function MapView({
         }
       `}</style>
 
-      {/* 애니메이션 캐릭터 테스트 - 실제 지도 좌표에 고정 */}
-      {/* Green 캐릭터 - 서울역 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="green"
-        coordinates={[126.9708, 37.5547]}
-        size={80}
-        animationSpeed={150}
-      />
-      {/* Pink 캐릭터 - 광화문 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="pink"
-        coordinates={[126.9769, 37.5759]}
-        size={80}
-        animationSpeed={180}
-      />
-      {/* Yellow 캐릭터 - 강남역 근처 */}
-      <MapCharacter
-        map={map.current}
-        color="yellow"
-        coordinates={[127.0276, 37.4979]}
-        size={80}
-        animationSpeed={200}
-      />
-
       {/* 지도 컨트롤 버튼들 */}
       <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-10">
         {/* 지도 페이지에서만 컨트롤 표시 */}
@@ -927,4 +909,4 @@ export function MapView({
       </div>
     </div>
   );
-}
+});
