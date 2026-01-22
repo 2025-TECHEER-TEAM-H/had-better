@@ -4,6 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useLocation } from "react-router-dom";
 import { MapCharacter } from "@/components/MapCharacter";
+import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
 
@@ -98,6 +99,10 @@ interface MapViewProps {
    * 플레이어 마커 (유저/봇 위치 표시)
    */
   playerMarkers?: PlayerMarker[];
+  /**
+   * 지하철 노선도 표시 여부 (선택)
+   */
+  showSubwayLines?: boolean;
 }
 
 // Mapbox Access Token 설정
@@ -117,6 +122,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   endpoints = [],
   fitToRoutes = false,
   playerMarkers = [],
+  showSubwayLines = false,
 }, ref) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -134,6 +140,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const [mapStyle, setMapStyle] = useState<MapStyleType>("default"); // 지도 스타일
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
+  const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(showSubwayLines); // 지하철 노선 레이어 상태
   const layerButtonRef = useRef<HTMLButtonElement>(null); // 레이어 버튼 ref
   const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
@@ -753,6 +760,41 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     }
   }, [fitToRoutes]);
 
+  // 지하철 노선도 레이어 표시/숨김
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const mapInstance = map.current;
+
+    // 내부 상태 또는 prop으로 전달된 값 사용
+    const shouldShowSubway = isSubwayLinesEnabled || showSubwayLines;
+
+    if (shouldShowSubway) {
+      // 레이어 추가 (이미 있으면 내부에서 스킵)
+      addSubwayLayers(mapInstance);
+      toggleSubwayLayers(mapInstance, true);
+    } else {
+      // 레이어 숨김
+      toggleSubwayLayers(mapInstance, false);
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 시 레이어 제거
+      if (mapInstance && mapInstance.getStyle()) {
+        try {
+          removeSubwayLayers(mapInstance);
+        } catch {
+          // 지도가 이미 제거된 경우 무시
+        }
+      }
+    };
+  }, [showSubwayLines, isSubwayLinesEnabled, isMapLoaded]);
+
+  // 지하철 노선 토글 핸들러
+  const handleSubwayLinesToggle = useCallback(() => {
+    setIsSubwayLinesEnabled((prev) => !prev);
+  }, []);
+
   // 자동 현재 위치 이동 제거
   // - 저장된 위치가 있으면 그 위치로 시작 (지도 초기화 시 처리)
   // - 저장된 위치가 없으면 기본값(서울 시청)으로 시작
@@ -1194,6 +1236,33 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                       <div
                         className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
                           is3DBuildingsEnabled
+                            ? "translate-x-5 bg-white"
+                            : "translate-x-0.5 bg-white"
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* 지하철 노선 토글 */}
+                  <button
+                    onClick={handleSubwayLinesToggle}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      isSubwayLinesEnabled
+                        ? "bg-[#4a9960] text-white"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className="text-lg">🚇</span>
+                    <span className="text-sm font-medium">지하철 노선</span>
+                    {/* 토글 스위치 */}
+                    <div
+                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
+                        isSubwayLinesEnabled ? "bg-white/30" : "bg-gray-300"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                          isSubwayLinesEnabled
                             ? "translate-x-5 bg-white"
                             : "translate-x-0.5 bg-white"
                         }`}
