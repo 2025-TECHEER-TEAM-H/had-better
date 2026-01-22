@@ -22,7 +22,7 @@ import type { BotStatusUpdateEvent, Coordinate } from '@/types/route';
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
 
 // 봇별 캐릭터 색상
-const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'green', 'purple', 'gray'];
+const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'green', 'purple'];
 
 // 연결 상태 표시 색상
 const STATUS_COLORS: Record<SSEConnectionStatus, string> = {

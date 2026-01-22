@@ -21,7 +21,7 @@ import {
 } from '@/utils/routeInterpolation';
 
 // 캐릭터 색상 타입
-export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple' | 'gray';
+export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple';
 
 interface MovingCharacterProps {
   // Mapbox 지도 인스턴스
@@ -79,13 +79,14 @@ export function MovingCharacter({
     `/src/assets/${color}/character_${color}_walk_a.png`,
     `/src/assets/${color}/character_${color}_front.png`,
     `/src/assets/${color}/character_${color}_walk_b.png`,
+    `/src/assets/${color}/character_${color}_jump.png`,
   ];
 
   // 상태에 따른 프레임 선택
   const getFrameByStatus = useCallback((status: BotStatus, frameIndex: number): number => {
     switch (status) {
       case 'WALKING':
-        // 걷기 애니메이션: idle -> walk_a -> front -> walk_b 반복
+        // 걷기 애니메이션: idle -> walk_a -> front -> walk_b 반복 (0~3)
         return frameIndex % 4;
       case 'WAITING_BUS':
       case 'WAITING_SUBWAY':
@@ -96,8 +97,8 @@ export function MovingCharacter({
         // 탑승 상태: front 고정 또는 약간의 흔들림
         return frameIndex % 2 === 0 ? 2 : 0;
       case 'FINISHED':
-        // 완료: idle 고정
-        return 0;
+        // 완료: jump 고정 (승리 포즈)
+        return 4;
       default:
         return 0;
     }

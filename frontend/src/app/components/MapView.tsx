@@ -1120,37 +1120,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         }
       `}</style>
 
-      {/* 애니메이션 캐릭터 테스트 - 실제 지도 좌표에 고정 */}
-      {/* 지도가 로드되었을 때만 캐릭터 렌더링 */}
-      {isMapLoaded && (
-        <>
-          {/* Green 캐릭터 - 서울역 근처 */}
-          <MapCharacter
-            map={map.current}
-            color="green"
-            coordinates={[126.9708, 37.5547]}
-            size={80}
-            animationSpeed={150}
-          />
-          {/* Pink 캐릭터 - 광화문 근처 */}
-          <MapCharacter
-            map={map.current}
-            color="pink"
-            coordinates={[126.9769, 37.5759]}
-            size={80}
-            animationSpeed={180}
-          />
-          {/* Yellow 캐릭터 - 강남역 근처 */}
-          <MapCharacter
-            map={map.current}
-            color="yellow"
-            coordinates={[127.0276, 37.4979]}
-            size={80}
-            animationSpeed={200}
-          />
-        </>
-      )}
-
       {/* 우상단 컨트롤 버튼들 - 지도가 표시되는 모든 페이지에서 표시 */}
       {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
         <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
