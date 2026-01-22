@@ -915,26 +915,33 @@ export function MapView({
 
       // 3D 건물 상태 유지 (스타일 변경 후에도)
       if (is3DBuildingsEnabled && map.current && !map.current.getLayer("3d-buildings")) {
+        // 중구 건물 GeoJSON 소스 추가
+        if (!map.current.getSource("junggu-buildings")) {
+          map.current.addSource("junggu-buildings", {
+            type: "geojson",
+            data: "/junggu_buildings.geojson",
+          });
+        }
+        // 건물 레이어 추가
         map.current.addLayer({
           id: "3d-buildings",
-          source: "composite",
-          "source-layer": "building",
-          filter: ["==", "extrude", "true"],
+          source: "junggu-buildings",
           type: "fill-extrusion",
-          minzoom: 14,
+          minzoom: 13,
           paint: {
             "fill-extrusion-color": [
               "interpolate",
               ["linear"],
               ["get", "height"],
-              0, "#e0e0e0",
-              50, "#c0c0c0",
-              100, "#a0a0a0",
-              200, "#808080",
+              0, "#d4e6d7",
+              10, "#a8d4ae",
+              20, "#7bc47f",
+              50, "#4a9960",
+              100, "#2d5f3f",
             ],
             "fill-extrusion-height": ["get", "height"],
-            "fill-extrusion-base": ["get", "min_height"],
-            "fill-extrusion-opacity": 0.7,
+            "fill-extrusion-base": 0,
+            "fill-extrusion-opacity": 0.75,
           },
         });
       }
@@ -947,34 +954,42 @@ export function MapView({
     setIsLayerPopoverOpen(false);
   }, [is3DBuildingsEnabled]);
 
-  // 3D 건물 레이어 추가 함수
-  const add3DBuildingsLayer = useCallback(() => {
+  // 3D 건물 레이어 추가 함수 (중구 GeoJSON 데이터 사용)
+  const add3DBuildingsLayer = useCallback(async () => {
     if (!map.current) return;
 
     // 이미 레이어가 있으면 무시
     if (map.current.getLayer("3d-buildings")) return;
 
-    // 건물 레이어 추가
+    // 중구 건물 GeoJSON 소스 추가
+    if (!map.current.getSource("junggu-buildings")) {
+      map.current.addSource("junggu-buildings", {
+        type: "geojson",
+        data: "/junggu_buildings.geojson",
+      });
+    }
+
+    // 건물 레이어 추가 (층수 기반 높이 사용)
     map.current.addLayer({
       id: "3d-buildings",
-      source: "composite",
-      "source-layer": "building",
-      filter: ["==", "extrude", "true"],
+      source: "junggu-buildings",
       type: "fill-extrusion",
-      minzoom: 14,
+      minzoom: 13,
       paint: {
+        // 높이에 따라 색상 변화 (낮은 건물: 밝은색, 높은 건물: 어두운색)
         "fill-extrusion-color": [
           "interpolate",
           ["linear"],
           ["get", "height"],
-          0, "#e0e0e0",
-          50, "#c0c0c0",
-          100, "#a0a0a0",
-          200, "#808080",
+          0, "#d4e6d7",    // 매우 낮은 건물 - 연한 녹색
+          10, "#a8d4ae",   // 낮은 건물
+          20, "#7bc47f",   // 중간 건물
+          50, "#4a9960",   // 높은 건물 - 진한 녹색
+          100, "#2d5f3f",  // 매우 높은 건물
         ],
         "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": ["get", "min_height"],
-        "fill-extrusion-opacity": 0.7,
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.75,
       },
     });
   }, []);
@@ -984,6 +999,10 @@ export function MapView({
     if (!map.current) return;
     if (map.current.getLayer("3d-buildings")) {
       map.current.removeLayer("3d-buildings");
+    }
+    // 소스도 제거
+    if (map.current.getSource("junggu-buildings")) {
+      map.current.removeSource("junggu-buildings");
     }
   }, []);
 
