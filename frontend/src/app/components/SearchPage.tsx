@@ -12,6 +12,7 @@ import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import userService from "@/services/userService";
 import placeService, { type SearchPlaceHistory, type SavedPlace } from "@/services/placeService";
+import routeService, { type RouteSearchHistory } from "@/services/routeService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
 import { useEffect, useState } from "react";
@@ -68,8 +69,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [isWebView, setIsWebView] = useState(false);
 
   // 출발지/도착지 좌표 포함 상태
-  const [selectedDeparture, setSelectedDeparture] = useState<LocationWithCoords | null>(null);
-  const [selectedArrival, setSelectedArrival] = useState<LocationWithCoords | null>(null);
+  const [_selectedDeparture, setSelectedDeparture] = useState<LocationWithCoords | null>(null);
+  const [_selectedArrival, setSelectedArrival] = useState<LocationWithCoords | null>(null);
 
   // 경로 검색 로딩 상태
   const [isSearchingRoute, setIsSearchingRoute] = useState(false);
@@ -108,6 +109,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   // 최근 검색 기록 상태
   const [searchHistories, setSearchHistories] = useState<SearchPlaceHistory[]>([]);
   const [isLoadingHistories, setIsLoadingHistories] = useState(false);
+
+  // 최근 경로 검색 기록 상태
+  const [routeSearchHistories, setRouteSearchHistories] = useState<RouteSearchHistory[]>([]);
+  const [isLoadingRouteHistories, setIsLoadingRouteHistories] = useState(false);
 
   // 웹/앱 화면 감지
   useEffect(() => {
@@ -156,9 +161,28 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     }
   };
 
+  // 최근 경로 검색 기록 불러오기
+  const loadRouteSearchHistories = async () => {
+    try {
+      setIsLoadingRouteHistories(true);
+      const response = await routeService.getRouteSearchHistories(5);
+      if (response.status === "success" && response.data) {
+        setRouteSearchHistories(response.data);
+      } else {
+        setRouteSearchHistories([]);
+      }
+    } catch (error) {
+      console.error("최근 경로 검색 기록 불러오기 실패:", error);
+      setRouteSearchHistories([]);
+    } finally {
+      setIsLoadingRouteHistories(false);
+    }
+  };
+
   // 초기 마운트 시 최근 검색 기록 로드
   useEffect(() => {
     loadSearchHistories();
+    loadRouteSearchHistories();
   }, []);
 
   // SearchResultsPage 등에서 검색 기록이 갱신되었을 때 이벤트로 동기화
@@ -224,7 +248,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
 
   // 저장된 장소 업데이트 이벤트 리스너
   useEffect(() => {
-    const handler = (event: Event) => {
+    const handler = (_event: Event) => {
       // 특정 카테고리가 업데이트된 경우에도 전체를 다시 로드하여 일관성 유지
       // 에러 발생 시에도 기존 상태를 유지하도록 loadFavoriteLocations에서 처리됨
       loadFavoriteLocations();
@@ -360,6 +384,80 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       setSearchHistories([]);
     } catch (error) {
       console.error("검색 기록 전체 삭제 실패:", error);
+    }
+  };
+
+  // 최근 경로 검색 기록 항목 클릭 시: 출발지/도착지 설정 및 경로 검색
+  const handleRouteHistoryClick = async (history: RouteSearchHistory) => {
+    try {
+      // 출발지와 도착지를 입력 필드에 설정
+      setStartLocation(history.departure.name);
+      setEndLocation(history.arrival.name);
+
+      // 장소 검색으로 좌표 가져오기 (검색 기록 저장 안 함)
+      const [departureResult, arrivalResult] = await Promise.all([
+        placeService.searchPlaces({ q: history.departure.name, limit: 1, save_history: false }),
+        placeService.searchPlaces({ q: history.arrival.name, limit: 1, save_history: false }),
+      ]);
+
+      if (
+        departureResult.status === "success" &&
+        departureResult.data &&
+        departureResult.data.length > 0 &&
+        arrivalResult.status === "success" &&
+        arrivalResult.data &&
+        arrivalResult.data.length > 0
+      ) {
+        const departurePlace = departureResult.data[0];
+        const arrivalPlace = arrivalResult.data[0];
+
+        const departureLocation: LocationWithCoords = {
+          name: departurePlace.name,
+          lat: departurePlace.coordinates.lat,
+          lon: departurePlace.coordinates.lon,
+        };
+
+        const arrivalLocation: LocationWithCoords = {
+          name: arrivalPlace.name,
+          lat: arrivalPlace.coordinates.lat,
+          lon: arrivalPlace.coordinates.lon,
+        };
+
+        // 경로 설정 및 페이지 이동
+        resetRoute();
+        setDepartureArrival(departureLocation, arrivalLocation);
+        setSelectedDeparture(departureLocation);
+        setSelectedArrival(arrivalLocation);
+        onNavigate?.("route");
+      } else {
+        alert("출발지 또는 도착지를 찾을 수 없습니다.");
+      }
+    } catch (error) {
+      console.error("경로 검색 기록 클릭 처리 실패:", error);
+      alert("경로 검색 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 최근 경로 검색 기록 단건 삭제
+  const handleDeleteRouteHistory = async (historyId: number) => {
+    try {
+      // 먼저 화면에서 바로 제거 (UI 우선)
+      setRouteSearchHistories((prev) => prev.filter((h) => h.id !== historyId));
+      // 이후 서버에 삭제 요청 (실패해도 UI는 유지)
+      await routeService.deleteRouteSearchHistory(historyId);
+    } catch {
+      // 에러는 콘솔만 조용히 무시 (UI는 유지)
+    }
+  };
+
+  // 최근 경로 검색 기록 전체 삭제
+  const handleClearRouteHistories = async () => {
+    if (routeSearchHistories.length === 0) return;
+    try {
+      await routeService.clearRouteSearchHistories();
+      setRouteSearchHistories([]);
+    } catch (error) {
+      console.error("경로 검색 기록 전체 삭제 실패:", error);
     }
   };
 
@@ -1076,8 +1174,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                       return;
                     }
                   } else {
-                    // 출발지 검색
-                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1 });
+                    // 출발지 검색 (검색 기록 저장 안 함)
+                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1, save_history: false });
                     if (departureResult.status === "success" && departureResult.data && departureResult.data.length > 0) {
                       const place = departureResult.data[0];
                       departureLocation = {
@@ -1092,8 +1190,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     }
                   }
 
-                  // 도착지 검색
-                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1 });
+                  // 도착지 검색 (검색 기록 저장 안 함)
+                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1, save_history: false });
                   if (arrivalResult.status === "success" && arrivalResult.data && arrivalResult.data.length > 0) {
                     const place = arrivalResult.data[0];
                     arrivalLocation = {
@@ -1255,65 +1353,129 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               <div className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4">
                 <div className="flex items-center justify-between">
                   <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
-                    최근 기록
+                    최근 검색 기록
                   </p>
-            <button
-                    type="button"
-              onClick={handleClearHistories}
-              disabled={searchHistories.length === 0 || isLoadingHistories}
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              전체 삭제
-            </button>
-            {/* 최근 기록 리스트 (최대 5개, 화면 전체 스크롤로 표시) */}
-            <div className="mt-8 space-y-2">
-              {isLoadingHistories && (
-                <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                  최근 검색 기록을 불러오는 중...
-                </p>
-              )}
-              {!isLoadingHistories && searchHistories.length === 0 && (
-                <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                  최근 검색 기록이 없습니다.
-                </p>
-              )}
-              {searchHistories.map((history) => (
-                <div
-                  key={history.id}
-                  className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
-                >
-                  <span 
-                    className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
-                    onClick={() => handleHistoryClick(history)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {history.keyword}
-                  </span>
                   <button
                     type="button"
-                    className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
-                    style={{ touchAction: 'manipulation' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteHistory(history.id);
-                    }}
+                    onClick={handleClearHistories}
+                    disabled={searchHistories.length === 0 || isLoadingHistories}
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    ✕
+                    전체 삭제
                   </button>
                 </div>
-              ))}
-            </div>
-          </div>
+                {/* 최근 기록 리스트 (최대 5개, 화면 전체 스크롤로 표시) */}
+                <div className="mt-8 space-y-2">
+                  {isLoadingHistories && (
+                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                      최근 검색 기록을 불러오는 중...
+                    </p>
+                  )}
+                  {!isLoadingHistories && searchHistories.length === 0 && (
+                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                      최근 검색 기록이 없습니다.
+                    </p>
+                  )}
+                  {searchHistories.map((history) => (
+                    <div
+                      key={history.id}
+                      className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
+                    >
+                      <span 
+                        className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                        onClick={() => handleHistoryClick(history)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {history.keyword}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
+                        style={{ touchAction: 'manipulation' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteHistory(history.id);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* 안내 메시지 (검색 기록이 없을 때만 표시) */}
-          {searchHistories.length === 0 && !isLoadingHistories && (
+              {/* 안내 메시지 (검색 기록이 없을 때만 표시) */}
+              {searchHistories.length === 0 && !isLoadingHistories && (
                 <div className="mt-4 rounded-[16px] bg-[#E6F6FF]/90 border border-black/10 px-4 py-5 text-center shadow-[0px_10px_22px_rgba(0,0,0,0.12)]">
                   <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[13px] text-black/35">
-                    아직 최근 기록이 없어요
+                    아직 최근 검색 기록이 없어요
                   </p>
                 </div>
-          )}
+              )}
+
+              {/* 최근 경로 기록 섹션 */}
+              <div className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4">
+                <div className="flex items-center justify-between">
+                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
+                    최근 경로 기록
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleClearRouteHistories}
+                    disabled={routeSearchHistories.length === 0 || isLoadingRouteHistories}
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    전체 삭제
+                  </button>
+                </div>
+                {/* 최근 경로 기록 리스트 (최대 5개) */}
+                <div className="mt-8 space-y-2">
+                  {isLoadingRouteHistories && (
+                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                      최근 경로 기록을 불러오는 중...
+                    </p>
+                  )}
+                  {!isLoadingRouteHistories && routeSearchHistories.length === 0 && (
+                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                      최근 경로 기록이 없습니다.
+                    </p>
+                  )}
+                  {routeSearchHistories.map((history) => (
+                    <div
+                      key={history.id}
+                      className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
+                    >
+                      <span
+                        className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                        onClick={() => handleRouteHistoryClick(history)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {history.departure.name} → {history.arrival.name}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
+                        style={{ touchAction: 'manipulation' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRouteHistory(history.id);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* 안내 메시지 (경로 기록이 없을 때만 표시) */}
+              {routeSearchHistories.length === 0 && !isLoadingRouteHistories && (
+                <div className="mt-4 rounded-[16px] bg-[#E6F6FF]/90 border border-black/10 px-4 py-5 text-center shadow-[0px_10px_22px_rgba(0,0,0,0.12)]">
+                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[13px] text-black/35">
+                    아직 최근 경로 기록이 없어요
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </>

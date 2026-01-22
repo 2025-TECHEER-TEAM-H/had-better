@@ -64,6 +64,7 @@ interface SearchParams {
   lon?: number;
   page?: number;
   limit?: number;
+  save_history?: boolean; // 검색 기록 저장 여부 (기본값: true)
 }
 
 // 즐겨찾기 타입
@@ -154,6 +155,7 @@ export async function searchPlaces(params: SearchParams): Promise<PlaceSearchRes
       ...(params.lon !== undefined && { lon: params.lon }),
       ...(params.page !== undefined && { page: params.page }),
       ...(params.limit !== undefined && { limit: params.limit }),
+      ...(params.save_history !== undefined && { save_history: params.save_history }),
     },
   });
   return response.data;

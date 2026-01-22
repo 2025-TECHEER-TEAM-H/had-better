@@ -1,9 +1,21 @@
+import characterGreenFront from "@/assets/character-green-front.png";
+
 function Container() {
   return (
-    <div className="bg-gradient-to-b from-[#48d448] relative rounded-[22590200px] shrink-0 size-[80px] to-[#3db83d]" data-name="Container">
+    <div className="bg-gradient-to-b from-[#48d448] relative rounded-[22590200px] shrink-0 size-[80px] to-[#3db83d] overflow-hidden" data-name="Container">
       <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[22590200px]" />
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
-        <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[40px] not-italic relative shrink-0 text-[#0a0a0a] text-[36px] tracking-[0.3691px]">👤</p>
+      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-0 relative size-full overflow-hidden">
+        <img
+          src={characterGreenFront}
+          alt="민트색 캐릭터"
+          className="object-contain"
+          style={{
+            imageRendering: 'pixelated',
+            width: '110%',
+            height: '110%',
+            transform: 'scale(1.1)',
+          }}
+        />
       </div>
     </div>
   );
@@ -44,8 +56,8 @@ function Container2() {
 
 function Container3() {
   return (
-    <div className="flex-[1_0_0] h-[67.976px] min-h-px min-w-px relative" data-name="Container">
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex flex-col gap-[3.997px] items-start relative size-full">
+    <div className="flex-[1_0_0] h-[75.976px] min-h-px min-w-px relative" data-name="Container">
+      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex flex-col gap-[3.997px] items-start relative size-full pt-[4px] pb-[4px]">
         <Heading />
         <Paragraph />
         <Container2 />
@@ -65,7 +77,7 @@ function Container4() {
 
 function Container5() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[133.375px] items-start pb-[2.693px] pt-[26.688px] px-[26.688px] relative rounded-[16px] shrink-0 w-[346.182px]" data-name="Container">
+    <div className="bg-white content-stretch flex flex-col h-[133.375px] items-start pb-[16px] pt-[40px] px-[26.688px] relative rounded-[16px] shrink-0 w-[346.182px]" data-name="Container">
       <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)]" />
       <Container4 />
     </div>
@@ -226,10 +238,8 @@ function Paragraph8() {
 function Container14() {
   return (
     <div className="flex-[1_0_0] h-[35.997px] min-h-px min-w-px relative" data-name="Container">
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid relative size-full">
-        <Paragraph7 />
-        <Paragraph8 />
-      </div>
+      <Paragraph7 />
+      <Paragraph8 />
     </div>
   );
 }
@@ -298,10 +308,8 @@ function Paragraph10() {
 function Container19() {
   return (
     <div className="flex-[1_0_0] h-[35.997px] min-h-px min-w-px relative" data-name="Container">
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid relative size-full">
-        <Paragraph9 />
-        <Paragraph10 />
-      </div>
+      <Paragraph9 />
+      <Paragraph10 />
     </div>
   );
 }
@@ -370,10 +378,8 @@ function Paragraph12() {
 function Container24() {
   return (
     <div className="h-[35.997px] relative shrink-0 w-[50.167px]" data-name="Container">
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid relative size-full">
-        <Paragraph11 />
-        <Paragraph12 />
-      </div>
+      <Paragraph11 />
+      <Paragraph12 />
     </div>
   );
 }
