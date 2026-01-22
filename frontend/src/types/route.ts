@@ -181,12 +181,16 @@ export interface CreateRouteRequest {
   bot_leg_ids: number[];
 }
 
+// 봇 타입 (색깔)
+export type BotColorType = 'green' | 'pink' | 'yellow' | 'purple';
+
 // 경주 참가자 정보
 export interface RouteParticipant {
   route_id: number;
   type: 'USER' | 'BOT';
   user_id: number | null;
   bot_id: number | null;
+  bot_type: BotColorType | null; // 봇 색깔 타입 (봇일 경우만)
   name: string | null;
   leg: {
     route_leg_id: number;

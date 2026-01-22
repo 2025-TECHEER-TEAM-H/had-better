@@ -477,76 +477,81 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   // 경로 라인 표시 (지도 로드 완료 후에만)
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
+    if (routeLines.length === 0) return;
 
     const mapInstance = map.current;
 
-    // 스타일이 로딩 중이면 무시
-    if (!mapInstance.isStyleLoaded()) return;
+    // 경로 라인 추가 함수
+    const addRouteLinesToMap = () => {
+      try {
+        // 기존 경로 레이어 및 소스 제거 (최대 10개까지)
+        for (let i = 0; i < 10; i++) {
+          const layerId = `route-line-${i}`;
+          const sourceId = `route-source-${i}`;
 
-    try {
-      // 기존 경로 레이어 및 소스 제거
-      routeLines.forEach((_, index) => {
-        const layerId = `route-line-${index}`;
-        const sourceId = `route-source-${index}`;
-
-        if (mapInstance.getLayer(layerId)) {
-          mapInstance.removeLayer(layerId);
+          if (mapInstance.getLayer(layerId)) {
+            mapInstance.removeLayer(layerId);
+          }
+          if (mapInstance.getSource(sourceId)) {
+            mapInstance.removeSource(sourceId);
+          }
         }
-        if (mapInstance.getSource(sourceId)) {
-          mapInstance.removeSource(sourceId);
-        }
-      });
 
-      // 이전에 추가된 레이어들도 정리 (최대 10개까지)
-      for (let i = 0; i < 10; i++) {
-        const layerId = `route-line-${i}`;
-        const sourceId = `route-source-${i}`;
+        // 새 경로 라인 추가
+        routeLines.forEach((route, index) => {
+          const sourceId = `route-source-${index}`;
+          const layerId = `route-line-${index}`;
 
-        if (mapInstance.getLayer(layerId)) {
-          mapInstance.removeLayer(layerId);
-        }
-        if (mapInstance.getSource(sourceId)) {
-          mapInstance.removeSource(sourceId);
-        }
-      }
-
-      // 새 경로 라인 추가
-      routeLines.forEach((route, index) => {
-        const sourceId = `route-source-${index}`;
-        const layerId = `route-line-${index}`;
-
-        // GeoJSON 소스 추가
-        mapInstance.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: route.coordinates,
+          // GeoJSON 소스 추가
+          mapInstance.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: route.coordinates,
+              },
             },
-          },
-        });
+          });
 
-        // 라인 레이어 추가
-        mapInstance.addLayer({
-          id: layerId,
-          type: 'line',
-          source: sourceId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-          },
-          paint: {
-            'line-color': route.color,
-            'line-width': route.width || 5,
-            'line-opacity': route.opacity || 0.8,
-          },
+          // 라인 레이어 추가
+          mapInstance.addLayer({
+            id: layerId,
+            type: 'line',
+            source: sourceId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: {
+              'line-color': route.color,
+              'line-width': route.width || 5,
+              'line-opacity': route.opacity || 0.8,
+            },
+          });
         });
-      });
-    } catch {
-      // 스타일 로딩 중 에러 무시
+      } catch {
+        // 스타일 로딩 중 에러 무시
+      }
+    };
+
+    // 스타일이 로딩 중이면 잠시 후 재시도
+    if (!mapInstance.isStyleLoaded()) {
+      const retryTimeout = setTimeout(() => {
+        if (mapInstance.isStyleLoaded()) {
+          addRouteLinesToMap();
+        } else {
+          setTimeout(() => {
+            addRouteLinesToMap();
+          }, 200);
+        }
+      }, 100);
+      return () => clearTimeout(retryTimeout);
     }
+
+    // 스타일이 이미 로드되어 있으면 바로 추가
+    addRouteLinesToMap();
 
     // 클린업
     return () => {
@@ -569,7 +574,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         // 지도가 제거된 경우 무시
       }
     };
-  }, [routeLines, isMapLoaded]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeLines, routeLines.length, isMapLoaded]);
 
   // 출발지/도착지 마커 표시
   useEffect(() => {
@@ -584,8 +590,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       const el = document.createElement("div");
       el.className = "endpoint-marker";
 
-      const bgColor = endpoint.type === 'departure' ? '#4CAF50' : '#F44336';
-      const icon = endpoint.type === 'departure' ? '🚩' : '🏁';
+      // 출발지: 녹색 깃발, 도착지: 빨간 깃발
+      const flagImage = endpoint.type === 'departure'
+        ? '/src/assets/flag_green.png'
+        : '/src/assets/flag-red.png';
 
       el.innerHTML = `
         <div style="
@@ -593,25 +601,23 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           flex-direction: column;
           align-items: center;
         ">
+          <img
+            src="${flagImage}"
+            alt="${endpoint.type === 'departure' ? '출발지' : '도착지'}"
+            style="
+              width: 32px;
+              height: 32px;
+              object-fit: contain;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            "
+          />
           <div style="
-            width: 44px;
-            height: 44px;
-            background: ${bgColor};
-            border: 3px solid black;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-          ">${icon}</div>
-          <div style="
-            margin-top: 4px;
-            padding: 4px 8px;
+            margin-top: 2px;
+            padding: 3px 6px;
             background: white;
             border: 2px solid black;
-            border-radius: 6px;
-            font-size: 11px;
+            border-radius: 4px;
+            font-size: 10px;
             font-weight: bold;
             white-space: nowrap;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
@@ -619,7 +625,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         </div>
       `;
 
-      const marker = new mapboxgl.Marker({ element: el })
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat(endpoint.coordinates)
         .addTo(map.current!);
 

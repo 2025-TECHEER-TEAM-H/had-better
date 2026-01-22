@@ -667,8 +667,24 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
   // 모든 플레이어가 경로를 선택했는지 확인
   const allAssigned = areAllAssigned();
-  // 버튼 활성화 조건
-  const canStartNavigation = allAssigned && !isCreatingRoute;
+
+  // 할당된 모든 경로의 상세 정보가 로드되었는지 확인
+  const allLegDetailsLoaded = useMemo(() => {
+    if (!allAssigned) return false;
+
+    const userLegId = assignments.get('user');
+    const bot1LegId = assignments.get('bot1');
+    const bot2LegId = assignments.get('bot2');
+
+    return (
+      userLegId !== undefined && legDetails.has(userLegId) &&
+      bot1LegId !== undefined && legDetails.has(bot1LegId) &&
+      bot2LegId !== undefined && legDetails.has(bot2LegId)
+    );
+  }, [allAssigned, assignments, legDetails]);
+
+  // 버튼 활성화 조건: 모든 경로 할당 + 상세 정보 로드 완료 + 생성 중 아님
+  const canStartNavigation = allAssigned && allLegDetailsLoaded && !isCreatingRoute;
 
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)
   if (isWebView) {
@@ -710,7 +726,11 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                   canStartNavigation ? "text-white" : "text-[#4a5565]"
                 }`}
               >
-                {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
+                {isCreatingRoute
+                  ? "경주 생성 중..."
+                  : allAssigned && !allLegDetailsLoaded
+                    ? "경로 로딩 중..."
+                    : "이동 시작! 🏁"}
               </p>
             </button>
           </div>
@@ -777,18 +797,22 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 canStartNavigation ? "text-white" : "text-[#4a5565]"
               }`}
             >
-              {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
+              {isCreatingRoute
+                ? "경주 생성 중..."
+                : allAssigned && !allLegDetailsLoaded
+                  ? "경로 로딩 중..."
+                  : "이동 시작! 🏁"}
             </p>
           </button>
         </div>
       </div>
 
-      {/* 닫기 버튼 */}
+      {/* 뒤로가기 버튼 - 레이어/현재위치 버튼 아래에 배치 (48x48, 레이어 버튼과 동일 사이즈) */}
       <button
         onClick={onBack}
-        className="absolute top-5 right-5 bg-white rounded-[14px] size-[40px] flex items-center justify-center border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all pointer-events-auto z-10"
+        className="absolute top-[136px] right-4 bg-white rounded-[12px] size-[48px] flex items-center justify-center border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors pointer-events-auto z-20"
       >
-        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">←</p>
+        <span className="text-[20px]">←</span>
       </button>
     </div>
   );
