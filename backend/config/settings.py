@@ -204,6 +204,16 @@ CELERY_TIMEZONE = "Asia/Seoul"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30분
 
+# Celery Beat 스케줄 설정
+# 버스 위치 전체 조회 태스크 비활성화 - 사용자 지정 버스만 추적하는 방식으로 변경
+# API 호출량 절감: 15개 노선 × 60초 = 일 21,600회 → 사용자 지정 5개 × 30초 = 일 14,400회
+CELERY_BEAT_SCHEDULE = {
+    # "fetch-bus-positions-every-60-seconds": {
+    #     "task": "apps.routes.tasks.fetch_all_bus_positions",
+    #     "schedule": 60.0,
+    # },
+}
+
 
 # Redis 설정 (봇 상태 캐시)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

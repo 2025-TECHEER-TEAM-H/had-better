@@ -23,6 +23,7 @@ from .serializers import (
     RouteLegSummarySerializer,
     RouteSearchRequestSerializer,
     SearchItineraryHistoryDetailSerializer,
+    SearchItineraryHistorySerializer,
 )
 from .services import TmapAPIError, TmapTransitService
 
@@ -209,6 +210,16 @@ class RouteSearchView(APIView):
                     )
 
             # SearchItineraryHistory 생성 (사용자 검색 기록)
+            # 동일한 출발지/도착지 조합에 대한 이전 검색 기록은 soft delete 처리하여
+            # 항상 "가장 최근 검색 1개만" 활성 상태로 남도록 정리
+            SearchItineraryHistory.objects.filter(
+                user=request.user,
+                departure_name=data['departure_name'],
+                arrival_name=data['arrival_name'],
+                deleted_at__isnull=True,
+            ).update(deleted_at=timezone.now())
+
+            # 새 기록 생성 (DB에는 계속 누적 저장, UI에서만 5개 제한)
             search_history = SearchItineraryHistory.objects.create(
                 user=request.user,
                 route_itinerary=route_itinerary,
@@ -233,17 +244,83 @@ class RouteSearchView(APIView):
 
 @extend_schema_view(
     get=extend_schema(
+        summary='최근 경로 검색 기록 목록 조회',
+        description='사용자의 최근 경로 검색 기록을 조회합니다.',
+        tags=['경로 검색'],
+        responses={200: None}
+    ),
+    delete=extend_schema(
+        summary='최근 경로 검색 기록 전체 삭제',
+        description='사용자의 모든 경로 검색 기록을 삭제합니다.',
+        tags=['경로 검색'],
+        responses={200: None}
+    )
+)
+class SearchItineraryHistoryListView(APIView):
+    """
+    최근 경로 검색 기록 목록 조회/전체 삭제 API
+
+    GET /api/v1/itineraries/search-histories - 최근 경로 검색 기록 목록 조회
+    DELETE /api/v1/itineraries/search-histories - 최근 경로 검색 기록 전체 삭제
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        최근 경로 검색 기록 목록 조회
+
+        쿼리 파라미터:
+        - limit: 조회할 개수 (기본값: 10)
+        """
+        limit = request.query_params.get("limit", 10)
+        try:
+            limit = int(limit)
+        except ValueError:
+            limit = 10
+
+        # 현재 사용자의 검색 기록만 조회 (삭제되지 않은 데이터만, 최신순)
+        histories = SearchItineraryHistory.objects.filter(
+            user=request.user, deleted_at__isnull=True
+        ).order_by('-created_at')[:limit]
+
+        serializer = SearchItineraryHistorySerializer(histories, many=True)
+        return success_response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        """
+        최근 경로 검색 기록 전체 삭제 (소프트 딜리트)
+        """
+        deleted_count = SearchItineraryHistory.objects.filter(
+            user=request.user, deleted_at__isnull=True
+        ).update(deleted_at=timezone.now())
+
+        return success_response(
+            data={"deleted_count": deleted_count},
+            status=status.HTTP_200_OK
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
         summary='경로 검색 결과 조회',
         description='저장된 경로 검색 결과를 조회합니다.',
+        tags=['경로 검색'],
+        responses={200: None}
+    ),
+    delete=extend_schema(
+        summary='경로 검색 기록 단건 삭제',
+        description='특정 경로 검색 기록을 삭제합니다.',
         tags=['경로 검색'],
         responses={200: None}
     )
 )
 class SearchItineraryHistoryDetailView(APIView):
     """
-    경로 검색 결과 조회 API
+    경로 검색 결과 조회/단건 삭제 API
 
-    GET /api/v1/itineraries/search/{search_itinerary_history_id}
+    GET /api/v1/itineraries/search/{search_itinerary_history_id} - 경로 검색 결과 조회
+    DELETE /api/v1/itineraries/search/{search_itinerary_history_id} - 경로 검색 기록 단건 삭제
     """
 
     permission_classes = [IsAuthenticated]
@@ -264,6 +341,27 @@ class SearchItineraryHistoryDetailView(APIView):
 
         return success_response(
             data=SearchItineraryHistoryDetailSerializer(search_history).data,
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request, search_itinerary_history_id):
+        """
+        경로 검색 기록 단건 삭제 (소프트 딜리트)
+        """
+        try:
+            search_history = SearchItineraryHistory.objects.get(
+                id=search_itinerary_history_id,
+                user=request.user,
+                deleted_at__isnull=True
+            )
+        except SearchItineraryHistory.DoesNotExist:
+            raise NotFound('검색 기록을 찾을 수 없습니다.')
+
+        search_history.deleted_at = timezone.now()
+        search_history.save()
+
+        return success_response(
+            data={"id": search_history.id},
             status=status.HTTP_200_OK
         )
 

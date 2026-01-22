@@ -9,9 +9,9 @@ function Container() {
 
 function Heading() {
   return (
-    <div className="h-[23.995px] relative shrink-0 w-[159.968px]" data-name="Heading 1">
+    <div className="h-[23.995px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shrink-0 w-[159.968px]" data-name="Heading 1">
       <div className="bg-clip-padding border-0 border-[transparent] border-solid relative size-full">
-        <p className="absolute css-4hzbpn font-['Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[24px] left-0 not-italic text-black text-[18px] top-[-0.63px]">나노 바나나</p>
+        <p className="absolute css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[24px] left-1/2 -translate-x-1/2 not-italic text-[#2d5f3f] text-[18px] top-[-0.63px] whitespace-nowrap">Dashboard</p>
       </div>
     </div>
   );
@@ -57,25 +57,6 @@ function Container1({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function CharacterDisplay() {
-  return (
-    <div className="flex justify-center items-center py-4">
-      <div className="relative">
-        <img
-          src={characterGreenFront}
-          alt="Character"
-          className="w-[120px] h-[120px] object-contain"
-        />
-        {/* Sparkles around character */}
-        <div className="absolute top-2 left-2 w-2 h-2 bg-white rounded-full opacity-80" style={{ boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
-        <div className="absolute top-4 right-4 w-1.5 h-1.5 bg-white rounded-full opacity-70" style={{ boxShadow: "0 0 3px rgba(255,255,255,0.7)" }} />
-        <div className="absolute bottom-6 left-6 w-1.5 h-1.5 bg-white rounded-full opacity-70" style={{ boxShadow: "0 0 3px rgba(255,255,255,0.7)" }} />
-        <div className="absolute bottom-4 right-2 w-2 h-2 bg-white rounded-full opacity-80" style={{ boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
-      </div>
-    </div>
-  );
-}
-
 function Container2({ onClose }: { onClose?: () => void }) {
   return (
     <div
@@ -85,9 +66,9 @@ function Container2({ onClose }: { onClose?: () => void }) {
         background: "linear-gradient(180deg, rgba(240,253,250,0.95) 0%, rgba(255,255,255,1) 100%)",
       }}
     >
-      <div className="content-stretch flex flex-col items-start pb-[2.693px] pt-[16px] px-[16px] relative">
+      <div className="content-stretch flex flex-col items-start pb-[2.693px] pt-[32px] px-[16px] relative">
         <Container1 onClose={onClose} />
-        <CharacterDisplay />
+        {/* CharacterDisplay 제거 - 프로필이 맨 위부터 시작하도록 */}
       </div>
     </div>
   );
@@ -96,7 +77,7 @@ function Container2({ onClose }: { onClose?: () => void }) {
 function Container3() {
   return (
     <div
-      className="relative rounded-[22590200px] shrink-0 size-[80px]"
+      className="relative rounded-[22590200px] shrink-0 size-[80px] overflow-hidden"
       data-name="Container"
       style={{
         background: "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(110,231,183,0.75) 100%)",
@@ -106,8 +87,18 @@ function Container3() {
         WebkitBackdropFilter: "blur(12px) saturate(150%)",
       }}
     >
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
-        <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[40px] not-italic relative shrink-0 text-[#0a0a0a] text-[36px] tracking-[0.3691px]">👤</p>
+      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-0 relative size-full overflow-hidden">
+        <img
+          src={characterGreenFront}
+          alt="민트색 캐릭터"
+          className="object-contain"
+          style={{
+            imageRendering: 'pixelated',
+            width: '110%',
+            height: '110%',
+            transform: 'scale(1.1)',
+          }}
+        />
       </div>
     </div>
   );
@@ -162,15 +153,24 @@ function Container7() {
     <div className="content-stretch flex gap-[16px] items-center relative shrink-0 w-full" data-name="Container">
       {/* 아바타 */}
       <div
-        className="relative rounded-full shrink-0 size-[80px]"
+        className="relative rounded-full shrink-0 size-[80px] overflow-hidden"
         data-name="Avatar"
         style={{
           background: "#48d448",
           border: "2px solid black",
         }}
       >
-        <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
-          <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[40px] not-italic relative shrink-0 text-[#6b3fa0] text-[36px] tracking-[0.3691px]">👤</p>
+        <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[8px] relative size-full overflow-hidden">
+          <img
+            src={characterGreenFront}
+            alt="민트색 캐릭터"
+            className="w-full h-full object-contain"
+            style={{
+              imageRendering: 'pixelated',
+              maxWidth: '100%',
+              maxHeight: '100%',
+            }}
+          />
         </div>
       </div>
       {/* 사용자 정보 */}

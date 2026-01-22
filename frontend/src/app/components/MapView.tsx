@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import { useLocation } from "react-router-dom";
 import { MapCharacter } from "@/components/MapCharacter";
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
+import { trackBusPositions, getBusRoutePath } from "@/lib/api";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
 
@@ -141,6 +143,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
   const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(showSubwayLines); // 지하철 노선 레이어 상태
+  const [isBusLinesEnabled, setIsBusLinesEnabled] = useState(false); // 버스 노선 레이어 상태
+  const [showBusInputModal, setShowBusInputModal] = useState(false); // 버스 번호 입력 모달
+  const [busNumberInput, setBusNumberInput] = useState(""); // 버스 번호 입력값
+  const [trackedBusNumbers, setTrackedBusNumbers] = useState<string[]>([]); // 추적 중인 버스 번호
   const layerButtonRef = useRef<HTMLButtonElement>(null); // 레이어 버튼 ref
   const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
@@ -204,7 +210,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       }
       originalWarn.apply(console, args);
     };
-    
+
     // console.warn 필터링 적용
     console.warn = warnFilter;
 
@@ -249,7 +255,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     return () => {
       // console.warn 복원
       console.warn = originalWarn;
-      
+
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -796,9 +802,115 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     };
   }, [showSubwayLines, isSubwayLinesEnabled, isMapLoaded]);
 
+  // 버스 실시간 위치 레이어 표시/숨김 (사용자 지정 버스 번호 추적)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const mapInstance = map.current;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (isBusLinesEnabled && trackedBusNumbers.length > 0) {
+      // 사용자가 입력한 버스 번호로 실시간 위치 조회
+      const loadBusPositions = async () => {
+        try {
+          console.log("[BusLayer] 추적 버스 API 호출:", trackedBusNumbers);
+
+          const response = await trackBusPositions(trackedBusNumbers);
+
+          console.log(`[BusLayer] API 응답: ${response.buses.length}대 버스`);
+
+          if (response.buses.length > 0) {
+            updateAllBusPositions(mapInstance, response.buses);
+          }
+
+          // 경로 데이터 로드 (최초 1회만 - 경로는 변하지 않음)
+          if (response.meta.routes.length > 0) {
+            for (const route of response.meta.routes) {
+              const pathData = await getBusRoutePath(route.route_id);
+              if (pathData?.geojson) {
+                addBusRoutePath(mapInstance, route.route_id, route.bus_number, pathData.geojson);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
+        }
+      };
+
+      // 레이어 추가 후 데이터 로드
+      addBusLayers(mapInstance).then(() => {
+        toggleBusLayers(mapInstance, true);
+        loadBusPositions();
+      });
+
+      // 15초마다 위치 업데이트 (경로는 이미 추가되어 있으므로 중복 추가 안됨)
+      intervalId = setInterval(loadBusPositions, 15000);
+    } else if (isBusLinesEnabled && trackedBusNumbers.length === 0) {
+      // 버스 레이어 활성화했지만 추적할 버스가 없으면 입력 모달 표시
+      setShowBusInputModal(true);
+    } else {
+      // 레이어 숨김
+      toggleBusLayers(mapInstance, false);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (mapInstance && mapInstance.getStyle()) {
+        try {
+          clearBusData(mapInstance);
+          clearAllBusRoutePaths(mapInstance);
+          removeBusLayers(mapInstance);
+        } catch {
+          // 지도가 이미 제거된 경우 무시
+        }
+      }
+    };
+  }, [isBusLinesEnabled, trackedBusNumbers, isMapLoaded]);
+
   // 지하철 노선 토글 핸들러
   const handleSubwayLinesToggle = useCallback(() => {
     setIsSubwayLinesEnabled((prev) => !prev);
+  }, []);
+
+  // 버스 노선 토글 핸들러
+  const handleBusLinesToggle = useCallback(() => {
+    if (!isBusLinesEnabled) {
+      // 켤 때: 모달 표시
+      setShowBusInputModal(true);
+    } else {
+      // 끌 때: 레이어 비활성화 및 추적 초기화
+      setIsBusLinesEnabled(false);
+      setTrackedBusNumbers([]);
+      setBusNumberInput("");
+      // 경로 및 마커 데이터 정리
+      if (map.current) {
+        clearBusData(map.current);
+        clearAllBusRoutePaths(map.current);
+      }
+    }
+  }, [isBusLinesEnabled]);
+
+  // 버스 번호 입력 확인 핸들러
+  const handleBusInputConfirm = useCallback(() => {
+    const numbers = busNumberInput
+      .split(/[,\s]+/) // 쉼표 또는 공백으로 분리
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+      .slice(0, 5); // 최대 5개
+
+    if (numbers.length > 0) {
+      setTrackedBusNumbers(numbers);
+      setIsBusLinesEnabled(true);
+      setShowBusInputModal(false);
+    }
+  }, [busNumberInput]);
+
+  // 버스 입력 모달 취소 핸들러
+  const handleBusInputCancel = useCallback(() => {
+    setShowBusInputModal(false);
+    setBusNumberInput("");
   }, []);
 
   // 자동 현재 위치 이동 제거
@@ -918,7 +1030,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     setIsMapLoaded(false);
 
     // 스타일 변경 (diff: false로 경고 방지)
-    map.current.setStyle(MAP_STYLES[style].url, { diff: false });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map.current.setStyle(MAP_STYLES[style].url, { diff: false } as any);
 
     // 스타일 로드 후 상태 복원 및 한국어 라벨 적용
     map.current.once("style.load", () => {
@@ -1228,7 +1341,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                     }`}
                   >
                     <span className="text-lg">🚇</span>
-                    <span className="text-sm font-medium">지하철 노선</span>
+                    <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
                     {/* 토글 스위치 */}
                     <div
                       className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
@@ -1238,6 +1351,33 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                       <div
                         className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
                           isSubwayLinesEnabled
+                            ? "translate-x-5 bg-white"
+                            : "translate-x-0.5 bg-white"
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* 버스 노선 토글 */}
+                  <button
+                    onClick={handleBusLinesToggle}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      isBusLinesEnabled
+                        ? "bg-[#3366FF] text-white"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className="text-lg">🚌</span>
+                    <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                    {/* 토글 스위치 */}
+                    <div
+                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
+                        isBusLinesEnabled ? "bg-white/30" : "bg-gray-300"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                          isBusLinesEnabled
                             ? "translate-x-5 bg-white"
                             : "translate-x-0.5 bg-white"
                         }`}
@@ -1290,6 +1430,62 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                 <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 버스 번호 입력 모달 */}
+      {showBusInputModal && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-[16px] shadow-[4px_4px_0px_0px_black] border-3 border-black p-6 mx-4 max-w-[400px] w-full">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">
+              버스 번호 입력
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
+            </p>
+            <input
+              type="text"
+              value={busNumberInput}
+              onChange={(e) => setBusNumberInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleBusInputConfirm();
+                }
+              }}
+              placeholder="예: 360, 472, 151"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-[12px] text-base focus:outline-none focus:border-[#4a9960] mb-4"
+              autoFocus
+            />
+            {trackedBusNumbers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-500 mb-2">현재 추적 중:</p>
+                <div className="flex flex-wrap gap-2">
+                  {trackedBusNumbers.map((num) => (
+                    <span
+                      key={num}
+                      className="px-3 py-1 bg-[#4a9960] text-white text-sm rounded-full"
+                    >
+                      {num}번
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleBusInputCancel}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-[12px] hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleBusInputConfirm}
+                className="flex-1 py-3 bg-[#4a9960] text-white font-medium rounded-[12px] hover:bg-[#3d8050] transition-colors"
+              >
+                확인
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -15,14 +15,20 @@ function LogoutButton({ onClick }: { onClick?: () => void }) {
       className="content-stretch flex flex-col items-center justify-center px-[130.366px] py-[25.366px] relative rounded-full w-full transition-all cursor-pointer"
       data-name="Button"
       style={{
-        background: "black",
+        background: "#b91c1c",
         boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(0,0,0,0.85)";
+        e.currentTarget.style.background = "#991b1b";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = "black";
+        e.currentTarget.style.background = "#b91c1c";
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.background = "#7f1d1d";
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.background = "#991b1b";
       }}
     >
       <Text />
