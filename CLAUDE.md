@@ -163,14 +163,14 @@ had-better/
 
 1. Client → Traefik → Django (요청 처리)
 2. Django → RabbitMQ (Celery Task 생성)
-3. RabbitMQ → Celery Worker → External API (5초 주기 호출)
+3. RabbitMQ → Celery Worker → External API (30초/15초 동적 주기 호출)
 4. Celery → RabbitMQ (Topic Exchange) → Django (Consumer) → Client (SSE Stream)
 
 ### 실시간 통신
 
 - SSE (Server-Sent Events)로 봇 상태 전송
 - 프론트엔드에서 Turf.js로 애니메이션 처리
-- 5초 주기 `bot_status_update` 이벤트
+- 30초/15초 동적 주기 `bot_status_update` 이벤트 (도착 임박 시 15초)
 
 ## API 구조
 
@@ -223,7 +223,7 @@ Base URL: `http://localhost:8000` (개발) / `https://api.hadbetter.com` (프로
 ### SSE 이벤트 타입
 
 - `connected`: 연결 성공
-- `bot_status_update`: 봇 상태 (5초 주기)
+- `bot_status_update`: 봇 상태 (30초/15초 동적 주기)
 - `bot_boarding`: 봇 탑승
 - `bot_alighting`: 봇 하차
 - `participant_finished`: 참가자 도착

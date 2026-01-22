@@ -69,6 +69,7 @@ export function MovingCharacter({
 
   // refs
   const previousPositionRef = useRef<Coordinate | null>(null);
+  const interpolationFromRef = useRef<Coordinate | null>(null);  // 보간 시작 위치 (별도 저장)
   const routeLineRef = useRef<Feature<LineString> | null>(null);
   const interpolationStateRef = useRef<InterpolationState | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -142,18 +143,22 @@ export function MovingCharacter({
       prevPos.lon !== currentPosition.lon ||
       prevPos.lat !== currentPosition.lat;
 
+    // 보간 시작 위치 저장 (애니메이션에서 사용)
+    // 이전 위치가 없으면 현재 위치를 시작점으로 사용
+    interpolationFromRef.current = prevPos ? { ...prevPos } : { ...currentPosition };
+
     // 경로선이 있으면 경로 기반 보간, 없으면 직선 보간
     if (routeLineRef.current) {
       interpolationStateRef.current = createInterpolationState(
         routeLineRef.current,
-        previousPositionRef.current,
+        interpolationFromRef.current,
         currentPosition,
         updateInterval
       );
     } else {
       // 직선 보간용 상태 (경로선 없을 때)
       interpolationStateRef.current = {
-        isInterpolating: true,
+        isInterpolating: hasChanged,  // 위치가 바뀌었을 때만 보간
         startDistance: 0,
         endDistance: 1,
         startTime: Date.now(),
@@ -162,8 +167,8 @@ export function MovingCharacter({
       };
     }
 
-    // 이전 위치 업데이트
-    previousPositionRef.current = currentPosition;
+    // 이전 위치 업데이트 (다음 보간을 위해)
+    previousPositionRef.current = { ...currentPosition };
   }, [currentPosition, botId, updateInterval, status]);
 
   // 애니메이션 루프 (보간)
@@ -183,23 +188,23 @@ export function MovingCharacter({
           if (result.isComplete) {
             interpState.isInterpolating = false;
           }
-        } else if (previousPositionRef.current && currentPosition) {
+        } else if (interpolationFromRef.current && currentPosition) {
           // 직선 보간 (경로선 없을 때)
           const elapsed = Date.now() - interpState.startTime;
           const t = Math.min(elapsed / interpState.duration, 1);
 
-          const prev = previousPositionRef.current;
-          const curr = currentPosition;
+          const from = interpolationFromRef.current;
+          const to = currentPosition;
 
-          const lon = prev.lon + (curr.lon - prev.lon) * t;
-          const lat = prev.lat + (curr.lat - prev.lat) * t;
+          const lon = from.lon + (to.lon - from.lon) * t;
+          const lat = from.lat + (to.lat - from.lat) * t;
 
           setDisplayPosition([lon, lat]);
 
           // 방향 계산
           const newBearing = calculateBearing(
-            [prev.lon, prev.lat],
-            [curr.lon, curr.lat]
+            [from.lon, from.lat],
+            [to.lon, to.lat]
           );
           setBearing(newBearing);
 
@@ -271,7 +276,7 @@ export function MovingCharacter({
         width: `${size}px`,
         height: `${size}px`,
         transform: 'translate(-50%, -100%)',
-        zIndex: 100 + botId, // 봇 ID로 z-index 구분
+        zIndex: 5 + botId, // 봇 ID로 z-index 구분 (UI보다 낮게)
       }}
       onClick={onClick}
     >
