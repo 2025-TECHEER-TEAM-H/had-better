@@ -836,8 +836,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         loadBusPositions();
       });
 
-      // 30초마다 위치 업데이트 (경로는 이미 추가되어 있으므로 중복 추가 안됨)
-      intervalId = setInterval(loadBusPositions, 30000);
+      // 15초마다 위치 업데이트 (경로는 이미 추가되어 있으므로 중복 추가 안됨)
+      intervalId = setInterval(loadBusPositions, 15000);
     } else if (isBusLinesEnabled && trackedBusNumbers.length === 0) {
       // 버스 레이어 활성화했지만 추적할 버스가 없으면 입력 모달 표시
       setShowBusInputModal(true);

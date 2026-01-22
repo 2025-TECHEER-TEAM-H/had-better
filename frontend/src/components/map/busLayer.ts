@@ -4,7 +4,7 @@
  * 기능:
  * - 노선별 운행 중인 버스의 실시간 GPS 위치 표시 (귀여운 버스 아이콘)
  * - 버스 아이콘 클릭 시 정보 팝업 (다음 정류장, 차량번호 등)
- * - 30초 간격 자동 업데이트 + 부드러운 보간 애니메이션
+ * - 15초 간격 자동 업데이트 + 부드러운 보간 애니메이션
  *
  * 버스 유형별 색상:
  * - 간선버스 (파랑): 100~399번대
@@ -39,9 +39,9 @@ interface BusPositionData extends BusRealtimePosition {
   last_update: number;
 }
 
-// API 업데이트 주기 (30초)
-// 30초 동안 버스가 이동하는 거리(약 150~250m)는 짧아서 직선 보간해도 건물을 크게 뚫지 않음
-const API_UPDATE_INTERVAL = 30000;
+// API 업데이트 주기 (15초)
+// 15초 동안 버스가 이동하는 거리(약 75~125m)는 짧아서 직선 보간해도 건물을 크게 뚫지 않음
+const API_UPDATE_INTERVAL = 15000;
 
 // 현재 팝업 참조
 let currentPopup: mapboxgl.Popup | null = null;
