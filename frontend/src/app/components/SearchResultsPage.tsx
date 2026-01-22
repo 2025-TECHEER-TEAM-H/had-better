@@ -126,6 +126,9 @@ export function SearchResultsPage({
     try {
       const response = await placeService.getSavedPlaces();
       if (response.status === "success" && response.data) {
+        // 모든 카테고리 포함 (일반 즐겨찾기 + 집/회사/학교)
+        // 자주가는곳에 저장된 장소도 별이 색칠되어 보이도록 함
+        
         // poi_place_id -> saved_place_id 매핑 생성
         const map = new Map<number, number>();
         response.data.forEach((savedPlace) => {
@@ -145,6 +148,16 @@ export function SearchResultsPage({
       loadSavedPlaces();
     }
   }, [isOpen]);
+
+  // savedPlaceUpdated 이벤트 리스너 (자주가는곳 목록 갱신 시)
+  useEffect(() => {
+    const handler = () => {
+      // 자주가는곳 목록이 갱신되면 즐겨찾기 목록도 다시 로드
+      loadSavedPlaces();
+    };
+    window.addEventListener("savedPlaceUpdated", handler);
+    return () => window.removeEventListener("savedPlaceUpdated", handler);
+  }, []);
 
   // FavoritesPlaces / PlaceDetailPage 등에서 즐겨찾기 변경 시 동기화
   useEffect(() => {
@@ -316,6 +329,8 @@ export function SearchResultsPage({
                 detail: { deletedPoiIds: [poiPlaceId] },
               })
             );
+            // 자주가는곳 목록도 갱신되도록 이벤트 발생
+            window.dispatchEvent(new CustomEvent("savedPlaceUpdated"));
           } else {
             // 실패 시 롤백
             setSearchResults((prev) =>
@@ -341,6 +356,8 @@ export function SearchResultsPage({
                 detail: { deletedPoiIds: [poiPlaceId] },
               })
             );
+            // 자주가는곳 목록도 갱신되도록 이벤트 발생
+            window.dispatchEvent(new CustomEvent("savedPlaceUpdated"));
           } else {
             // 다른 에러인 경우 롤백
             setSearchResults((prev) =>
@@ -352,9 +369,10 @@ export function SearchResultsPage({
           }
         }
       } else {
-        // 즐겨찾기 추가
+        // 즐겨찾기 추가 (category를 null로 명시적으로 설정하여 일반 즐겨찾기로 추가)
         const response = await placeService.addSavedPlace({
           poi_place_id: poiPlaceId,
+          category: null, // 일반 즐겨찾기 (집/회사/학교가 아님)
         });
         if (response.status === "success" && response.data) {
           // 매핑에 추가

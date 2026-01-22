@@ -1506,6 +1506,14 @@ export default function MapScreen() {
         size={80}
         animationSpeed={200}
       />
+
+      {/* Purple 캐릭터 - 왼쪽 하단 */}
+      <AnimatedCharacter
+        color="purple"
+        position={{ x: 550, y: 500 }}
+        size={80}
+        animationSpeed={170}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // 캐릭터 색상 타입
-export type CharacterColor = 'green' | 'pink' | 'yellow';
+export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple';
 
 interface AnimatedCharacterProps {
   color: CharacterColor;

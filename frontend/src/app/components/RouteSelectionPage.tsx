@@ -1,9 +1,14 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { MapView, type RouteLineInfo, type EndpointMarker } from "./MapView";
+import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { searchRoutes, getRouteLegDetail, createRoute } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES } from "@/types/route";
+import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES, type BotStatusUpdateEvent } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
+
+// 숫자 이모지 배열 (1~10)
+const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -44,6 +49,51 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [startHeight, setStartHeight] = useState(40);
   const [isWebView, setIsWebView] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapViewRef = useRef<MapViewRef>(null);
+
+  // SSE 관련 상태
+  const [activeRouteId, setActiveRouteId] = useState<number | null>(null);
+  const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
+
+  // SSE 연결
+  const { status, botStates, connect, disconnect } = useRouteSSE(
+    activeRouteId,
+    {
+      onConnected: (data) => {
+        console.log('✅ SSE 연결됨:', data.message);
+      },
+      onBotStatusUpdate: (data) => {
+        console.log(`🤖 봇 ${data.bot_id} 위치 업데이트:`, data.position);
+        setBotPositions((prev) => {
+          const next = new Map(prev);
+          next.set(data.bot_id, data);
+          return next;
+        });
+      },
+      onBotBoarding: (data) => {
+        console.log(`🚌 봇 ${data.bot_id} 탑승:`, data.station_name);
+      },
+      onBotAlighting: (data) => {
+        console.log(`🚶 봇 ${data.bot_id} 하차:`, data.station_name);
+      },
+      onParticipantFinished: (data) => {
+        console.log(`🏁 참가자 도착! 순위: ${data.rank}위`);
+      },
+      onRouteEnded: (data) => {
+        console.log(`🎉 경주 종료: ${data.reason}`);
+      },
+      onError: (error) => {
+        console.error('❌ SSE 에러:', error.message);
+      },
+    }
+  );
+
+  // SSE botStates 동기화
+  useEffect(() => {
+    if (botStates.size > 0) {
+      setBotPositions(new Map(botStates));
+    }
+  }, [botStates]);
 
   // 웹/앱 화면 감지
   useEffect(() => {
@@ -59,12 +109,22 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   // 경로 검색 (컴포넌트 마운트 시 또는 출발지/도착지 변경 시)
   useEffect(() => {
     const loadRoutes = async () => {
-      // store에 출발지/도착지가 없으면 기본값 설정 (데모용)
+      // store에 출발지/도착지가 없으면 에러 표시하고 검색하지 않음
       if (!departure || !arrival) {
-        const defaultDeparture = { name: "명동역", lat: 37.560970, lon: 126.985856 };
-        const defaultArrival = { name: "이태원역", lat: 37.534542, lon: 126.994596 };
-        setDepartureArrival(defaultDeparture, defaultArrival);
-        // 상태 변경 후 다음 렌더링에서 검색 실행
+        setError("출발지와 도착지를 설정해주세요.");
+        setLoading(false);
+        return;
+      }
+
+      // 좌표 유효성 검증
+      if (
+        isNaN(departure.lat) || isNaN(departure.lon) ||
+        isNaN(arrival.lat) || isNaN(arrival.lon) ||
+        departure.lat === 0 || departure.lon === 0 ||
+        arrival.lat === 0 || arrival.lon === 0
+      ) {
+        setError("출발지 또는 도착지 좌표가 유효하지 않습니다.");
+        setLoading(false);
         return;
       }
 
@@ -95,7 +155,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           endY: arrival.lat.toString(),
           departure_name: departure.name,
           arrival_name: arrival.name,
-          count: 5, // 5개 경로 요청
+          count: 10, // 10개 경로 요청
         });
 
         setSearchResponse(response);
@@ -169,20 +229,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         };
       }
 
-      // 경로 상세가 없으면 출발지-도착지 직선
-      if (departure && arrival) {
-        return {
-          id: `route-${leg.route_leg_id}`,
-          coordinates: [
-            [departure.lon, departure.lat],
-            [arrival.lon, arrival.lat],
-          ],
-          color: colorScheme.line,
-          width: 4,
-          opacity: 0.5,
-        };
-      }
-
+      // 경로 상세가 없으면 그리지 않음 (로딩 중)
       return {
         id: `route-${leg.route_leg_id}`,
         coordinates: [],
@@ -319,24 +366,53 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
 
   const handleStartNavigation = async () => {
-    if (!areAllAssigned() || !onNavigate || !searchResponse) return;
+    if (!areAllAssigned() || !onNavigate || !searchResponse) {
+      setError("모든 플레이어에게 경로를 할당해주세요.");
+      return;
+    }
+
+    // 출발지/도착지 검증
+    if (!departure || !arrival) {
+      setError("출발지와 도착지가 설정되지 않았습니다.");
+      return;
+    }
+
+    // 좌표 유효성 검증
+    if (
+      isNaN(departure.lat) || isNaN(departure.lon) ||
+      isNaN(arrival.lat) || isNaN(arrival.lon) ||
+      departure.lat === 0 || departure.lon === 0 ||
+      arrival.lat === 0 || arrival.lon === 0
+    ) {
+      setError("출발지 또는 도착지 좌표가 유효하지 않습니다.");
+      return;
+    }
 
     const userLegId = assignments.get('user');
     const bot1LegId = assignments.get('bot1');
     const bot2LegId = assignments.get('bot2');
 
     if (!userLegId || !bot1LegId || !bot2LegId) {
-      console.error("모든 플레이어에게 경로가 할당되어야 합니다.");
+      setError("모든 플레이어에게 경로가 할당되어야 합니다.");
+      return;
+    }
+
+    // route_itinerary_id 검증
+    if (!searchResponse.route_itinerary_id || searchResponse.route_itinerary_id <= 0) {
+      setError("경로 검색 결과가 유효하지 않습니다. 다시 검색해주세요.");
       return;
     }
 
     setIsCreatingRoute(true);
+    setError(null);
 
     try {
       console.log("경주 생성 요청:", {
         route_itinerary_id: searchResponse.route_itinerary_id,
         user_leg_id: userLegId,
         bot_leg_ids: [bot1LegId, bot2LegId],
+        departure,
+        arrival,
       });
 
       const response = await createRoute({
@@ -356,11 +432,34 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       // 스토어에 저장
       setCreateRouteResponse(response, userParticipant.route_id);
 
-      // 경로 상세 페이지로 이동
+      // 경로 상세 페이지로 이동 (RouteDetailPage에서 SSE가 자동으로 연결됨)
       onNavigate("routeDetail");
-    } catch (err) {
+    } catch (err: any) {
       console.error("경주 생성 실패:", err);
-      setError(err instanceof Error ? err.message : "경주 생성에 실패했습니다.");
+      
+      // Axios 에러인 경우 상세 메시지 추출
+      let errorMessage = "경주 생성에 실패했습니다.";
+      if (err?.response?.data?.error) {
+        const backendError = err.response.data.error;
+        errorMessage = backendError.message || errorMessage;
+        if (backendError.details) {
+          console.error("백엔드 에러 상세:", backendError.details);
+          // details가 객체인 경우 문자열로 변환
+          if (typeof backendError.details === 'object') {
+            const detailsStr = Object.entries(backendError.details)
+              .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+              .join(', ');
+            errorMessage += ` (${detailsStr})`;
+          } else {
+            errorMessage += ` (${backendError.details})`;
+          }
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      alert(`경주 생성 실패: ${errorMessage}\n\n출발지와 도착지를 확인하고 다시 시도해주세요.`);
     } finally {
       setIsCreatingRoute(false);
     }
@@ -417,7 +516,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                   {/* 경로 번호 아이콘 */}
                   <div className="bg-white size-[48px] border-[3px] border-black flex items-center justify-center shrink-0">
                     <p className="text-[24px]">
-                      {routeNumber === 1 ? "1️⃣" : routeNumber === 2 ? "2️⃣" : "3️⃣"}
+                      {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
                     </p>
                   </div>
 
@@ -525,14 +624,45 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     </div>
   );
 
+  // 봇별 캐릭터 색상
+  const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'green', 'purple'];
+
+  // 봇 목록 (SSE로부터 받은 botPositions)
+  const botList = Array.from(botPositions.entries()).map(([botId, state]) => ({
+    botId,
+    state,
+    color: BOT_COLORS[(botId - 1) % BOT_COLORS.length], // botId는 1부터 시작
+  }));
+
   // 지도 컨텐츠
   const mapContent = (
-    <MapView
-      currentPage="route"
-      routeLines={routeLines}
-      endpoints={endpoints}
-      fitToRoutes={true}
-    />
+    <>
+      <MapView
+        ref={mapViewRef}
+        currentPage="route"
+        routeLines={routeLines}
+        endpoints={endpoints}
+        fitToRoutes={true}
+      />
+
+      {/* MovingCharacter 컴포넌트들 - bot1, bot2만 SSE 데이터 사용 */}
+      {botList.map(({ botId, state, color }) => (
+        <MovingCharacter
+          key={botId}
+          map={mapViewRef.current?.map || null}
+          color={color}
+          botId={botId}
+          currentPosition={state.position}
+          status={state.status}
+          updateInterval={5000}
+          size={64}
+          animationSpeed={150}
+        />
+      ))}
+
+      {/* User 캐릭터 (GPS 기반 - 일단 임시 위치) */}
+      {/* TODO: 실제 GPS 위치로 업데이트 */}
+    </>
   );
 
   // 모든 플레이어가 경로를 선택했는지 확인

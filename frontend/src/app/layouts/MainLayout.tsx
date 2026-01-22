@@ -227,7 +227,10 @@ export function MainLayout() {
       >
         {/* 모바일: 백그라운드 지도 */}
         <div className="lg:hidden absolute inset-0">
-          <MapView onNavigate={handleNavigate} />
+          <MapView
+            onNavigate={handleNavigate}
+            currentPage={isMapPage ? "map" : "background"}
+          />
         </div>
 
         {/* 페이지 콘텐츠 */}
@@ -272,7 +275,7 @@ export function MainLayout() {
           </div>
         ) : (
           // 지도 표시
-          <MapView />
+          <MapView currentPage={isMapPage ? "map" : "background"} />
         )}
 
         {/* 데스크톱: 지도 전체 화면일 때 왼쪽 상단 돋보기 버튼 */}
