@@ -85,7 +85,7 @@
 
 1. **Client** 요청 → **Traefik** → **Django**
 2. **경주 시작 시:** **Django** → **RabbitMQ** (Celery Task 생성)
-3. **데이터 수집:** **RabbitMQ** → **Celery Worker** → **External API** (5초 주기 호출)
+3. **데이터 수집:** **RabbitMQ** → **Celery Worker** → **External API** (30초/15초 동적 주기 호출)
 4. **실시간 중계:** **Celery** → **RabbitMQ (Topic Exchange)** → **Django (Consumer)** → **Client (SSE Stream)**
 
 ---
