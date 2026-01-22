@@ -198,6 +198,79 @@ export async function notifyUserArrival(
   return response.data.data!;
 }
 
+// 최근 경로 검색 기록 타입
+export interface RouteSearchHistory {
+  id: number;
+  departure: {
+    name: string;
+  };
+  arrival: {
+    name: string;
+  };
+  created_at: string;
+}
+
+// 최근 경로 검색 기록 목록 응답 타입
+interface RouteSearchHistoryListResponse {
+  status: 'success' | 'error';
+  data?: RouteSearchHistory[];
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * 최근 경로 검색 기록 목록 조회 API
+ * @param limit 조회할 개수 (기본값: 10)
+ * @returns 최근 경로 검색 기록 배열
+ */
+export async function getRouteSearchHistories(
+  limit: number = 10
+): Promise<RouteSearchHistoryListResponse> {
+  const response = await api.get<ApiResponse<RouteSearchHistory[]>>(
+    '/itineraries/search-histories',
+    {
+      params: { limit },
+    }
+  );
+
+  if (response.data.status === 'error') {
+    throw new Error(
+      response.data.error?.message || '최근 경로 검색 기록 조회에 실패했습니다.'
+    );
+  }
+
+  return {
+    status: response.data.status,
+    data: response.data.data,
+    error: response.data.error,
+  };
+}
+
+/**
+ * 최근 경로 검색 기록 전체 삭제 API
+ */
+export async function clearRouteSearchHistories(): Promise<void> {
+  await api.delete('/itineraries/search-histories');
+}
+
+/**
+ * 최근 경로 검색 기록 단건 삭제 API
+ * @param historyId 검색 기록 ID
+ */
+export async function deleteRouteSearchHistory(historyId: number): Promise<void> {
+  const response = await api.delete<ApiResponse<{ id: number }>>(
+    `/itineraries/search/${historyId}`
+  );
+
+  if (response.data.status === 'error') {
+    throw new Error(
+      response.data.error?.message || '경로 검색 기록 삭제에 실패했습니다.'
+    );
+  }
+}
+
 // 기본 내보내기
 const routeService = {
   searchRoutes,
@@ -209,6 +282,9 @@ const routeService = {
   getRouteResult,
   updateRouteStatus,
   notifyUserArrival,
+  getRouteSearchHistories,
+  clearRouteSearchHistories,
+  deleteRouteSearchHistory,
 };
 
 export default routeService;

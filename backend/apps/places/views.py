@@ -96,8 +96,9 @@ class PlaceSearchView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 로그인 사용자인 경우 검색 기록 저장
-        if request.user.is_authenticated:
+        # 로그인 사용자인 경우 검색 기록 저장 (save_history 파라미터로 제어)
+        save_history = request.query_params.get("save_history", "true").lower() == "true"
+        if request.user.is_authenticated and save_history:
             # 동일 키워드에 대한 이전 검색 기록은 soft delete 처리하여
             # 항상 "가장 최근 검색 1개만" 활성 상태로 남도록 정리
             SearchPlaceHistory.objects.filter(
