@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { MapView, type RouteLineInfo, type EndpointMarker } from "./MapView";
+import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { searchRoutes, getRouteLegDetail, createRoute } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES } from "@/types/route";
+import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES, type BotStatusUpdateEvent } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -44,6 +46,51 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [startHeight, setStartHeight] = useState(40);
   const [isWebView, setIsWebView] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapViewRef = useRef<MapViewRef>(null);
+
+  // SSE 관련 상태
+  const [activeRouteId, setActiveRouteId] = useState<number | null>(null);
+  const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
+
+  // SSE 연결
+  const { status, botStates, connect, disconnect } = useRouteSSE(
+    activeRouteId,
+    {
+      onConnected: (data) => {
+        console.log('✅ SSE 연결됨:', data.message);
+      },
+      onBotStatusUpdate: (data) => {
+        console.log(`🤖 봇 ${data.bot_id} 위치 업데이트:`, data.position);
+        setBotPositions((prev) => {
+          const next = new Map(prev);
+          next.set(data.bot_id, data);
+          return next;
+        });
+      },
+      onBotBoarding: (data) => {
+        console.log(`🚌 봇 ${data.bot_id} 탑승:`, data.station_name);
+      },
+      onBotAlighting: (data) => {
+        console.log(`🚶 봇 ${data.bot_id} 하차:`, data.station_name);
+      },
+      onParticipantFinished: (data) => {
+        console.log(`🏁 참가자 도착! 순위: ${data.rank}위`);
+      },
+      onRouteEnded: (data) => {
+        console.log(`🎉 경주 종료: ${data.reason}`);
+      },
+      onError: (error) => {
+        console.error('❌ SSE 에러:', error.message);
+      },
+    }
+  );
+
+  // SSE botStates 동기화
+  useEffect(() => {
+    if (botStates.size > 0) {
+      setBotPositions(new Map(botStates));
+    }
+  }, [botStates]);
 
   // 웹/앱 화면 감지
   useEffect(() => {
@@ -356,7 +403,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       // 스토어에 저장
       setCreateRouteResponse(response, userParticipant.route_id);
 
-      // 경로 상세 페이지로 이동
+      // 경로 상세 페이지로 이동 (RouteDetailPage에서 SSE가 자동으로 연결됨)
       onNavigate("routeDetail");
     } catch (err) {
       console.error("경주 생성 실패:", err);
@@ -525,14 +572,45 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     </div>
   );
 
+  // 봇별 캐릭터 색상
+  const BOT_COLORS: CharacterColor[] = ['pink', 'yellow', 'green', 'purple'];
+
+  // 봇 목록 (SSE로부터 받은 botPositions)
+  const botList = Array.from(botPositions.entries()).map(([botId, state]) => ({
+    botId,
+    state,
+    color: BOT_COLORS[(botId - 1) % BOT_COLORS.length], // botId는 1부터 시작
+  }));
+
   // 지도 컨텐츠
   const mapContent = (
-    <MapView
-      currentPage="route"
-      routeLines={routeLines}
-      endpoints={endpoints}
-      fitToRoutes={true}
-    />
+    <>
+      <MapView
+        ref={mapViewRef}
+        currentPage="route"
+        routeLines={routeLines}
+        endpoints={endpoints}
+        fitToRoutes={true}
+      />
+
+      {/* MovingCharacter 컴포넌트들 - bot1, bot2만 SSE 데이터 사용 */}
+      {botList.map(({ botId, state, color }) => (
+        <MovingCharacter
+          key={botId}
+          map={mapViewRef.current?.map || null}
+          color={color}
+          botId={botId}
+          currentPosition={state.position}
+          status={state.status}
+          updateInterval={5000}
+          size={64}
+          animationSpeed={150}
+        />
+      ))}
+
+      {/* User 캐릭터 (GPS 기반 - 일단 임시 위치) */}
+      {/* TODO: 실제 GPS 위치로 업데이트 */}
+    </>
   );
 
   // 모든 플레이어가 경로를 선택했는지 확인

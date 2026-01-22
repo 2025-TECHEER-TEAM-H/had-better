@@ -135,6 +135,19 @@ export function MovingCharacter({
   useEffect(() => {
     if (!currentPosition) return;
 
+    // 이전 위치와 비교
+    const prevPos = previousPositionRef.current;
+    const hasChanged = !prevPos ||
+      prevPos.lon !== currentPosition.lon ||
+      prevPos.lat !== currentPosition.lat;
+
+    console.log(`🤖 봇 ${botId} 위치 업데이트:`, {
+      prev: prevPos ? `(${prevPos.lon.toFixed(6)}, ${prevPos.lat.toFixed(6)})` : 'null',
+      curr: `(${currentPosition.lon.toFixed(6)}, ${currentPosition.lat.toFixed(6)})`,
+      changed: hasChanged,
+      status: status
+    });
+
     // 경로선이 있으면 경로 기반 보간, 없으면 직선 보간
     if (routeLineRef.current) {
       interpolationStateRef.current = createInterpolationState(
@@ -157,9 +170,7 @@ export function MovingCharacter({
 
     // 이전 위치 업데이트
     previousPositionRef.current = currentPosition;
-
-    console.log(`🤖 봇 ${botId} 새 위치:`, currentPosition);
-  }, [currentPosition, botId, updateInterval]);
+  }, [currentPosition, botId, updateInterval, status]);
 
   // 애니메이션 루프 (보간)
   useEffect(() => {

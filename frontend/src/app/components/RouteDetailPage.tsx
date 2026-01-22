@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { MapView, type RouteLineInfo, type EndpointMarker, type PlayerMarker } from "./MapView";
+import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse } from "@/types/route";
+import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import * as turf from "@turf/turf";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -33,9 +35,59 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [startY, setStartY] = useState(0);
   const [startHeight, setStartHeight] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapViewRef = useRef<MapViewRef>(null);
   const [isWebView, setIsWebView] = useState(false);
   const [showResultPopup, setShowResultPopup] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // SSE 관련 상태
+  const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
+
+  // SSE 연결 (createRouteResponse에서 route_itinerary_id 가져옴)
+  const activeRouteId = createRouteResponse?.route_itinerary_id || null;
+  const { status, botStates, connect, disconnect } = useRouteSSE(
+    activeRouteId,
+    {
+      onConnected: (data) => {
+        console.log('✅ SSE 연결됨:', data.message);
+      },
+      onBotStatusUpdate: (data) => {
+        console.log(`🤖 봇 ${data.bot_id} 위치 업데이트:`, {
+          position: data.position,
+          status: data.status,
+          vehicle: data.vehicle,
+          progress: data.progress_percent
+        });
+        setBotPositions((prev) => {
+          const next = new Map(prev);
+          next.set(data.bot_id, data);
+          return next;
+        });
+      },
+      onBotBoarding: (data) => {
+        console.log(`🚌 봇 ${data.bot_id} 탑승:`, data.station_name);
+      },
+      onBotAlighting: (data) => {
+        console.log(`🚶 봇 ${data.bot_id} 하차:`, data.station_name);
+      },
+      onParticipantFinished: (data) => {
+        console.log(`🏁 참가자 도착! 순위: ${data.rank}위`);
+      },
+      onRouteEnded: (data) => {
+        console.log(`🎉 경주 종료: ${data.reason}`);
+      },
+      onError: (error) => {
+        console.error('❌ SSE 에러:', error.message);
+      },
+    }
+  );
+
+  // SSE botStates 동기화
+  useEffect(() => {
+    if (botStates.size > 0) {
+      setBotPositions(new Map(botStates));
+    }
+  }, [botStates]);
 
   // 경주 결과 상태
   const [routeResult, setRouteResult] = useState<RouteResultResponse | null>(null);
@@ -719,40 +771,41 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   }, []);
 
   // 플레이어 마커 생성 (GPS 또는 시뮬레이션 위치 기반)
-  const playerMarkers = useMemo<PlayerMarker[]>(() => {
-    const markers: PlayerMarker[] = [];
-    const players: Player[] = ['user', 'bot1', 'bot2'];
+  // 주석: MovingCharacter로 대체하여 사용하지 않음
+  // const playerMarkers = useMemo<PlayerMarker[]>(() => {
+  //   const markers: PlayerMarker[] = [];
+  //   const players: Player[] = ['user', 'bot1', 'bot2'];
 
-    players.forEach((player) => {
-      let position: [number, number] | null = null;
+  //   players.forEach((player) => {
+  //     let position: [number, number] | null = null;
 
-      // 유저: GPS 추적 중이면 실제 위치 사용, 아니면 시뮬레이션 위치
-      if (player === 'user' && isGpsTracking && userLocation) {
-        position = userLocation;
-      } else {
-        const progress = playerProgress.get(player) || 0;
-        position = getPositionOnRoute(player, progress);
-      }
+  //     // 유저: GPS 추적 중이면 실제 위치 사용, 아니면 시뮬레이션 위치
+  //     if (player === 'user' && isGpsTracking && userLocation) {
+  //       position = userLocation;
+  //     } else {
+  //       const progress = playerProgress.get(player) || 0;
+  //       position = getPositionOnRoute(player, progress);
+  //     }
 
-      if (position) {
-        const routeLegId = assignments.get(player);
-        const legIndex = searchResponse?.legs.findIndex(
-          (leg) => leg.route_leg_id === routeLegId
-        ) ?? 0;
-        const colorScheme = ROUTE_COLORS[legIndex % ROUTE_COLORS.length];
+  //     if (position) {
+  //       const routeLegId = assignments.get(player);
+  //       const legIndex = searchResponse?.legs.findIndex(
+  //         (leg) => leg.route_leg_id === routeLegId
+  //       ) ?? 0;
+  //       const colorScheme = ROUTE_COLORS[legIndex % ROUTE_COLORS.length];
 
-        markers.push({
-          id: player,
-          coordinates: position,
-          icon: PLAYER_ICONS[player],
-          color: colorScheme.bg,
-          label: player === 'user' ? '나' : PLAYER_LABELS[player],
-        });
-      }
-    });
+  //       markers.push({
+  //         id: player,
+  //         coordinates: position,
+  //         icon: PLAYER_ICONS[player],
+  //         color: colorScheme.bg,
+  //         label: player === 'user' ? '나' : PLAYER_LABELS[player],
+  //       });
+  //     }
+  //   });
 
-    return markers;
-  }, [playerProgress, getPositionOnRoute, assignments, searchResponse, isGpsTracking, userLocation]);
+  //   return markers;
+  // }, [playerProgress, getPositionOnRoute, assignments, searchResponse, isGpsTracking, userLocation]);
 
   // 순위 계산 (도착한 플레이어는 도착 시간순, 미도착 플레이어는 진행률순)
   const rankings = useMemo(() => {
@@ -862,15 +915,78 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     };
   }, [isDragging, startY, startHeight]);
 
+  // 캐릭터 색상 매핑 (user: green, bot1: purple, bot2: yellow)
+  const PLAYER_COLORS: Record<Player, CharacterColor> = {
+    user: 'green',
+    bot1: 'purple',
+    bot2: 'yellow',
+  };
+
+  // 봇 목록 (SSE로부터 받은 botPositions)
+  const botList = Array.from(botPositions.entries()).map(([botId, state]) => ({
+    botId,
+    state,
+    // bot1 = id 1, bot2 = id 2
+    player: botId === 1 ? 'bot1' as Player : 'bot2' as Player,
+  }));
+
+  // user의 현재 위치 계산 (GPS 추적 중이면 실제 위치, 아니면 시뮬레이션 위치)
+  const userPosition = useMemo(() => {
+    if (isGpsTracking && userLocation) {
+      // GPS 추적 중: 실제 GPS 위치 사용
+      return { lon: userLocation[0], lat: userLocation[1] };
+    } else {
+      // 시뮬레이션: 진행률 기반 위치 계산
+      const progress = playerProgress.get('user') || 0;
+      const pos = getPositionOnRoute('user', progress);
+      if (pos) {
+        return { lon: pos[0], lat: pos[1] };
+      }
+    }
+    return null;
+  }, [isGpsTracking, userLocation, playerProgress, getPositionOnRoute]);
+
   // 지도 컨텐츠
   const mapContent = (
-    <MapView
-      currentPage="route"
-      routeLines={routeLines}
-      endpoints={endpoints}
-      fitToRoutes={routeLines.length > 0}
-      playerMarkers={playerMarkers}
-    />
+    <>
+      <MapView
+        ref={mapViewRef}
+        currentPage="route"
+        routeLines={routeLines}
+        endpoints={endpoints}
+        fitToRoutes={routeLines.length > 0}
+      />
+
+      {/* User 캐릭터 (GPS 또는 시뮬레이션 위치) */}
+      {userPosition && (
+        <MovingCharacter
+          key="user"
+          map={mapViewRef.current?.map || null}
+          color={PLAYER_COLORS.user}
+          botId={0}
+          currentPosition={userPosition}
+          status="WALKING"
+          updateInterval={1000}
+          size={64}
+          animationSpeed={150}
+        />
+      )}
+
+      {/* Bot 캐릭터들 (SSE 데이터) */}
+      {botList.map(({ botId, state, player }) => (
+        <MovingCharacter
+          key={botId}
+          map={mapViewRef.current?.map || null}
+          color={PLAYER_COLORS[player]}
+          botId={botId}
+          currentPosition={state.position}
+          status={state.status}
+          updateInterval={5000}
+          size={64}
+          animationSpeed={150}
+        />
+      ))}
+    </>
   );
 
   // 플레이어별 경로 정보 가져오기
