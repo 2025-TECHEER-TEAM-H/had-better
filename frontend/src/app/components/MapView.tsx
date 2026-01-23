@@ -104,6 +104,11 @@ interface MapViewProps {
    * 지하철 노선도 표시 여부 (선택)
    */
   showSubwayLines?: boolean;
+  /**
+   * 우측 상단 컨트롤 버튼 표시 여부 (선택)
+   * - false일 경우 레이어, 내 위치 등 모든 버튼 숨김
+   */
+  showControls?: boolean;
 }
 
 // Mapbox Access Token 설정
@@ -124,6 +129,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   fitToRoutes = false,
   playerMarkers = [],
   showSubwayLines = false,
+  showControls = true,
 }, ref) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -1296,7 +1302,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       `}</style>
 
       {/* 우상단 컨트롤 버튼들 - 지도가 표시되는 모든 페이지에서 표시 */}
-      {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
+      {showControls && (resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
         <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
           {/* 검색 버튼 - 모바일에서만 표시, route 페이지에서는 RouteSelectionPage에서 관리하므로 숨김 */}
           {onNavigate && resolvedCurrentPage !== "route" && (
@@ -1429,7 +1435,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                     }`}
                   >
                     <span className="text-lg">🚌</span>
-                    <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                    <span className="text-sm font-medium whitespace-nowrap">실시간 버스</span>
                     {/* 토글 스위치 */}
                     <div
                       className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
