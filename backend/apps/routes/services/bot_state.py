@@ -58,16 +58,28 @@ class BotStateManager:
         """
         # 첫 번째 leg의 mode에 따라 초기 상태 결정
         initial_status = BotStatus.WALKING.value
-
-        # 초기 위치 설정 (출발지 좌표 또는 첫 번째 leg의 시작점)
         initial_position = None
-        if start_lon and start_lat:
-            initial_position = {"lon": start_lon, "lat": start_lat}
-        elif legs and len(legs) > 0:
+
+        if legs and len(legs) > 0:
             first_leg = legs[0]
+            first_mode = first_leg.get("mode", "WALK")
+
+            # 첫 번째 leg의 mode에 따라 상태 설정
+            if first_mode == "BUS":
+                initial_status = BotStatus.WAITING_BUS.value
+            elif first_mode == "SUBWAY":
+                initial_status = BotStatus.WAITING_SUBWAY.value
+            else:
+                initial_status = BotStatus.WALKING.value
+
+            # 초기 위치 설정 (첫 번째 leg의 시작점)
             start = first_leg.get("start", {})
             if start.get("lon") and start.get("lat"):
                 initial_position = {"lon": start["lon"], "lat": start["lat"]}
+
+        # 출발지 좌표가 명시적으로 제공된 경우 우선 사용
+        if start_lon and start_lat:
+            initial_position = {"lon": start_lon, "lat": start_lat}
 
         state = {
             "route_id": route_id,
