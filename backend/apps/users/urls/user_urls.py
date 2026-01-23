@@ -18,12 +18,13 @@ from ..views import (
     PlaceHistoryDetailView,
     PlaceHistoryListView,
     UserMeView,
-    # UserStatsView,  # TODO: Route 모델 구현 후 주석 해제
+    UserStatsView,
 )
 
 urlpatterns = [
     # 내 정보: GET/PATCH /api/v1/users는 config/urls.py에서 직접 정의
-    # path("stats", UserStatsView.as_view(), name="user-stats"),  # TODO: Route 모델 구현 후 주석 해제
+    # 내 통계 조회
+    path("stats", UserStatsView.as_view(), name="user-stats"),
     # 장소 검색 기록
     path(
         "place-history", PlaceHistoryListView.as_view(), name="place-history-list"

@@ -1,7 +1,80 @@
+import { useState, useEffect } from "react";
 import svgPaths from "./svg-v94pfc0f1m";
 import { Container5 as DashboardProfileCard, Container12 as DashboardStatsCard, Container29 as DashboardRecentGames } from "./Container";
 import { LogoutButton } from "./Button";
 import characterGreenFront from "@/assets/character-green-front.png";
+import userService, { type UserStats, type RecentGame } from "@/services/userService";
+import { useAuthStore } from "@/stores/authStore";
+
+// 최근 게임 아이템 컴포넌트
+function RecentGameItem({ game }: { game: RecentGame }) {
+  // duration과 rank를 합쳐서 표시 (예: "15분 23초 - 1위" 또는 "NULL - CANCELED")
+  const durationWithRank = `${game.duration} - ${game.rank}`;
+
+  return (
+    <div
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.45) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 6px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
+        backdropFilter: "blur(12px) saturate(150%)",
+        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+      }}
+    >
+      <div className="flex flex-row items-center size-full">
+        <div className="content-stretch flex items-center px-[13.338px] py-[1.346px] relative size-full">
+          {/* 경로명 + 시간/순위 */}
+          <div className="flex-1 h-[35.997px] min-h-px min-w-px relative">
+            <p className="absolute font-['Inter:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[20px] left-0 not-italic text-[#2d5f3f] text-[14px] top-[0.35px] tracking-[-0.1504px] truncate max-w-[280px]">
+              {game.route_name}
+            </p>
+            <p className="absolute font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal leading-[16px] left-0 not-italic text-[#6b9080] text-[12px] top-[20px]">
+              {durationWithRank}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 최근 게임 섹션 컴포넌트
+function RecentGamesSection({ recentGames }: { recentGames: RecentGame[] }) {
+  return (
+    <div
+      className="relative rounded-[22px] shrink-0 w-full"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
+      }}
+    >
+      <div className="content-stretch flex flex-col gap-[16px] items-start pb-[16px] pt-[26.688px] px-[26.688px] relative size-full">
+        {/* 헤더 */}
+        <div className="h-[19.997px] relative shrink-0 w-full">
+          <p className="absolute font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] left-0 text-[#2d5f3f] text-[14px] top-[-0.31px]" style={{ fontVariationSettings: "'wght' 400" }}>
+            최근 게임
+          </p>
+        </div>
+        {/* 게임 목록 */}
+        <div className="flex flex-col gap-[8px] w-full">
+          {recentGames.length > 0 ? (
+            recentGames.map((game) => (
+              <RecentGameItem key={game.id} game={game} />
+            ))
+          ) : (
+            <div className="text-center py-4 text-[#6b9080] text-[14px]">
+              아직 진행한 게임이 없습니다
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Container() {
   return <div className="h-0 shrink-0 w-[39.995px]" data-name="Container" />;
@@ -104,18 +177,18 @@ function Container3() {
   );
 }
 
-function Heading1() {
+function Heading1({ nickname }: { nickname: string }) {
   return (
     <div className="h-[27.992px] relative shrink-0 w-full" data-name="Heading 2">
-      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[28px] left-0 not-italic text-[#2d5f3f] text-[20px] top-[0.02px] tracking-[-0.4492px]">H</p>
+      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[28px] left-0 not-italic text-[#2d5f3f] text-[20px] top-[0.02px] tracking-[-0.4492px]">{nickname}</p>
     </div>
   );
 }
 
-function Paragraph() {
+function Paragraph({ email }: { email: string }) {
   return (
     <div className="h-[19.997px] relative shrink-0 w-full" data-name="Paragraph">
-      <p className="absolute css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[20px] left-0 not-italic text-[#6b9080] text-[14px] top-[0.35px] tracking-[-0.1504px]">Lv. 15</p>
+      <p className="absolute css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[20px] left-0 not-italic text-[#6b9080] text-[14px] top-[0.35px] tracking-[-0.1504px]">{email}</p>
     </div>
   );
 }
@@ -136,19 +209,23 @@ function Container5() {
   );
 }
 
-function Container6() {
+function Container6({ nickname, email }: { nickname: string; email: string }) {
   return (
-    <div className="flex-[1_0_0] h-[67.976px] min-h-px min-w-px relative" data-name="Container">
-      <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex flex-col gap-[3.997px] items-start relative size-full">
-        <Heading1 />
-        <Paragraph />
-        <Container5 />
-      </div>
+    <div
+      className="flex-1 h-[80px] rounded-[14px] flex flex-col justify-center px-[16px] gap-[4px]"
+      style={{
+        background: "rgba(255,255,255,0.6)",
+        border: "1px solid rgba(255,255,255,0.5)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+      }}
+    >
+      <p className="font-bold text-[#2d5f3f] text-[18px]">{nickname}</p>
+      <p className="text-[#6b9080] text-[13px]">{email}</p>
     </div>
   );
 }
 
-function Container7() {
+function Container7({ nickname, email }: { nickname: string; email: string }) {
   return (
     <div className="content-stretch flex gap-[16px] items-center relative shrink-0 w-full" data-name="Container">
       {/* 아바타 */}
@@ -157,41 +234,41 @@ function Container7() {
         data-name="Avatar"
         style={{
           background: "#48d448",
-          border: "2px solid black",
+          border: "3px solid #2d5f3f",
         }}
       >
-        <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-center p-[8px] relative size-full overflow-hidden">
+        <div className="flex items-center justify-center p-[8px] size-full overflow-hidden">
           <img
             src={characterGreenFront}
             alt="민트색 캐릭터"
             className="w-full h-full object-contain"
             style={{
               imageRendering: 'pixelated',
-              maxWidth: '100%',
-              maxHeight: '100%',
             }}
           />
         </div>
       </div>
       {/* 사용자 정보 */}
-      <Container6 />
+      <Container6 nickname={nickname} email={email} />
     </div>
   );
 }
 
-function Container8() {
+function Container8({ nickname, email }: { nickname: string; email: string }) {
   return (
     <div
-      className="relative rounded-[16px] shrink-0 w-full"
+      className="relative rounded-[22px] shrink-0 w-full"
       data-name="Container"
       style={{
-        background: "white",
-        border: "1px solid black",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+        border: "1px solid rgba(255,255,255,0.50)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+        backdropFilter: "blur(16px) saturate(155%)",
+        WebkitBackdropFilter: "blur(16px) saturate(155%)",
       }}
     >
-      <div className="content-stretch flex flex-row items-center pb-[16px] pt-[16px] px-[16px] relative size-full">
-        <Container7 />
+      <div className="content-stretch flex flex-row items-center p-[16px] relative size-full">
+        <Container7 nickname={nickname} email={email} />
       </div>
     </div>
   );
@@ -205,10 +282,10 @@ function Container9() {
   );
 }
 
-function Paragraph1() {
+function Paragraph1({ value }: { value: number }) {
   return (
     <div className="h-[32px] relative shrink-0 w-full" data-name="Paragraph">
-      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[34.67px] not-italic text-[#2d5f3f] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%]">27</p>
+      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[34.67px] not-italic text-[#2d5f3f] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%]">{value}</p>
     </div>
   );
 }
@@ -221,7 +298,7 @@ function Paragraph2() {
   );
 }
 
-function Container10() {
+function Container10({ totalGames }: { totalGames: number }) {
   return (
     <div
       className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
@@ -233,7 +310,7 @@ function Container10() {
       }}
     >
       <Container9 />
-      <Paragraph1 />
+      <Paragraph1 value={totalGames} />
       <Paragraph2 />
     </div>
   );
@@ -247,10 +324,10 @@ function Container11() {
   );
 }
 
-function Paragraph3() {
+function Paragraph3({ value }: { value: number }) {
   return (
     <div className="h-[32px] relative shrink-0 w-full" data-name="Paragraph">
-      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[34.67px] not-italic text-[#48d448] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%]">27</p>
+      <p className="absolute css-ew64yg font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[34.67px] not-italic text-[#48d448] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%]">{value}</p>
     </div>
   );
 }
@@ -263,7 +340,7 @@ function Paragraph4() {
   );
 }
 
-function Container12() {
+function Container12({ wins }: { wins: number }) {
   return (
     <div
       className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
@@ -275,7 +352,7 @@ function Container12() {
       }}
     >
       <Container11 />
-      <Paragraph3 />
+      <Paragraph3 value={wins} />
       <Paragraph4 />
     </div>
   );
@@ -289,10 +366,10 @@ function Container13() {
   );
 }
 
-function Paragraph5() {
+function Paragraph5({ value }: { value: number }) {
   return (
     <div className="h-[32px] relative shrink-0 w-full" data-name="Paragraph">
-      <p className="absolute css-4hzbpn font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[35.17px] not-italic text-[#ff9a6c] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%] w-[66px]">100%</p>
+      <p className="absolute css-4hzbpn font-['Inter:Bold',sans-serif] font-bold leading-[32px] left-[35.17px] not-italic text-[#ff9a6c] text-[24px] text-center top-[-0.65px] tracking-[0.0703px] translate-x-[-50%] w-[66px]">{value}%</p>
     </div>
   );
 }
@@ -305,7 +382,7 @@ function Paragraph6() {
   );
 }
 
-function Container14() {
+function Container14({ winRate }: { winRate: number }) {
   return (
     <div
       className="content-stretch flex flex-col gap-[3.997px] h-[125.38px] items-center pb-[2.693px] pt-[18.693px] px-[18.693px] rounded-[14px] flex-1 min-w-0 relative"
@@ -317,18 +394,18 @@ function Container14() {
       }}
     >
       <Container13 />
-      <Paragraph5 />
+      <Paragraph5 value={winRate} />
       <Paragraph6 />
     </div>
   );
 }
 
-function Container15() {
+function Container15({ stats }: { stats: UserStats }) {
   return (
     <div className="h-[125.38px] relative shrink-0 w-full flex gap-[11.99px]" data-name="Container">
-      <Container10 />
-      <Container12 />
-      <Container14 />
+      <Container10 totalGames={stats.total_games} />
+      <Container12 wins={stats.wins} />
+      <Container14 winRate={stats.win_rate} />
     </div>
   );
 }
@@ -2221,13 +2298,13 @@ function Container56() {
   );
 }
 
-function Container57({ onLogout }: { onLogout?: () => void }) {
+function Container57({ onLogout, stats, nickname, email }: { onLogout?: () => void; stats: UserStats; nickname: string; email: string }) {
   return (
     <div className="h-[1954.909px] relative shrink-0 w-full" data-name="Container">
       <div className="content-stretch flex flex-col gap-[23.995px] items-center pb-0 pt-[23.995px] px-[16px] relative size-full">
-        <DashboardProfileCard />
-        <DashboardStatsCard />
-        <DashboardRecentGames />
+        <Container8 nickname={nickname} email={email} />
+        <Container15 stats={stats} />
+        <RecentGamesSection recentGames={stats.recent_games} />
         <LogoutButton onClick={onLogout} />
       </div>
     </div>
@@ -2235,6 +2312,31 @@ function Container57({ onLogout }: { onLogout?: () => void }) {
 }
 
 function DashboardPage({ onClose, onLogout }: { onClose?: () => void; onLogout?: () => void }) {
+  // 사용자 정보 가져오기
+  const user = useAuthStore((state) => state.user);
+
+  // 사용자 통계 데이터 상태
+  const [stats, setStats] = useState<UserStats>({
+    total_games: 0,
+    wins: 0,
+    win_rate: 0,
+    recent_games: [],
+  });
+
+  // 컴포넌트 마운트 시 통계 데이터 가져오기
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await userService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error("[Dashboard] 통계 데이터 로드 실패:", error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   return (
     <div
       className="content-stretch flex flex-col h-[837.184px] items-start overflow-clip relative shrink-0 w-full"
@@ -2244,7 +2346,12 @@ function DashboardPage({ onClose, onLogout }: { onClose?: () => void; onLogout?:
       }}
     >
       <Container2 onClose={onClose} />
-      <Container57 onLogout={onLogout} />
+      <Container57
+        onLogout={onLogout}
+        stats={stats}
+        nickname={user?.nickname || "Guest"}
+        email={user?.email || ""}
+      />
     </div>
   );
 }
