@@ -111,6 +111,7 @@ export interface LegStep {
     description: string;
     distance: number;
     streetName?: string;
+    linestring?: string; // "lon1,lat1 lon2,lat2 ..." 형태 (도보 경로 좌표)
   }>;
 }
 

@@ -15,6 +15,16 @@ import { trackBusPositions, getBusRoutePath as fetchBusRoutePath } from "@/lib/a
 // 지도 스타일 타입
 type MapStyleType = "default" | "dark" | "satellite-streets";
 
+// 사용자 경로 시뮬레이션을 위한 Leg 타이밍 정보
+interface LegTiming {
+  legIndex: number;
+  mode: string;
+  startTime: number;      // 누적 시작 시간 (초)
+  endTime: number;        // 누적 종료 시간 (초)
+  startDistance: number;  // 누적 시작 거리 (m)
+  endDistance: number;    // 누적 종료 거리 (m)
+}
+
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
   default: {
@@ -324,6 +334,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
     for (const leg of detail.legs) {
       if (leg.passShape?.linestring) {
+        // BUS/SUBWAY: passShape.linestring 사용
         const points = leg.passShape.linestring.split(' ');
         for (const point of points) {
           const [lon, lat] = point.split(',').map(Number);
@@ -331,7 +342,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             allCoordinates.push([lon, lat]);
           }
         }
+      } else if (leg.steps && leg.steps.length > 0) {
+        // WALK: steps[].linestring 사용 (실제 도보 경로)
+        for (const step of leg.steps) {
+          if (step.linestring) {
+            const points = step.linestring.split(' ');
+            for (const point of points) {
+              const [lon, lat] = point.split(',').map(Number);
+              if (!isNaN(lon) && !isNaN(lat)) {
+                allCoordinates.push([lon, lat]);
+              }
+            }
+          }
+        }
       } else {
+        // fallback: 시작점과 끝점만 사용
         allCoordinates.push([leg.start.lon, leg.start.lat]);
         allCoordinates.push([leg.end.lon, leg.end.lat]);
       }
@@ -609,30 +634,85 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     });
   }, [stopGpsTestMode]);
 
-  // 사용자 경로의 총 소요 시간(초) 가져오기
-  const getUserTotalTime = useCallback((): number => {
-    const userRouteLegId = assignments.get('user');
-    if (!userRouteLegId || !searchResponse) return 0;
+  // 사용자 경로의 legs 배열에서 타이밍 정보 계산
+  const calculateLegTimings = useCallback((legs: Array<{ mode: string; sectionTime: number; distance: number }>): LegTiming[] => {
+    const timings: LegTiming[] = [];
+    let cumulativeTime = 0;
+    let cumulativeDistance = 0;
 
-    const legSummary = searchResponse.legs.find((leg) => leg.route_leg_id === userRouteLegId);
-    return legSummary?.totalTime || 0;
-  }, [assignments, searchResponse]);
+    console.log('📊 legs 데이터 분석:');
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i];
+      console.log(`   leg[${i}]: mode=${leg.mode}, sectionTime=${leg.sectionTime}초, distance=${leg.distance}m`);
+      timings.push({
+        legIndex: i,
+        mode: leg.mode,
+        startTime: cumulativeTime,
+        endTime: cumulativeTime + leg.sectionTime,
+        startDistance: cumulativeDistance,
+        endDistance: cumulativeDistance + leg.distance,
+      });
+      cumulativeTime += leg.sectionTime;
+      cumulativeDistance += leg.distance;
+    }
+    console.log(`   → 총 시간: ${cumulativeTime}초, 총 거리: ${cumulativeDistance}m`);
 
-  // 사용자 자동 이동 시작 (경로 데이터의 totalTime 기반)
+    return timings;
+  }, []);
+
+  // 현재 시간에 해당하는 leg 찾기
+  const findCurrentLeg = useCallback((timings: LegTiming[], elapsed: number): LegTiming | null => {
+    return timings.find(t => elapsed >= t.startTime && elapsed < t.endTime) || timings[timings.length - 1] || null;
+  }, []);
+
+  // 사용자 자동 이동 시작 (legs[].sectionTime + passShape 기반)
   const startUserAutoMove = useCallback(() => {
     if (isUserAutoMoving || isGpsTracking || isGpsTestMode) return;
 
-    const totalTime = getUserTotalTime();
-    if (totalTime <= 0) {
-      console.warn('사용자 경로의 totalTime을 가져올 수 없습니다.');
+    // 사용자 경로 상세 정보 가져오기
+    const userRouteLegId = assignments.get('user');
+    if (!userRouteLegId) {
+      console.warn('사용자 경로가 할당되지 않았습니다.');
       return;
     }
 
-    console.log(`🚀 사용자 자동 이동 시작 (예상 소요 시간: ${totalTime}초)`);
+    const detail = legDetails.get(userRouteLegId);
+    if (!detail || !detail.legs || detail.legs.length === 0) {
+      console.warn('사용자 경로 상세 정보가 없습니다.');
+      return;
+    }
+
+    // legs 배열에서 타이밍 정보 계산
+    const legTimings = calculateLegTimings(detail.legs);
+    const totalTime = legTimings[legTimings.length - 1]?.endTime || 0;
+    const totalDistance = legTimings[legTimings.length - 1]?.endDistance || 0;
+
+    if (totalTime <= 0) {
+      console.warn('사용자 경로의 totalTime을 계산할 수 없습니다.');
+      return;
+    }
+
+    // 경로선 생성 (turf LineString)
+    const routeLine = getRouteLineString('user');
+    if (!routeLine) {
+      console.warn('사용자 경로선을 생성할 수 없습니다.');
+      return;
+    }
+
+    const routeLength = turf.length(routeLine, { units: 'meters' });
+
+    console.log(`🚀 사용자 자동 이동 시작 (legs 기반)`);
+    console.log(`   - 총 소요 시간: ${totalTime}초 (${Math.round(totalTime / 60)}분)`);
+    console.log(`   - 총 거리: ${totalDistance}m`);
+    console.log(`   - 경로선 길이: ${Math.round(routeLength)}m`);
+    console.log(`   - legs 수: ${detail.legs.length}개`);
 
     setIsUserAutoMoving(true);
     raceStartTime.current = Date.now();
     setSimulationStartTime(Date.now()); // 결과 생성용
+
+    let lastLogTime = 0;
+    let lastLegIndex = -1;
 
     const animate = () => {
       if (!raceStartTime.current) return;
@@ -640,6 +720,43 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       const elapsed = (Date.now() - raceStartTime.current) / 1000; // 경과 시간 (초)
       const progress = Math.min(elapsed / totalTime, 1); // 진행률 (0~1)
 
+      // 현재 leg 찾기
+      const currentLeg = findCurrentLeg(legTimings, elapsed);
+
+      // 경로선 위 현재 위치 계산 (거리 기반)
+      let currentDistance = 0;
+      if (currentLeg) {
+        // 현재 leg 내에서의 진행률 계산
+        const legDuration = currentLeg.endTime - currentLeg.startTime;
+        const legElapsed = elapsed - currentLeg.startTime;
+        const legProgress = legDuration > 0 ? Math.min(legElapsed / legDuration, 1) : 1;
+
+        // 현재 거리 계산
+        const legDistance = currentLeg.endDistance - currentLeg.startDistance;
+        currentDistance = currentLeg.startDistance + (legDistance * legProgress);
+
+        // 디버그: leg 전환 시 로그
+        if (currentLeg.legIndex !== lastLegIndex) {
+          console.log(`🚶 leg[${currentLeg.legIndex}] 시작: ${currentLeg.mode}, 소요시간=${legDuration}초, 거리=${legDistance}m`);
+          lastLegIndex = currentLeg.legIndex;
+        }
+
+        // 디버그: 10초마다 상태 로그
+        if (elapsed - lastLogTime >= 10) {
+          console.log(`⏱️ ${Math.round(elapsed)}초 경과: leg[${currentLeg.legIndex}] ${currentLeg.mode}, 진행률=${(legProgress * 100).toFixed(1)}%, 이동거리=${Math.round(currentDistance)}m`);
+          lastLogTime = elapsed;
+        }
+      } else {
+        currentDistance = totalDistance * progress;
+      }
+
+      // 경로선 위 위치 계산 (turf.along 사용)
+      const targetDistance = Math.min(currentDistance, routeLength);
+      const point = turf.along(routeLine, targetDistance, { units: 'meters' });
+      const currentPosition = point.geometry.coordinates as [number, number];
+
+      // 사용자 위치 업데이트
+      setUserLocation(currentPosition);
       setUserProgress(progress);
       setPlayerProgress((prev) => {
         const newProgress = new Map(prev);
@@ -647,7 +764,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         return newProgress;
       });
 
-      // 도착 처리
+      // 도착지까지 거리 계산
+      if (arrival) {
+        const destPoint = turf.point([arrival.lon, arrival.lat]);
+        const userPoint = turf.point(currentPosition);
+        const distToDest = turf.distance(userPoint, destPoint, { units: 'meters' });
+        setDistanceToDestination(Math.round(distToDest));
+      }
+
+      // 도착 처리 (100% 진행 또는 도착지 20m 이내)
       if (progress >= 1) {
         console.log('🏁 사용자 도착! 봇 시뮬레이션 계속 관전...');
         setIsUserArrived(true);
@@ -670,7 +795,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     };
 
     userAutoMoveRef.current = requestAnimationFrame(animate);
-  }, [isUserAutoMoving, isGpsTracking, isGpsTestMode, getUserTotalTime, handleUserArrived]);
+  }, [isUserAutoMoving, isGpsTracking, isGpsTestMode, assignments, legDetails, calculateLegTimings, findCurrentLeg, getRouteLineString, arrival, handleUserArrived]);
 
   // 사용자 자동 이동 중지
   const stopUserAutoMove = useCallback(() => {
