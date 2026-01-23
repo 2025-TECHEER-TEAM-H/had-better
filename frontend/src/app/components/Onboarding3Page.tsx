@@ -4,6 +4,7 @@ import imgHudPlayerHelmetPurple2 from "@/assets/hud-player-helmet-purple.png";
 import imgHudPlayerHelmetGreen2 from "@/assets/hud-player-helmet-green.png";
 import imgHudPlayerHelmetYellow2 from "@/assets/hud-player-helmet-yellow.png";
 import { ArrowLeft } from "lucide-react";
+import { motion } from "motion/react";
 
 interface Onboarding3PageProps {
   isOpen?: boolean;
@@ -65,7 +66,6 @@ function MarkerPin({
     variant === "green" ? "#48d448" :
     "#a78bfa";
   // tuned for a cleaner, less "sticker-like" pin
-  const border = 3;
   const innerBorder = 3;
   const innerSize = Math.round(size * 0.66);
   const pointerOuter = Math.round(size * 0.14);
@@ -164,27 +164,46 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       {/* 상단 컨텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
-        <h1 className="font-['Inter:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[48px] lg:text-[48px]">
-          당신의 길은 이제 레이싱 트랙입니다
-        </h1>
+        <motion.h1 
+          className="font-['Inter:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[48px] lg:text-[48px]"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          당신의 길은 이제<br />레이싱 트랙입니다
+        </motion.h1>
 
         {/* 서브 타이틀 */}
-        <div className="font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal text-[#767676] text-center mb-8 text-[20px] md:text-[40px] lg:text-[40px]">
+        <motion.div 
+          className="font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal text-[#767676] text-center mb-8 text-[20px] md:text-[40px] lg:text-[40px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <p className="mb-0">평범한 출근길을</p>
-          <p>짜릿한 승부가 펼쳐지는 게임으로 바꿔 드릴게요.</p>
-        </div>
+          <p>짜릿한 승부가 펼쳐지는 게임으로<br />바꿔 드릴게요.</p>
+        </motion.div>
 
         {/* 페이지 인디케이터 */}
         <div className="flex gap-[5.18px] mb-12">
           <div className="size-[19px] rounded-full bg-[#0A0A0A]" />
           <div className="size-[19px] rounded-full bg-[#0A0A0A]" />
-          <div className="w-[20.73px] h-[19px] rounded-full bg-[#FF6B6B]" />
+          <motion.div 
+            className="w-[20.73px] h-[19px] rounded-full bg-[#FF6B6B]"
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          />
           <div className="size-[19px] rounded-full bg-[#0A0A0A]" />
           <div className="size-[19px] rounded-full bg-[#0A0A0A]" />
         </div>
 
         {/* 레이싱 맵 캐릭터 */}
-        <div className="relative mb-8 w-[320px] max-w-[calc(100%-40px)] h-[210px] flex items-center justify-center">
+        <motion.div 
+          className="relative mb-8 w-[320px] max-w-[calc(100%-40px)] h-[210px] flex items-center justify-center"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
           <div className="relative w-full h-full">
             {/* cloud "track" (no ground) */}
             <div className="absolute left-1/2 -translate-x-1/2 bottom-[54px] w-[292px] h-[92px]">
@@ -285,11 +304,44 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
                         style={{
                           left: `${x}px`,
                           top: `${yVisual}px`,
-                          transform: `translate(-50%, -100%) scale(${p.scale})`,
-                          opacity: p.opacity,
                         }}
                       >
-                        <MarkerPin variant={p.variant} avatarSrc={p.avatarSrc} size={p.size} />
+                        {/* translate는 motion이 아닌 래퍼에서 처리해서 transform 충돌 방지 */}
+                        <div className="-translate-x-1/2 -translate-y-full">
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                            animate={{
+                              opacity: p.opacity,
+                              scale: p.scale,
+                              y: [0, -8, 0],
+                            }}
+                            transition={{
+                              opacity: {
+                                duration: 0.5,
+                                delay: 0.4 + idx * 0.15,
+                              },
+                              scale: {
+                                duration: 0.5,
+                                delay: 0.4 + idx * 0.15,
+                                type: "spring",
+                                stiffness: 200,
+                                damping: 15,
+                              },
+                              y: {
+                                duration: 2.5,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                                delay: 0.8 + idx * 0.2,
+                              },
+                            }}
+                          >
+                            <MarkerPin
+                              variant={p.variant}
+                              avatarSrc={p.avatarSrc}
+                              size={p.size}
+                            />
+                          </motion.div>
+                        </div>
                       </div>
                     );
                   });
@@ -301,17 +353,22 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
               3개의 경로가 동시에 달려요
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* 다음 버튼 */}
-        <button
+        <motion.button
           onClick={handleNext}
           className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] rounded-[29px] w-[308px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.3 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
           <p className="font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal text-[20px] text-white">
             다음
           </p>
-        </button>
+        </motion.button>
       </div>
 
       {/* 하단 잔디 배경 */}
