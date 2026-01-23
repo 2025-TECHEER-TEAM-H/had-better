@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { MapView } from "./MapView";
 import placeService, {
   type SearchPlaceHistory,
 } from "@/services/placeService";
+import { useEffect, useRef, useState } from "react";
+import { MapView } from "./MapView";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -55,10 +55,19 @@ const getCategoryIcon = (category: string): string => {
   return "📍"; // 기본 아이콘
 };
 
-// 카테고리별 배경색 매핑
+// 카테고리별 배경색 매핑 (글라스모피즘용 단색)
 const getCategoryColor = (_category: string, index: number): string => {
-  const colors = ["#7ed321", "#00d9ff", "white", "#ffc107", "#ff9ff3", "#54a0ff"];
-  return colors[index % colors.length];
+  const colors = [
+    { r: 126, g: 211, b: 33 },   // #7ed321
+    { r: 0, g: 217, b: 255 },    // #00d9ff
+    { r: 255, g: 255, b: 255 },  // white
+    { r: 255, g: 193, b: 7 },    // #ffc107
+    { r: 255, g: 159, b: 243 },  // #ff9ff3
+    { r: 84, g: 160, b: 255 },   // #54a0ff
+  ];
+  const color = colors[index % colors.length];
+  const opacity = 0.85; // 진한 색상
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
 };
 
 interface SearchResultsPageProps {
@@ -94,7 +103,7 @@ export function SearchResultsPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(10); // 현재 표시할 개수
-  
+
   // 즐겨찾기 상태 관리 (poi_place_id -> saved_place_id 매핑)
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
 
@@ -128,7 +137,7 @@ export function SearchResultsPage({
       if (response.status === "success" && response.data) {
         // 모든 카테고리 포함 (일반 즐겨찾기 + 집/회사/학교)
         // 자주가는곳에 저장된 장소도 별이 색칠되어 보이도록 함
-        
+
         // poi_place_id -> saved_place_id 매핑 생성
         const map = new Map<number, number>();
         response.data.forEach((savedPlace) => {
@@ -163,7 +172,7 @@ export function SearchResultsPage({
   useEffect(() => {
     const handleFavoritesUpdated = (event: CustomEvent<{ deletedPoiIds?: number[]; addedPoiId?: number; savedPlaceId?: number }>) => {
       const { deletedPoiIds, addedPoiId, savedPlaceId } = event.detail;
-      
+
       if (deletedPoiIds && deletedPoiIds.length > 0) {
         // 삭제된 POI ID들을 매핑에서 제거
         setSavedPlacesMap((prev) => {
@@ -173,7 +182,7 @@ export function SearchResultsPage({
           });
           return newMap;
         });
-        
+
         // 검색 결과의 즐겨찾기 상태 업데이트
         setSearchResults((prev) =>
           prev.map((result) => {
@@ -185,7 +194,7 @@ export function SearchResultsPage({
           })
         );
       }
-      
+
       if (addedPoiId && savedPlaceId) {
         // 추가된 POI ID를 매핑에 추가
         setSavedPlacesMap((prev) => {
@@ -289,7 +298,7 @@ export function SearchResultsPage({
   // 즐겨찾기 토글 핸들러
   const handleToggleFavorite = async (placeId: string) => {
     const result = searchResults.find((r) => r.id === placeId);
-    
+
     if (!result || !result._poiPlaceId) return;
 
     const poiPlaceId = result._poiPlaceId;
@@ -322,7 +331,7 @@ export function SearchResultsPage({
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            
+
             // 다른 컴포넌트에 동기화 이벤트 발생
             window.dispatchEvent(
               new CustomEvent("favoritesUpdated", {
@@ -349,7 +358,7 @@ export function SearchResultsPage({
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            
+
             // 다른 컴포넌트에 동기화 이벤트 발생
             window.dispatchEvent(
               new CustomEvent("favoritesUpdated", {
@@ -381,7 +390,7 @@ export function SearchResultsPage({
             newMap.set(poiPlaceId, response.data!.saved_place_id);
             return newMap;
           });
-          
+
           // 다른 컴포넌트에 동기화 이벤트 발생
           window.dispatchEvent(
             new CustomEvent("favoritesUpdated", {
@@ -390,6 +399,8 @@ export function SearchResultsPage({
           );
         } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
           // 이미 즐겨찾기에 있는 경우 (409 Conflict)
+          // "이미 추가하셨습니다" 메시지 표시
+          showToast("이미 추가하셨습니다.");
           // 즐겨찾기 목록을 다시 로드하여 정확한 saved_place_id 가져오기
           loadSavedPlaces();
         } else {
@@ -505,15 +516,15 @@ export function SearchResultsPage({
   const ResultCard = ({ result }: { result: SearchResult }) => (
     <div
       onClick={() => onPlaceClick?.(result)}
-      className="h-[110.665px] relative rounded-[10px] shrink-0 w-full cursor-pointer"
-      style={{ backgroundColor: result.backgroundColor }}
+      className="h-[110.665px] relative rounded-[10px] shrink-0 w-full cursor-pointer backdrop-blur-lg transition-all hover:scale-[1.02] border border-white/30 shadow-lg"
+      style={{
+        backgroundColor: result.backgroundColor,
+      }}
     >
-      <div aria-hidden="true" className="absolute border-[3.338px] border-black border-solid inset-0 pointer-events-none rounded-[10px] shadow-[4px_4px_0px_0px_black]" />
       <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex gap-[11.996px] items-start pb-[3.338px] pt-[23.335px] px-[23.335px] relative size-full">
         {/* 아이콘 */}
-        <div className="bg-white relative shrink-0 size-[63.996px]">
-          <div aria-hidden="true" className="absolute border-[1.335px] border-black border-solid inset-0 pointer-events-none" />
-          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center pl-[1.335px] pr-[1.345px] py-[1.335px] relative size-full">
+        <div className="bg-white/90 backdrop-blur-lg relative shrink-0 size-[63.996px] rounded-[10px] border border-white/40 shadow-md">
+          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
             <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[45px] text-[#0a0a0a] text-[30px] text-center tracking-[0.3955px]">
               {result.icon}
             </p>
@@ -523,7 +534,7 @@ export function SearchResultsPage({
         {/* 장소 이름 */}
         <div className="flex-[1_0_0] min-h-px min-w-px relative">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex flex-col items-start relative w-full">
-            <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-extrabold leading-[18px] text-[14px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap">
+            <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-extrabold leading-[18px] text-[14px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
               {result.name}
             </p>
             {buildSubline(result) && (
@@ -540,10 +551,9 @@ export function SearchResultsPage({
             e.stopPropagation();
             handleToggleFavorite(result.id);
           }}
-          className="bg-white relative rounded-[14px] shrink-0 size-[48px]"
+          className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] transition-all hover:bg-white active:scale-95 border border-white/40 shadow-md"
         >
-          <div aria-hidden="true" className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[4px_4px_0px_0px_black]" />
-          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center p-[2.693px] relative size-full">
+          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
             <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
               {result.isFavorited ? "⭐" : "☆"}
             </p>
@@ -559,21 +569,31 @@ export function SearchResultsPage({
       {/* 로딩 상태 */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
-          <div className="w-8 h-8 border-4 border-[#4a9960] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 rounded-full animate-spin backdrop-blur-sm"
+            style={{
+              border: "3px solid rgba(74, 153, 96, 0.3)",
+              borderTop: "3px solid rgba(74, 153, 96, 0.9)",
+              boxShadow: "0 4px 16px 0 rgba(74, 153, 96, 0.2)"
+            }}
+          />
         </div>
       )}
 
       {/* 에러 상태 */}
       {error && !isLoading && (
         <div className="text-center py-8">
-          <p className="text-red-500 font-bold">{error}</p>
+          <div className="inline-block bg-red-100/90 backdrop-blur-lg border border-red-300 rounded-[10px] px-4 py-2 shadow-lg">
+            <p className="text-red-600 font-bold drop-shadow-sm">{error}</p>
+          </div>
         </div>
       )}
 
       {/* 빈 결과 */}
       {!isLoading && !error && searchResults.length === 0 && searchQuery && (
         <div className="text-center py-8">
-          <p className="text-gray-500">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
+          <div className="inline-block bg-white/90 backdrop-blur-lg border border-black/20 rounded-[10px] px-4 py-2 shadow-lg">
+            <p className="text-gray-600 drop-shadow-sm">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
+          </div>
         </div>
       )}
 
@@ -586,9 +606,9 @@ export function SearchResultsPage({
       {!isLoading && !error && searchResults.length > visibleCount && (
         <button
           onClick={() => setVisibleCount((prev) => prev + 10)}
-          className="w-full py-4 bg-[#4a9960] text-white font-bold rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-[#3d8050] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_black] transition-all"
+          className="w-full py-4 text-black font-bold rounded-[10px] border border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
         >
-          <span className="font-['Press_Start_2P:Regular',sans-serif] text-[12px]">
+          <span className="font-['Press_Start_2P:Regular',sans-serif] text-[12px] drop-shadow-md">
             정보 더보기 ({searchResults.length - visibleCount}개 남음)
           </span>
         </button>
@@ -627,25 +647,31 @@ export function SearchResultsPage({
     return (
       <div className="fixed inset-0 z-50 flex">
         {toastMessage && (
-          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-2xl text-sm"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.3)"
+            }}
+          >
             {toastMessage}
           </div>
         )}
         {/* 왼쪽 사이드바 (400px 고정) */}
-        <div className="w-[400px] bg-white border-r-[3.366px] border-black flex flex-col h-full overflow-hidden">
+        <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
           {/* 헤더 */}
-          <div className="relative px-8 pt-6 pb-4 border-b-[3.366px] border-black bg-[#80cee1]">
+          <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
             <button
               onClick={onClose}
-              className="absolute top-6 right-8 bg-white rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border-[2.693px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all z-10"
+              className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
             >
-              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center">←</p>
+              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
             </button>
-            <p className="css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[30px] text-[16px] text-black text-center">
+            <p className="css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[30px] text-[16px] text-white text-center drop-shadow-md">
               검색 결과
             </p>
             {searchQuery && (
-              <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[12px] text-black text-center mt-2">
+              <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
                 "{searchQuery}"
               </p>
             )}
@@ -675,27 +701,32 @@ export function SearchResultsPage({
       }}
     >
       {toastMessage && (
-        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-2xl text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.3)"
+          }}
+        >
           {toastMessage}
         </div>
       )}
       {/* 지도 배경 */}
       <div className="absolute inset-0">
         {mapContent}
-        
+
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute bg-white top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10"
+          className="absolute bg-white/20 backdrop-blur-md top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10 border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
         >
-          <div className="absolute border-[2.693px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]" />
-          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center">←</p>
+          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
         </button>
       </div>
 
       {/* 슬라이드 가능한 하단 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white border-black border-l-[3.366px] border-r-[3.366px] border-solid border-t-[3.366px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all"
+        className="absolute left-0 right-0 bg-white/20 backdrop-blur-xl border-t border-white/30 rounded-tl-[24px] rounded-tr-[24px] shadow-2xl transition-all"
         style={{
           bottom: 0,
           height: `${sheetHeight}%`,
@@ -704,7 +735,7 @@ export function SearchResultsPage({
       >
         {/* 드래그 핸들 */}
         <div
-          className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-[#d1d5dc] h-[5.996px] w-[48px] rounded-full cursor-grab active:cursor-grabbing"
+          className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-white/40 backdrop-blur-sm h-[6px] w-[48px] rounded-full shadow-sm cursor-grab active:cursor-grabbing"
           onMouseDown={(e) => handleDragStart(e.clientY)}
           onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
         />
