@@ -202,7 +202,18 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       setIsLoadingRouteHistories(true);
       const response = await routeService.getRouteSearchHistories(5);
       if (response.status === "success" && response.data) {
-        setRouteSearchHistories(response.data);
+        // UI에서 중복 제거: 출발지+도착지가 같은 기록은 최신 것만 남김
+        const seen = new Map<string, RouteSearchHistory>();
+        response.data.forEach((history) => {
+          const key = `${history.departure.name}|${history.arrival.name}`;
+          // Map에 없거나, 현재 기록이 더 최신이면 교체
+          if (!seen.has(key) || (seen.get(key)!.id < history.id)) {
+            seen.set(key, history);
+          }
+        });
+        // Map의 값들을 배열로 변환 (최신순 정렬)
+        const uniqueHistories = Array.from(seen.values()).sort((a, b) => b.id - a.id);
+        setRouteSearchHistories(uniqueHistories);
       } else {
         setRouteSearchHistories([]);
       }
@@ -1450,8 +1461,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                       return;
                     }
                   } else {
-                    // 출발지 검색
-                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1 });
+                    // 출발지 검색 (최근 기록에 저장하지 않음)
+                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1, save_history: false });
                     if (departureResult.status === "success" && departureResult.data && departureResult.data.length > 0) {
                       const place = departureResult.data[0];
                       departureLocation = {
@@ -1466,8 +1477,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     }
                   }
 
-                  // 도착지 검색
-                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1 });
+                  // 도착지 검색 (최근 기록에 저장하지 않음)
+                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1, save_history: false });
                   if (arrivalResult.status === "success" && arrivalResult.data && arrivalResult.data.length > 0) {
                     const place = arrivalResult.data[0];
                     arrivalLocation = {
