@@ -38,6 +38,8 @@ interface MovingCharacterProps {
   routeSegments?: RouteSegment[];
   // 다음 업데이트까지 시간 (ms) - 보간 duration
   updateInterval?: number;
+  // 보간 건너뛰기 (이미 애니메이션된 위치를 받는 경우)
+  skipInterpolation?: boolean;
   // 캐릭터 크기
   size?: number;
   // 애니메이션 속도 (ms)
@@ -57,6 +59,7 @@ export function MovingCharacter({
   status,
   routeSegments = [],
   updateInterval = 5000,
+  skipInterpolation = false,
   size = 64,
   animationSpeed = 150,
   onClick,
@@ -175,6 +178,13 @@ export function MovingCharacter({
   useEffect(() => {
     if (!currentPosition) return;
 
+    // skipInterpolation이 true면 보간 없이 바로 위치 업데이트
+    // (이미 부모 컴포넌트에서 부드러운 애니메이션 처리하는 경우)
+    if (skipInterpolation) {
+      setDisplayPosition([currentPosition.lon, currentPosition.lat]);
+      return;
+    }
+
     const animate = () => {
       const interpState = interpolationStateRef.current;
 
@@ -227,7 +237,7 @@ export function MovingCharacter({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [currentPosition]);
+  }, [currentPosition, skipInterpolation]);
 
   // 지도 좌표 -> 화면 좌표 변환
   useEffect(() => {

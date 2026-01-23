@@ -269,7 +269,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       const allCoordinates: [number, number][] = [];
 
       for (const leg of detail.legs) {
-        // passShape가 있으면 사용 (대중교통 구간)
+        // passShape가 있으면 사용 (BUS/SUBWAY 구간)
         if (leg.passShape?.linestring) {
           const points = leg.passShape.linestring.split(' ');
           for (const point of points) {
@@ -278,8 +278,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               allCoordinates.push([lon, lat]);
             }
           }
+        } else if (leg.steps && leg.steps.length > 0) {
+          // WALK 구간: steps[].linestring 사용 (실제 도보 경로)
+          for (const step of leg.steps) {
+            if (step.linestring) {
+              const points = step.linestring.split(' ');
+              for (const point of points) {
+                const [lon, lat] = point.split(',').map(Number);
+                if (!isNaN(lon) && !isNaN(lat)) {
+                  allCoordinates.push([lon, lat]);
+                }
+              }
+            }
+          }
         } else {
-          // passShape가 없으면 시작점과 끝점만 추가 (도보 구간)
+          // passShape도 steps도 없으면 시작점과 끝점만 추가 (fallback)
           allCoordinates.push([leg.start.lon, leg.start.lat]);
           allCoordinates.push([leg.end.lon, leg.end.lat]);
         }
@@ -701,11 +714,38 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
     const routeLength = turf.length(routeLine, { units: 'meters' });
 
+    // 경로선 좌표 분석
+    const routeCoords = routeLine.geometry.coordinates;
+    const firstCoord = routeCoords[0];
+    const lastCoord = routeCoords[routeCoords.length - 1];
+
+    // 경로선 특정 지점 좌표 확인
+    const point25 = turf.along(routeLine, routeLength * 0.25, { units: 'meters' });
+    const point50 = turf.along(routeLine, routeLength * 0.50, { units: 'meters' });
+    const point75 = turf.along(routeLine, routeLength * 0.75, { units: 'meters' });
+
     console.log(`🚀 사용자 자동 이동 시작 (legs 기반)`);
     console.log(`   - 총 소요 시간: ${totalTime}초 (${Math.round(totalTime / 60)}분)`);
     console.log(`   - 총 거리: ${totalDistance}m`);
     console.log(`   - 경로선 길이: ${Math.round(routeLength)}m`);
+    console.log(`   - 경로선 좌표 수: ${routeCoords.length}개`);
     console.log(`   - legs 수: ${detail.legs.length}개`);
+    // leg별 예상 끝 지점 (거리 기반)
+    const leg0EndDist = legTimings[0]?.endDistance || 0;
+    const leg0EndPoint = turf.along(routeLine, Math.min(leg0EndDist, routeLength), { units: 'meters' });
+    const leg1EndDist = legTimings[1]?.endDistance || 0;
+    const leg1EndPoint = turf.along(routeLine, Math.min(leg1EndDist, routeLength), { units: 'meters' });
+
+    console.log(`📍 경로선 좌표:`);
+    console.log(`   - 0% (시작): [${firstCoord[0].toFixed(6)}, ${firstCoord[1].toFixed(6)}]`);
+    console.log(`   - 25%: [${point25.geometry.coordinates[0].toFixed(6)}, ${point25.geometry.coordinates[1].toFixed(6)}]`);
+    console.log(`   - 50%: [${point50.geometry.coordinates[0].toFixed(6)}, ${point50.geometry.coordinates[1].toFixed(6)}]`);
+    console.log(`   - 75%: [${point75.geometry.coordinates[0].toFixed(6)}, ${point75.geometry.coordinates[1].toFixed(6)}]`);
+    console.log(`   - 100% (끝): [${lastCoord[0].toFixed(6)}, ${lastCoord[1].toFixed(6)}]`);
+    console.log(`   - 도착지: [${arrival?.lon.toFixed(6)}, ${arrival?.lat.toFixed(6)}]`);
+    console.log(`📍 leg별 예상 끝 지점:`);
+    console.log(`   - leg[0] WALK 끝 (${leg0EndDist}m): [${leg0EndPoint.geometry.coordinates[0].toFixed(6)}, ${leg0EndPoint.geometry.coordinates[1].toFixed(6)}]`);
+    console.log(`   - leg[1] BUS 끝 (${leg1EndDist}m): [${leg1EndPoint.geometry.coordinates[0].toFixed(6)}, ${leg1EndPoint.geometry.coordinates[1].toFixed(6)}]`);
 
     setIsUserAutoMoving(true);
     raceStartTime.current = Date.now();
@@ -741,8 +781,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           lastLegIndex = currentLeg.legIndex;
         }
 
-        // 디버그: 10초마다 상태 로그
-        if (elapsed - lastLogTime >= 10) {
+        // 디버그: 30초마다 상세 로그
+        if (elapsed - lastLogTime >= 30) {
           console.log(`⏱️ ${Math.round(elapsed)}초 경과: leg[${currentLeg.legIndex}] ${currentLeg.mode}, 진행률=${(legProgress * 100).toFixed(1)}%, 이동거리=${Math.round(currentDistance)}m`);
           lastLogTime = elapsed;
         }
@@ -1610,7 +1650,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return colors;
   }, [createRouteResponse]);
 
-  // user의 현재 위치 계산 (우선순위: GPS 추적 > GPS 테스트 > 자동 이동)
+  // user의 현재 위치 계산 (우선순위: GPS 추적 > GPS 테스트 > 자동 이동 > 진행률 기반)
   const userPosition = useMemo(() => {
     if (isGpsTracking && userLocation) {
       // GPS 추적 중: 실제 GPS 위치 사용
@@ -1618,8 +1658,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     } else if (isGpsTestMode && userLocation) {
       // GPS 테스트 모드: 가짜 GPS 위치 사용
       return { lon: userLocation[0], lat: userLocation[1] };
+    } else if (isUserAutoMoving && userLocation) {
+      // 자동 이동 중: startUserAutoMove에서 계산한 정확한 위치 사용
+      // (구간별 sectionTime을 고려한 정확한 위치)
+      return { lon: userLocation[0], lat: userLocation[1] };
     } else {
-      // 자동 이동 또는 초기 상태: 진행률 기반 위치 계산
+      // 초기 상태 또는 자동 이동 전: 진행률 기반 위치 계산
       const progress = playerProgress.get('user') || 0;
       const pos = getPositionOnRoute('user', progress);
       if (pos) {
@@ -1627,7 +1671,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       }
     }
     return null;
-  }, [isGpsTracking, isGpsTestMode, userLocation, playerProgress, getPositionOnRoute]);
+  }, [isGpsTracking, isGpsTestMode, isUserAutoMoving, userLocation, playerProgress, getPositionOnRoute]);
 
   // 경로 로딩 중인지 확인 (assignments는 있지만 routeLines가 비어있는 경우)
   const isRouteLoading = assignments.size > 0 && routeLines.length === 0;
@@ -1665,7 +1709,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           botId={0}
           currentPosition={userPosition}
           status="WALKING"
-          updateInterval={1000}
+          skipInterpolation={true}  // 부모에서 이미 애니메이션 처리하므로 보간 건너뛰기
           size={64}
           animationSpeed={150}
         />
