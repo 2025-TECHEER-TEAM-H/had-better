@@ -1436,16 +1436,29 @@ def _handle_riding_subway(
         # pass_shape 문자열을 좌표 배열로 파싱
         parsed_coords = _parse_pass_shape(raw_pass_shape)
 
+        # 역 인덱스를 좌표 인덱스로 변환
+        # pass_stops: 역 개수 (예: 5개)
+        # parsed_coords: 경로 좌표 개수 (예: 143개)
+        # current_idx가 2/5 지점이면, 좌표는 2/5 * 143 ≈ 57번째
+        total_stations = len(pass_stops) if pass_stops else 1
+        coord_idx = 0
+        if parsed_coords and total_stations > 1:
+            # 역 진행률을 좌표 인덱스로 변환
+            station_progress = current_idx / (total_stations - 1)
+            coord_idx = int(station_progress * (len(parsed_coords) - 1))
+            coord_idx = max(0, min(coord_idx, len(parsed_coords) - 1))
+
         # 디버깅 로그: pass_shape 데이터 확인
         logger.info(
             f"pass_shape 디버깅: route_id={route_id}, "
             f"raw_type={type(raw_pass_shape).__name__}, "
             f"parsed_len={len(parsed_coords)}, "
-            f"current_idx={current_idx}"
+            f"current_idx(역)={current_idx}, coord_idx(좌표)={coord_idx}, "
+            f"total_stations={total_stations}"
         )
 
-        if parsed_coords and len(parsed_coords) > current_idx:
-            coord = parsed_coords[current_idx]
+        if parsed_coords and len(parsed_coords) > coord_idx:
+            coord = parsed_coords[coord_idx]
             logger.info(
                 f"coord 디버깅: route_id={route_id}, "
                 f"coord={coord}"

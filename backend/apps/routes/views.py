@@ -327,7 +327,7 @@ class RouteListCreateView(APIView):
                 legs = bot_leg.raw_data.get("legs", [])
                 redis_client.set_public_ids(bot_route.id, public_ids)
 
-                # 봇 초기 상태 생성 (출발지 좌표 포함)
+                # 봇 초기 상태 생성 (첫 번째 leg mode에 따라 상태/위치 결정)
                 initial_state = BotStateManager.initialize(
                     route_id=bot_route.id,
                     bot_id=bot.id,
@@ -336,20 +336,67 @@ class RouteListCreateView(APIView):
                     start_lat=start_lat,
                 )
 
-                # 초기 SSE 이벤트 즉시 발행 (프론트엔드에서 바로 봇 표시 가능)
+                # 첫 번째 leg의 mode에 따라 초기 위치와 vehicle_info 설정
+                vehicle_info = None
+                if legs and len(legs) > 0:
+                    first_leg = legs[0]
+                    first_mode = first_leg.get("mode", "WALK")
+                    first_public_leg = public_ids["legs"][0] if public_ids.get("legs") else {}
+
+                    if first_mode == "BUS":
+                        # 버스 대기: 정류장 위치로 업데이트
+                        start_station = first_public_leg.get("start_station") or {}
+                        station_lon = start_station.get("lon")
+                        station_lat = start_station.get("lat")
+                        if station_lon and station_lat:
+                            BotStateManager.update_position(
+                                bot_route.id,
+                                lon=float(station_lon),
+                                lat=float(station_lat)
+                            )
+                        vehicle_info = {
+                            "type": "BUS",
+                            "route": first_public_leg.get("bus_route_name"),
+                            "status": "waiting",
+                        }
+
+                    elif first_mode == "SUBWAY":
+                        # 지하철 대기: 역 위치로 업데이트
+                        start = first_leg.get("start", {})
+                        station_lon = start.get("lon")
+                        station_lat = start.get("lat")
+                        if station_lon and station_lat:
+                            BotStateManager.update_position(
+                                bot_route.id,
+                                lon=float(station_lon),
+                                lat=float(station_lat)
+                            )
+                        vehicle_info = {
+                            "type": "SUBWAY",
+                            "route": first_public_leg.get("subway_line"),
+                            "status": "waiting",
+                        }
+
+                # 업데이트된 봇 상태 조회 (위치 업데이트 반영)
+                updated_initial_state = BotStateManager.get(bot_route.id) or initial_state
+
+                # 초기 SSE 이벤트 즉시 발행 (정확한 상태와 위치 포함)
                 SSEPublisher.publish_bot_status_update(
                     route_itinerary_id=route_itinerary.id,
                     bot_state={
-                        **initial_state,
+                        **updated_initial_state,
                         "progress_percent": 0,
                     },
-                    next_update_in=30,
+                    vehicle_info=vehicle_info,
+                    next_update_in=5,  # 첫 번째 업데이트까지 5초
                 )
 
-                # 첫 번째 Task 즉시 실행
+                # 첫 번째 Task 5초 후 실행 (초기 SSE 발행 후 빠른 첫 업데이트)
+                # countdown=0은 큐 지연으로 실제 즉시 실행이 안 됨
+                # 5초 후 첫 업데이트로 빠른 피드백 제공
                 result = update_bot_position.apply_async(
                     args=[bot_route.id],
-                    countdown=0,
+                    countdown=5,
                 )
                 # Task ID 저장 (즉시 취소용)
                 redis_client.set_task_id(bot_route.id, result.id)

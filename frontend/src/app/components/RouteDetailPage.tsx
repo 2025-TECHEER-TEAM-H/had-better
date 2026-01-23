@@ -280,6 +280,20 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return point.geometry.coordinates as [number, number];
   }, [getRouteLineString]);
 
+  // 사용자 도착 처리 (백엔드에 FINISHED 전송, 팝업은 표시하지 않음)
+  // 봇 시뮬레이션은 계속 진행됨
+  const handleUserArrived = useCallback(async () => {
+    const routeId = userRouteId || 1;
+
+    try {
+      // 유저 경주 상태를 FINISHED로 변경 (봇 시뮬레이션은 계속)
+      await updateRouteStatus(routeId, { status: 'FINISHED' });
+      console.log('🏁 사용자 도착 완료! 봇 시뮬레이션 계속 관전 중...');
+    } catch (error) {
+      console.error('사용자 도착 처리 실패:', error);
+    }
+  }, [userRouteId]);
+
   // GPS 위치 업데이트 처리
   const handlePositionUpdate = useCallback((position: GeolocationPosition) => {
     const { longitude, latitude } = position.coords;
@@ -310,10 +324,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           }
           return prevTimes;
         });
-        // 도착 완료 팝업 표시
-        openResultPopup();
-        // TODO: 백엔드에 도착 완료 API 호출
-        // fetch(`/api/v1/routes/${routeId}`, { method: 'PATCH', body: JSON.stringify({ status: 'FINISHED' }) });
+        // 백엔드에 사용자 도착 완료 전송 (봇 시뮬레이션은 계속)
+        handleUserArrived();
       }
     }
 
@@ -343,7 +355,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         return newProgress;
       });
     }
-  }, [arrival, departure, isUserArrived, getRouteLineString]);
+  }, [arrival, departure, isUserArrived, getRouteLineString, handleUserArrived]);
 
   // GPS 추적 시작
   const startGpsTracking = useCallback(() => {
@@ -436,7 +448,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           return prevTimes;
         });
         stopGpsTestMode();
-        openResultPopup();
+        // 백엔드에 사용자 도착 완료 전송 (봇 시뮬레이션은 계속)
+        handleUserArrived();
       }
     }
 
@@ -452,7 +465,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       newProgress.set('user', progress);
       return newProgress;
     });
-  }, [arrival, isUserArrived, getRouteLineString]);
+  }, [arrival, isUserArrived, getRouteLineString, handleUserArrived]);
 
   // GPS 테스트 모드 시작
   const startGpsTestMode = useCallback(() => {
@@ -547,33 +560,29 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       setPlayerProgress((prev) => {
         const newProgress = new Map(prev);
 
-        (['user', 'bot1', 'bot2'] as Player[]).forEach((player) => {
-          const current = prev.get(player) || 0;
-          if (current < 1) {
-            // 약간의 랜덤성 추가 (±10%)
-            const randomFactor = 0.9 + Math.random() * 0.2;
-            const newValue = Math.min(current + speeds[player] * deltaTime * randomFactor, 1);
-            newProgress.set(player, newValue);
-
-            // 100% 도달 시 도착 시간 기록
-            if (newValue >= 1) {
-              setFinishTimes((prevTimes) => {
-                if (!prevTimes.has(player)) {
-                  const newTimes = new Map(prevTimes);
-                  newTimes.set(player, Date.now());
-                  return newTimes;
-                }
-                return prevTimes;
-              });
-            }
+      // 도착 처리
+      if (progress >= 1) {
+        console.log('🏁 사용자 도착! 봇 시뮬레이션 계속 관전...');
+        setIsUserArrived(true);
+        setFinishTimes((prevTimes) => {
+          if (!prevTimes.has('user')) {
+            const newTimes = new Map(prevTimes);
+            newTimes.set('user', Date.now());
+            return newTimes;
           }
         });
+        setIsUserAutoMoving(false);
+        userAutoMoveRef.current = null;
+        // 백엔드에 사용자 도착 완료 전송 (봇 시뮬레이션은 계속)
+        handleUserArrived();
+        return;
+      }
 
         return newProgress;
       });
 
-      simulationRef.current = requestAnimationFrame(animate);
-    };
+    userAutoMoveRef.current = requestAnimationFrame(animate);
+  }, [isUserAutoMoving, isGpsTracking, isGpsTestMode, getUserTotalTime, handleUserArrived]);
 
     simulationRef.current = requestAnimationFrame(animate);
   }, [isSimulating]);
@@ -702,7 +711,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   }, [userRouteId, simulationStartTime, finishTimes, playerProgress, departure, arrival, createRouteResponse]);
 
 
-  // 도착 완료 처리 (상태 변경 + 결과 생성)
+  // 도착 완료 처리 (상태 변경 + 결과 생성 + 팝업 표시)
   const handleFinishRoute = useCallback(async () => {
     const routeId = userRouteId || 1;
 
@@ -710,15 +719,11 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     setIsLoadingResult(true);
 
     try {
-      // 유저 경주 상태를 FINISHED로 변경 (백엔드에서 봇들도 자동으로 FINISHED 처리)
-      await updateRouteStatus(routeId, { status: 'FINISHED' });
-      console.log('경주 상태 변경 완료: FINISHED (유저 + 봇 모두)');
-
       // 시뮬레이션 결과 기반으로 결과 데이터 생성
       const result = generateResultFromSimulation();
       setRouteResult(result);
     } catch (error) {
-      console.error('도착 완료 처리 실패:', error);
+      console.error('결과 생성 실패:', error);
       // 에러 발생해도 시뮬레이션 결과 표시
       const result = generateResultFromSimulation();
       setRouteResult(result);
@@ -1084,11 +1089,19 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
       {/* 도착 완료 */}
       {isUserArrived && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[18px]">🎉</span>
-          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
-            도착 완료!
-          </p>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[18px]">🎉</span>
+            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
+              도착 완료! 봇 시뮬레이션 관전 중...
+            </p>
+          </div>
+          <button
+            onClick={openResultPopup}
+            className="px-3 py-1 bg-white text-[#4ecdc4] rounded-full text-[11px] font-bold hover:bg-gray-100 transition-colors"
+          >
+            결과 보기
+          </button>
         </div>
       )}
 
@@ -1588,9 +1601,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               ⚠️ 경로 이탈 {distanceFromRoute}m
             </p>
           ) : isUserArrived ? (
-            <p className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold">
-              🎉 도착!
-            </p>
+            <button
+              onClick={openResultPopup}
+              className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold hover:underline"
+            >
+              🎉 도착! [결과 보기]
+            </button>
           ) : (
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
