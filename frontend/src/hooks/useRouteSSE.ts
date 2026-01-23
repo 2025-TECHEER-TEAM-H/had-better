@@ -148,6 +148,12 @@ export function useRouteSSE(
         h.onRouteEnded?.(event.data);
         break;
 
+      // [추가됨] 유저 버스 도착 정보 (백엔드에서 실시간 전송)
+      case 'user_bus_arrival':
+        console.log('🚍 유저 탑승 버스 정보:', event.data);
+        // 필요한 경우 여기에 상태 업데이트 로직 추가
+        break;
+
       case 'heartbeat':
         // heartbeat는 로그 생략 (30초마다 발생)
         break;
@@ -212,6 +218,7 @@ export function useRouteSSE(
       'bot_alighting',
       'participant_finished',
       'route_ended',
+      'user_bus_arrival', // [추가됨] 이벤트 리스너 등록
       'heartbeat',
       'error',
     ];

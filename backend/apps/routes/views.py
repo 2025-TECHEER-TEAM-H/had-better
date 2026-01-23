@@ -838,8 +838,8 @@ eventSource.addEventListener('bot_status_update', (e) => {
                     except StopIteration:
                         return "STOP"
 
-                # subscribe generator 생성
-                subscribe_gen = rabbitmq_client.subscribe(route_itinerary_id, timeout=30)
+                # subscribe generator 생성 (타임아웃 5초로 단축하여 버스 체크 주기 확보)
+                subscribe_gen = rabbitmq_client.subscribe(route_itinerary_id, timeout=5)
 
                 # 경주 상태 확인 함수 (DB 조회)
                 def check_route_status():
@@ -850,14 +850,48 @@ eventSource.addEventListener('bot_status_update', (e) => {
                     ).count()
                     return active_count == 0
 
+                # 유저 버스 모니터 초기화
+                from .services.user_bus_monitor import UserBusMonitor
+                user_bus_monitor = None
+                
+                # 유저의 Route 찾기
+                user_route = await asyncio.to_thread(
+                    lambda: Route.objects.filter(
+                        route_itinerary_id=route_itinerary_id,
+                        participant_type=Route.ParticipantType.USER,
+                        status=Route.Status.RUNNING
+                    ).first()
+                )
+
+                if user_route:
+                    user_bus_monitor = UserBusMonitor(user_route.id)
+                    logger.info(f"SSE: UserBusMonitor initialized for route {user_route.id}")
+
                 while True:
                     # 이벤트 수신 (blocking 호출을 스레드에서)
+                    # timeout이 5초이므로, 5초마다 None이 반환되어 루프가 돕니다.
                     event = await asyncio.to_thread(get_next_event, subscribe_gen)
+
+                    # --- 유저 버스 도착 정보 확인 및 로그 출력 ---
+                    if user_bus_monitor:
+                        bus_info = await asyncio.to_thread(user_bus_monitor.check_arrival)
+                        # ACTIVE 상태일 때만 로그 출력 및 이벤트 전송
+                        if bus_info and bus_info.get("status") == "ACTIVE":
+                            logger.info("="*50)
+                            logger.info(f"🚍 [User Bus Check] {bus_info['bus_name']} -> {bus_info['station_name']}")
+                            logger.info(f"   Status: {bus_info['arrival_message']}")
+                            logger.info(f"   Time Left: {bus_info['remaining_time']} sec")
+                            logger.info(f"   Vehicle ID: {bus_info['vehicle_id']}")
+                            logger.info("="*50)
+                            
+                            # 프론트엔드로 실시간 이벤트 전송
+                            yield _format_sse_event("user_bus_arrival", bus_info)
+                    # ---------------------------------------------
 
                     if event == "STOP":
                         break
                     elif event is None:
-                        # Heartbeat (타임아웃) - 경주 상태 확인
+                        # Timeout (Heartbeat & Status Check)
                         is_ended = await asyncio.to_thread(check_route_status)
 
                         if is_ended:
