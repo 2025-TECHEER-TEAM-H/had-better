@@ -3,21 +3,21 @@
  * 앱의 모든 라우트를 정의합니다.
  */
 
-import { createBrowserRouter } from "react-router-dom";
-import { MainLayout } from "@/app/layouts/MainLayout";
 import { LandingPage } from "@/app/components/LandingPage";
 import { LoginPage } from "@/app/components/LoginPage";
-import { SignupPage } from "@/app/components/SignupPage";
 import { Onboarding1Page } from "@/app/components/Onboarding1Page";
 import { Onboarding2Page } from "@/app/components/Onboarding2Page";
 import { Onboarding3Page } from "@/app/components/Onboarding3Page";
 import { Onboarding4Page } from "@/app/components/Onboarding4Page";
 import { Onboarding5Page } from "@/app/components/Onboarding5Page";
-import { SearchPageWrapper } from "@/app/pages/SearchPageWrapper";
+import { SignupPage } from "@/app/components/SignupPage";
+import { MainLayout } from "@/app/layouts/MainLayout";
 import { MapPage } from "@/app/pages/MapPage";
-import { SubwayPage } from "@/app/pages/SubwayPage";
-import { RoutePage } from "@/app/pages/RoutePage";
 import { RouteDetailPage } from "@/app/pages/RouteDetailPage";
+import { RoutePage } from "@/app/pages/RoutePage";
+import { SearchPageWrapper } from "@/app/pages/SearchPageWrapper";
+import { SubwayPage } from "@/app/pages/SubwayPage";
+import { createBrowserRouter } from "react-router-dom";
 
 /**
  * URL 구조:

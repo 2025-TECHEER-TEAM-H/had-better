@@ -1,14 +1,13 @@
+import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, removeBusLayers, toggleBusLayers, updateAllBusPositions } from "@/components/map/busLayer";
+import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { useMapStore } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { MapCharacter } from "@/components/MapCharacter";
-import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
-import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
-import { trackBusPositions, getBusRoutePath } from "@/lib/api";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 // 지도 스타일 타입
 type MapStyleType = "default" | "dark" | "satellite-streets";
@@ -490,11 +489,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     // 경로 라인 추가 함수
     const addRouteLinesToMap = () => {
       try {
-        // 기존 경로 레이어 및 소스 제거 (최대 10개까지)
+        // 기존 경로 레이어 및 소스 제거 (최대 10개까지, 화살표 레이어 포함)
         for (let i = 0; i < 10; i++) {
           const layerId = `route-line-${i}`;
+          const arrowLayerId = `route-arrow-${i}`;
           const sourceId = `route-source-${i}`;
 
+          if (mapInstance.getLayer(arrowLayerId)) {
+            mapInstance.removeLayer(arrowLayerId);
+          }
           if (mapInstance.getLayer(layerId)) {
             mapInstance.removeLayer(layerId);
           }
@@ -521,7 +524,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             },
           });
 
-          // 라인 레이어 추가
+          // 라인 레이어 추가 (두께 8px)
           mapInstance.addLayer({
             id: layerId,
             type: 'line',
@@ -532,10 +535,52 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             },
             paint: {
               'line-color': route.color,
-              'line-width': route.width || 5,
+              'line-width': route.width || 8,
               'line-opacity': route.opacity || 0.8,
             },
           });
+
+          // 화살표 패턴을 위한 심볼 레이어 추가
+          const arrowLayerId = `route-arrow-${index}`;
+          const arrowImageId = `arrow-${index}`;
+
+          // 경로 색상에 맞는 화살표 SVG 생성
+          const arrowSvg = `
+          <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 2 12 L 18 12 M 12 6 L 18 12 L 12 18" stroke="${route.color}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+
+          const arrowImage = new Image(24, 24);
+          arrowImage.onload = () => {
+            if (mapInstance.hasImage(arrowImageId)) {
+              mapInstance.removeImage(arrowImageId);
+            }
+            mapInstance.addImage(arrowImageId, arrowImage);
+
+            // 화살표 레이어 추가
+            if (!mapInstance.getLayer(arrowLayerId)) {
+              mapInstance.addLayer({
+                id: arrowLayerId,
+                type: 'symbol',
+                source: sourceId,
+                layout: {
+                  'symbol-placement': 'line',
+                  'symbol-spacing': 80, // 화살표 간격 (픽셀)
+                  'icon-image': arrowImageId,
+                  'icon-size': 1.0,
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
+                  'icon-rotation-alignment': 'map',
+                  'icon-keep-upright': false,
+                },
+                paint: {
+                  'icon-opacity': route.opacity || 0.8,
+                },
+              });
+            }
+          };
+          arrowImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(arrowSvg);
         });
       } catch {
         // 스타일 로딩 중 에러 무시
@@ -567,8 +612,12 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
         routeLines.forEach((_, index) => {
           const layerId = `route-line-${index}`;
+          const arrowLayerId = `route-arrow-${index}`;
           const sourceId = `route-source-${index}`;
 
+          if (mapInstance.getLayer(arrowLayerId)) {
+            mapInstance.removeLayer(arrowLayerId);
+          }
           if (mapInstance.getLayer(layerId)) {
             mapInstance.removeLayer(layerId);
           }
@@ -596,10 +645,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       const el = document.createElement("div");
       el.className = "endpoint-marker";
 
-      // 출발지: 녹색 깃발, 도착지: 빨간 깃발
-      const flagImage = endpoint.type === 'departure'
-        ? '/src/assets/flag_green.png'
-        : '/src/assets/flag-red.png';
+      const markerImageSrc = endpoint.type === 'departure'
+        ? '/assets/markers/departure-marker.png'
+        : '/assets/markers/arrival-marker.png';
 
       el.innerHTML = `
         <div style="
@@ -607,19 +655,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           flex-direction: column;
           align-items: center;
         ">
-          <img
-            src="${flagImage}"
-            alt="${endpoint.type === 'departure' ? '출발지' : '도착지'}"
-            style="
-              width: 32px;
-              height: 32px;
-              object-fit: contain;
-              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-            "
-          />
           <div style="
-            margin-top: 2px;
-            padding: 3px 6px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <img
+              src="${markerImageSrc}"
+              alt="${endpoint.type === 'departure' ? '출발지' : '도착지'}"
+              style="
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+              "
+            />
+          </div>
+          <div style="
+            margin-top: 4px;
+            padding: 4px 8px;
             background: white;
             border: 2px solid black;
             border-radius: 4px;
@@ -1242,29 +1298,30 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       {/* 우상단 컨트롤 버튼들 - 지도가 표시되는 모든 페이지에서 표시 */}
       {(resolvedCurrentPage === "map" || resolvedCurrentPage === "search" || resolvedCurrentPage === "route" || resolvedCurrentPage === "routeDetail") && (
         <div className="absolute right-4 top-4 flex flex-col gap-3 z-10">
-          {/* 검색 버튼 - 모바일에서만 표시 */}
-          {onNavigate && (
+          {/* 검색 버튼 - 모바일에서만 표시, route 페이지에서는 RouteSelectionPage에서 관리하므로 숨김 */}
+          {onNavigate && resolvedCurrentPage !== "route" && (
             <button
               onClick={() => onNavigate("search")}
-              className="md:hidden bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              className="md:hidden bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 size-[48px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all"
               title="검색"
             >
               <span className="text-[20px]">🔍</span>
             </button>
           )}
 
-          {/* 레이어 버튼 */}
+          {/* 레이어 버튼 - route 페이지에서는 RouteSelectionPage에서 관리하므로 숨김 */}
+          {resolvedCurrentPage !== "route" && (
           <div className="relative">
             <button
               ref={layerButtonRef}
               onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-              className={`bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors ${isLayerPopoverOpen ? "bg-[#e5e7eb]" : ""}`}
+              className={`bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 size-[48px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all ${isLayerPopoverOpen ? "bg-white/60" : ""}`}
               title="레이어"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
 
@@ -1272,9 +1329,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             {isLayerPopoverOpen && (
               <div
                 ref={popoverRef}
-                className="absolute right-[56px] top-0 bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black p-4 min-w-[200px] z-20"
+                className="absolute right-[56px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
               >
-                <div className="text-sm font-bold text-gray-700 mb-3 pb-2 border-b-2 border-gray-200">
+                <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                   지도 스타일
                 </div>
                 <div className="flex flex-col gap-2">
@@ -1282,10 +1339,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                     <button
                       key={styleKey}
                       onClick={() => handleStyleChange(styleKey)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
                         mapStyle === styleKey
-                          ? "bg-[#4a9960] text-white"
-                          : "hover:bg-gray-100"
+                          ? "bg-white/40 text-gray-900 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                          : "hover:bg-white/30 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
                       }`}
                     >
                       <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
@@ -1300,32 +1357,34 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                 </div>
 
                 {/* 레이어 옵션 섹션 */}
-                <div className="text-sm font-bold text-gray-700 mt-4 mb-3 pt-3 pb-2 border-t-2 border-b-2 border-gray-200">
+                <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
                   레이어 옵션
                 </div>
                 <div className="flex flex-col gap-2">
                   {/* 3D 건물 토글 */}
                   <button
                     onClick={handle3DBuildingsToggle}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
                       is3DBuildingsEnabled
-                        ? "bg-[#4a9960] text-white"
-                        : "hover:bg-gray-100"
+                        ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                        : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
                     }`}
                   >
                     <span className="text-lg">🏢</span>
                     <span className="text-sm font-medium">3D 건물</span>
                     {/* 토글 스위치 */}
                     <div
-                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
-                        is3DBuildingsEnabled ? "bg-white/30" : "bg-gray-300"
+                      className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                        is3DBuildingsEnabled
+                          ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                          : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
                       }`}
                     >
                       <div
                         className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
                           is3DBuildingsEnabled
-                            ? "translate-x-5 bg-white"
-                            : "translate-x-0.5 bg-white"
+                            ? "translate-x-5 bg-white shadow-md"
+                            : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
                         }`}
                       />
                     </div>
@@ -1334,25 +1393,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                   {/* 지하철 노선 토글 */}
                   <button
                     onClick={handleSubwayLinesToggle}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
                       isSubwayLinesEnabled
-                        ? "bg-[#4a9960] text-white"
-                        : "hover:bg-gray-100"
+                        ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                        : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
                     }`}
                   >
                     <span className="text-lg">🚇</span>
                     <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
                     {/* 토글 스위치 */}
                     <div
-                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
-                        isSubwayLinesEnabled ? "bg-white/30" : "bg-gray-300"
+                      className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                        isSubwayLinesEnabled
+                          ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                          : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
                       }`}
                     >
                       <div
                         className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
                           isSubwayLinesEnabled
-                            ? "translate-x-5 bg-white"
-                            : "translate-x-0.5 bg-white"
+                            ? "translate-x-5 bg-white shadow-md"
+                            : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
                         }`}
                       />
                     </div>
@@ -1361,25 +1422,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                   {/* 버스 노선 토글 */}
                   <button
                     onClick={handleBusLinesToggle}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
                       isBusLinesEnabled
-                        ? "bg-[#3366FF] text-white"
-                        : "hover:bg-gray-100"
+                        ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                        : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
                     }`}
                   >
                     <span className="text-lg">🚌</span>
                     <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
                     {/* 토글 스위치 */}
                     <div
-                      className={`ml-auto w-10 h-5 rounded-full transition-colors relative ${
-                        isBusLinesEnabled ? "bg-white/30" : "bg-gray-300"
+                      className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                        isBusLinesEnabled
+                          ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                          : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
                       }`}
                     >
                       <div
                         className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
                           isBusLinesEnabled
-                            ? "translate-x-5 bg-white"
-                            : "translate-x-0.5 bg-white"
+                            ? "translate-x-5 bg-white shadow-md"
+                            : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
                         }`}
                       />
                     </div>
@@ -1388,21 +1451,24 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
               </div>
             )}
           </div>
+          )}
 
-          {/* 현재 위치 버튼 */}
-          <button
-            onClick={handleMyLocation}
-            className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
-            title="내 위치로 이동"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3" stroke="#2D5F3F" strokeWidth="2"/>
-              <path d="M12 2V6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M12 18V22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M2 12H6" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M18 12H22" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
+          {/* 현재 위치 버튼 - route 페이지에서는 RouteSelectionPage에서 관리하므로 표시하지 않음 */}
+          {resolvedCurrentPage !== "route" && (
+            <button
+              onClick={handleMyLocation}
+              className="bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 size-[48px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all"
+              title="내 위치로 이동"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.7)" strokeWidth="2"/>
+                <path d="M12 2V6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
         </div>
       )}
 
@@ -1410,24 +1476,24 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       {resolvedCurrentPage === "map" && (
         <div className="hidden md:flex absolute right-4 bottom-10 flex-col gap-3 z-10">
           {/* 줌 컨트롤 - 데스크톱에서만 표시 */}
-          <div className="bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black overflow-hidden w-[48px]">
+          <div className="bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 overflow-hidden w-[48px]">
             <button
               onClick={handleZoomIn}
-              className="w-full h-[48px] border-b-2 border-[#e5e7eb] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              className="w-full h-[48px] border-b border-white/30 flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all"
               title="줌 인"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M8 3V13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 8H13" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 3V13" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
             <button
               onClick={handleZoomOut}
-              className="w-full h-[48px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors"
+              className="w-full h-[48px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all"
               title="줌 아웃"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8H13" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 8H13" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
           </div>
@@ -1436,12 +1502,12 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
       {/* 버스 번호 입력 모달 */}
       {showBusInputModal && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-[16px] shadow-[4px_4px_0px_0px_black] border-3 border-black p-6 mx-4 max-w-[400px] w-full">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
               버스 번호 입력
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-700 mb-4">
               추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
             </p>
             <input
@@ -1454,17 +1520,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                 }
               }}
               placeholder="예: 360, 472, 151"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-[12px] text-base focus:outline-none focus:border-[#4a9960] mb-4"
+              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-[12px] text-base text-gray-900 placeholder:text-gray-600 focus:outline-none focus:border-white/60 focus:bg-white/40 transition-all mb-4"
               autoFocus
             />
             {trackedBusNumbers.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2">현재 추적 중:</p>
+                <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
                 <div className="flex flex-wrap gap-2">
                   {trackedBusNumbers.map((num) => (
                     <span
                       key={num}
-                      className="px-3 py-1 bg-[#4a9960] text-white text-sm rounded-full"
+                      className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
                     >
                       {num}번
                     </span>
@@ -1475,13 +1541,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             <div className="flex gap-3">
               <button
                 onClick={handleBusInputCancel}
-                className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-[12px] hover:bg-gray-200 transition-colors"
+                className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
               >
                 취소
               </button>
               <button
                 onClick={handleBusInputConfirm}
-                className="flex-1 py-3 bg-[#4a9960] text-white font-medium rounded-[12px] hover:bg-[#3d8050] transition-colors"
+                className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
               >
                 확인
               </button>

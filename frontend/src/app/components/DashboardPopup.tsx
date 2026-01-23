@@ -32,45 +32,79 @@ export function DashboardPopup({ isOpen, onClose, onLogout }: DashboardPopupProp
           }
 
           .hb-dashboard-popup {
-            background: linear-gradient(180deg, #c5e7f5 0%, #f3fbff 48%, #ffffff 100%);
+            background: rgba(255,255,255,0.3);
+            overflow: hidden;
           }
 
           .hb-dashboard-popup .hb-dashboard-glass {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%);
-            border: 1px solid rgba(255,255,255,0.38);
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28);
-            backdrop-filter: blur(18px) saturate(160%);
-            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            background: rgba(255,255,255,0.25);
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
           }
 
-          .hb-dashboard-popup .hb-dashboard-glass-fun::before {
-            content: "";
-            position: absolute;
-            inset: -30% -40%;
-            pointer-events: none;
-            background: linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0) 60%);
-            opacity: 0;
-            animation: hb-dashboard-sheen 12.5s ease-in-out infinite;
-          }
-
-          @keyframes hb-dashboard-sheen {
-            0% { transform: translateX(-40%) translateY(-10%) rotate(12deg); opacity: 0; }
-            12% { opacity: 0.55; }
-            50% { opacity: 0.35; }
-            100% { transform: translateX(140%) translateY(10%) rotate(12deg); opacity: 0; }
-          }
 
           /* DashboardPage 내부 배경 제거 */
           .hb-dashboard-popup [data-name="DashboardPage"] {
             background: transparent !important;
           }
 
-          /* Container2 (헤더) 배경 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:first-child {
-            background: transparent !important;
+          /* 콘텐츠 영역 (두 번째 Container) - 글라스모피즘 배경 */
+          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:last-child {
+            background: rgba(255,255,255,0.3) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            position: relative !important;
+            z-index: 2 !important;
+            padding-top: 20px !important;
+            min-height: 60vh !important;
           }
+
+          /* Container2 (헤더) - 글라스모피즘 녹색 배경 */
+          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:first-child {
+            background: rgba(74,153,96,0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.3) !important;
+            position: relative !important;
+            padding: 24px 20px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          /* 헤더 내부의 디자인을 방해하는 자식 요소 숨기기 */
+          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:first-child > * {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+          }
+
+          /* 헤더 제목 추가 */
+          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:first-child::before {
+            content: "Dashboard";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 700;
+            color: #4a9960;
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+            opacity: 1 !important;
+            visibility: visible !important;
+          }
+
 
           /* aria-hidden으로 숨겨진 모든 테두리 요소 완전 제거 */
           .hb-dashboard-popup [data-name="DashboardPage"] [aria-hidden="true"] {
@@ -79,55 +113,55 @@ export function DashboardPopup({ isOpen, onClose, onLogout }: DashboardPopupProp
             opacity: 0 !important;
           }
 
-          /* 모든 검은색 테두리를 반투명 흰색으로 변경 */
+          /* 모든 검은색 테두리를 녹색 테두리로 변경 */
           .hb-dashboard-popup [data-name="DashboardPage"] [class*="border-black"],
           .hb-dashboard-popup [data-name="DashboardPage"] [style*="border"][style*="black"] {
-            border-color: rgba(255,255,255,0.38) !important;
+            border-color: rgba(74,153,96,0.15) !important;
             border-width: 1px !important;
           }
 
-          /* 모든 요소의 테두리 색상을 흰색 반투명으로 변경 */
+          /* 모든 요소의 테두리를 녹색으로 통일 */
           .hb-dashboard-popup [data-name="DashboardPage"] * {
-            border-color: rgba(255,255,255,0.38) !important;
+            border-color: rgba(74,153,96,0.15) !important;
           }
 
-          /* Container57 내부의 모든 카드들을 SearchPage 글래스 스타일로 */
+          /* Container57 내부의 모든 카드들을 글라스모피즘 스타일로 */
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div[class*="gap-"] > div,
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            border-color: rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
-            backdrop-filter: blur(18px) saturate(160%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-            border-radius: 22px !important;
+            background: rgba(255,255,255,0.35) !important;
+            border: 1px solid rgba(255,255,255,0.4) !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border-radius: 16px !important;
           }
 
-          /* bg-white 배경을 글래스 스타일로 변경 */
+          /* bg-white 배경을 글라스모피즘 스타일로 변경 */
           .hb-dashboard-popup [data-name="DashboardPage"] [class*="bg-white"],
           .hb-dashboard-popup [data-name="DashboardPage"] [class*="bg-"]:not([class*="bg-clip"]):not([class*="bg-gradient"]) {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
-            backdrop-filter: blur(18px) saturate(160%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+            background: rgba(255,255,255,0.35) !important;
+            border: 1px solid rgba(255,255,255,0.4) !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
           }
 
-          /* 기존 배경색/테두리/그림자 완전히 제거하고 글래스 스타일 적용 */
+          /* 기존 배경색/테두리/그림자를 단순한 글라스모피즘 스타일로 */
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="bg-"],
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="border-"],
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="shadow-"] {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            border-color: rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
+            background: rgba(255,255,255,0.85) !important;
+            border: 1px solid rgba(74,153,96,0.15) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
           }
 
-          /* 인라인 스타일 배경도 제거 */
+          /* 인라인 스타일 배경도 단순한 글라스모피즘으로 변경 */
           .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[style*="background"] {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
+            background: rgba(255,255,255,0.85) !important;
           }
 
           /* 최근 게임 섹션 내부 요소들의 모든 효과 제거 (경로 A, B, C) */
@@ -283,30 +317,36 @@ export function DashboardPopup({ isOpen, onClose, onLogout }: DashboardPopupProp
             overflow: visible !important;
           }
 
-          @media (prefers-reduced-motion: reduce) {
-            .hb-dashboard-popup .hb-dashboard-glass-fun::before {
-              animation: none !important;
-            }
-          }
         `}
       </style>
-      
+
       {/* 백드롭 - 클릭하면 닫힘 */}
-      <div 
-        className="fixed inset-0 bg-black/40 z-[60] transition-opacity"
+      <div
+        className="fixed inset-0 bg-black/60 z-[60] transition-opacity"
         onClick={onClose}
       />
-      
+
       {/* 팝업 컨테이너 */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-        <div 
-          className="hb-dashboard-popup pointer-events-auto w-full max-w-[400px] h-[90vh] max-h-[840px] rounded-[22px] hb-dashboard-glass hb-dashboard-glass-fun overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-200"
+        <div
+          className="hb-dashboard-popup pointer-events-auto w-full max-w-[400px] h-[90vh] max-h-[840px] rounded-[22px] hb-dashboard-glass overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
           }}
         >
+          {/* 닫기 버튼 */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/30 backdrop-blur-md border border-white/40 shadow-lg hover:bg-white/40 transition-all"
+            title="닫기"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 5L5 15M5 5L15 15" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
           {/* 대시보드 콘텐츠 */}
           <div className="relative min-h-full flex flex-col">
             <div className="flex-1">

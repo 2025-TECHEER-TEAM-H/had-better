@@ -6,7 +6,7 @@ import imgWindow2 from "@/assets/window.png";
 import placeService from "@/services/placeService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route";
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
 
 interface Place {
   id: string;
@@ -84,8 +84,6 @@ export function PlaceSearchModal({
 }: PlaceSearchModalProps) {
   // NOTE: 이 모달에서는 상단 메뉴/탭 UI를 숨깁니다. (다만, 경로 안내 등 일부 흐름에서 onNavigate를 사용할 수 있습니다.)
   void onOpenDashboard;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _onNavigate = onNavigate; // 향후 사용 예정
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -98,7 +96,7 @@ export function PlaceSearchModal({
   const [pendingPlace, setPendingPlace] = useState<Place | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // 검색 결과 상태
   const [searchResults, setSearchResults] = useState<Place[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -239,20 +237,62 @@ export function PlaceSearchModal({
 
         // 저장된 장소 목록 다시 로드 (현재 카테고리만)
         loadSavedPlaces();
-        
+
         // 다른 컴포넌트에도 알림 (SearchPage의 상태 업데이트용)
         window.dispatchEvent(new CustomEvent("savedPlaceUpdated", {
           detail: { category: targetType }
         }));
+      } else if (response.status === "error" && response.error?.code === "RESOURCE_CONFLICT") {
+        // 409 Conflict: 이미 해당 카테고리에 장소가 등록된 경우
+        // "이미 추가하셨습니다" 메시지 표시하고 정상 처리
+        alert(`이미 ${titleText}이(가) 등록되어 있습니다.`);
+
+        // 초기 화면으로 복귀
+        setIsConfirmOpen(false);
+        setPendingPlace(null);
+        setShowResults(false);
+        setSearchQuery("");
+        setSheetHeight(34);
+
+        // 저장된 장소 목록 다시 로드하여 동기화
+        loadSavedPlaces();
+
+        // 다른 컴포넌트에도 알림
+        window.dispatchEvent(new CustomEvent("savedPlaceUpdated", {
+          detail: { category: targetType }
+        }));
       } else {
-        // 에러 처리
+        // 다른 에러 처리
         alert(response.error?.message || "장소 저장에 실패했습니다.");
       }
     } catch (error: any) {
       console.error("즐겨찾기 추가 실패:", error);
-      const errorMessage =
-        error?.response?.data?.error?.message || "서버 오류로 장소를 저장할 수 없습니다.";
-      alert(errorMessage);
+
+      // 409 Conflict 에러 체크
+      if (error?.response?.status === 409 || error?.response?.data?.error?.code === "RESOURCE_CONFLICT") {
+        // 이미 해당 카테고리에 장소가 등록된 경우
+        alert(`이미 ${titleText}이(가) 등록되어 있습니다.`);
+
+        // 초기 화면으로 복귀
+        setIsConfirmOpen(false);
+        setPendingPlace(null);
+        setShowResults(false);
+        setSearchQuery("");
+        setSheetHeight(34);
+
+        // 저장된 장소 목록 다시 로드하여 동기화
+        loadSavedPlaces();
+
+        // 다른 컴포넌트에도 알림
+        window.dispatchEvent(new CustomEvent("savedPlaceUpdated", {
+          detail: { category: targetType }
+        }));
+      } else {
+        // 다른 에러
+        const errorMessage =
+          error?.response?.data?.error?.message || "서버 오류로 장소를 저장할 수 없습니다.";
+        alert(errorMessage);
+      }
     }
   };
 

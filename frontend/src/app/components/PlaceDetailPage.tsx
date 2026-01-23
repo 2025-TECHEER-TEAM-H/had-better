@@ -1,7 +1,7 @@
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
+import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
-import placeService from "@/services/placeService";
 
 interface PlaceDetailPageProps {
   isOpen: boolean;
@@ -49,12 +49,12 @@ export function PlaceDetailPage({
   const [isWebView, setIsWebView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // 즐겨찾기 상태 관리
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
   const [isFavorited, setIsFavorited] = useState(false);
   const [isFavoriteInitialized, setIsFavoriteInitialized] = useState(false); // 초기 즐겨찾기 여부 로딩 완료 플래그
-  
+
   // 토스트 메시지
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -85,7 +85,7 @@ export function PlaceDetailPage({
       if (response.status === "success" && response.data) {
         // 모든 카테고리 포함 (일반 즐겨찾기 + 집/회사/학교)
         // 자주가는곳에 저장된 장소도 별이 색칠되어 보이도록 함
-        
+
         // poi_place_id -> saved_place_id 매핑 생성
         const map = new Map<number, number>();
         response.data.forEach((savedPlace) => {
@@ -93,7 +93,7 @@ export function PlaceDetailPage({
           map.set(poiId, savedPlace.saved_place_id);
         });
         setSavedPlacesMap(map);
-        
+
         // 현재 장소의 즐겨찾기 상태 업데이트
         if (place?._poiPlaceId) {
           setIsFavorited(map.has(place._poiPlaceId));
@@ -142,7 +142,7 @@ export function PlaceDetailPage({
   useEffect(() => {
     const handleFavoritesUpdated = (event: CustomEvent<{ deletedPoiIds?: number[]; addedPoiId?: number; savedPlaceId?: number }>) => {
       const { deletedPoiIds, addedPoiId, savedPlaceId } = event.detail;
-      
+
       if (deletedPoiIds && deletedPoiIds.length > 0) {
         // 삭제된 POI ID들을 매핑에서 제거
         setSavedPlacesMap((prev) => {
@@ -152,13 +152,13 @@ export function PlaceDetailPage({
           });
           return newMap;
         });
-        
+
         // 현재 장소가 삭제된 경우 상태 업데이트
         if (place?._poiPlaceId && deletedPoiIds.includes(place._poiPlaceId)) {
           setIsFavorited(false);
         }
       }
-      
+
       if (addedPoiId && savedPlaceId) {
         // 추가된 POI ID를 매핑에 추가
         setSavedPlacesMap((prev) => {
@@ -166,7 +166,7 @@ export function PlaceDetailPage({
           newMap.set(addedPoiId, savedPlaceId);
           return newMap;
         });
-        
+
         // 현재 장소가 추가된 경우 상태 업데이트
         if (place?._poiPlaceId && addedPoiId === place._poiPlaceId) {
           setIsFavorited(true);
@@ -190,7 +190,7 @@ export function PlaceDetailPage({
     // 낙관적 UI 업데이트 (즉시 반영)
     const newIsFavorited = !isFavorited;
     setIsFavorited(newIsFavorited);
-    
+
     // 토글 즉시 토스트 표시
     const particle = getSubjectParticle(place.name);
     showToast(
@@ -211,7 +211,7 @@ export function PlaceDetailPage({
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            
+
             // 다른 컴포넌트에 동기화 이벤트 발생
             window.dispatchEvent(
               new CustomEvent("favoritesUpdated", {
@@ -234,7 +234,7 @@ export function PlaceDetailPage({
               newMap.delete(poiPlaceId);
               return newMap;
             });
-            
+
             // 다른 컴포넌트에 동기화 이벤트 발생
             window.dispatchEvent(
               new CustomEvent("favoritesUpdated", {
@@ -262,7 +262,7 @@ export function PlaceDetailPage({
             newMap.set(poiPlaceId, response.data!.saved_place_id);
             return newMap;
           });
-          
+
           // 다른 컴포넌트에 동기화 이벤트 발생
           window.dispatchEvent(
             new CustomEvent("favoritesUpdated", {
@@ -382,56 +382,65 @@ export function PlaceDetailPage({
 
   // 장소 정보 컨텐츠 (모바일과 웹에서 공통으로 사용)
   const placeInfoContent = (
-    <div className="flex flex-col gap-[16px] h-full">
+    <div className="flex flex-col h-full gap-4">
       {/* 장소 정보 카드 */}
-      <div className="content-stretch flex gap-[16px] h-[80px] items-center relative shrink-0 w-full">
-        {/* 아이콘 */}
-        <div className="bg-white relative rounded-[10px] shrink-0 size-[80px]">
-          <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[10px] shadow-[4px_4px_0px_0px_black]" />
-          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center p-[3px] relative size-full">
-            <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[72px] text-[#0a0a0a] text-[48px] tracking-[0.3516px]">
-              {place.icon}
+      <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-white/30 shadow-lg p-5 flex-shrink-0">
+        {/* 상단: 아이콘과 장소 이름 */}
+        <div className="flex items-center gap-4 mb-4">
+          {/* 아이콘 */}
+          <div className="bg-white/90 backdrop-blur-lg relative rounded-[10px] shrink-0 size-[72px] border border-white/40 shadow-md">
+            <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
+              <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[64px] text-[#0a0a0a] text-[44px] tracking-[0.3516px]">
+                {place.icon}
+              </p>
+            </div>
+          </div>
+
+          {/* 장소 이름과 즐겨찾기 */}
+          <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+            <p className="css-ew64yg font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[22px] text-[16px] text-black break-words flex-1">
+              {place.name}
             </p>
+            {/* 즐겨찾기 버튼 */}
+            <button
+              onClick={handleToggleFavorite}
+              className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95"
+            >
+              <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
+                <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
+                  {/* 초기 로딩이 끝나기 전까지는 항상 빈 별로 표시해서 플리커(⭐→☆) 느낌을 없앤다 */}
+                  {isFavoriteInitialized && isFavorited ? "⭐" : "☆"}
+                </p>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* 장소 정보 */}
-        <div className="flex-1 shrink-0">
-          <p className="css-ew64yg font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[18px] text-[12px] text-black mb-2">
-            {place.name}
-          </p>
-          <div className="flex gap-[7.995px] items-start text-[#99a1af] text-[10px]">
-            <p className="css-4hzbpn font-['Wittgenstein:Medium',sans-serif] font-medium leading-[12px]">
-              {place.distance}
-            </p>
-            <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[12px] flex-1">
+        {/* 하단: 거리와 주소 정보 */}
+        <div className="flex flex-col gap-2 pt-3 border-t border-white/30">
+          {place.distance && (
+            <div className="flex items-center gap-2">
+              <span className="text-[12px]">📍</span>
+              <p className="css-4hzbpn font-['Wittgenstein:Medium',sans-serif] font-medium leading-[16px] text-[#4a9960] text-[12px]">
+                {place.distance}
+              </p>
+            </div>
+          )}
+          <div className="flex items-start gap-2">
+            <span className="text-[12px] mt-0.5">🏠</span>
+            <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal leading-[18px] text-[#6b7280] text-[12px] break-words flex-1">
               {place.address}
             </p>
           </div>
         </div>
-
-        {/* 즐겨찾기 버튼 */}
-        <button
-          onClick={handleToggleFavorite}
-          className="bg-white relative rounded-[14px] shrink-0 size-[48px]"
-        >
-          <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[4px_4px_0px_0px_black]" />
-          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center p-[3px] relative size-full">
-            <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
-              {/* 초기 로딩이 끝나기 전까지는 항상 빈 별로 표시해서 플리커(⭐→☆) 느낌을 없앤다 */}
-              {isFavoriteInitialized && isFavorited ? "⭐" : "☆"}
-            </p>
-          </div>
-        </button>
       </div>
 
-      {/* 경로 안내 시작 버튼 */}
+      {/* 경로 안내 시작 버튼 - 하단 고정 */}
       <button
         onClick={() => onNavigate?.('route')}
-        className="bg-[#ff6b9d] h-[55.995px] relative rounded-[10px] shrink-0 w-full"
+        className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg flex-shrink-0 mt-auto"
       >
-        <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[10px] shadow-[6px_6px_0px_0px_black]" />
-        <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%]" style={{ fontVariationSettings: "'wght' 400" }}>
+        <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
           경로 안내 시작! 🏁
         </p>
       </button>
@@ -468,14 +477,20 @@ export function PlaceDetailPage({
     return (
       <div className="fixed inset-0 z-50 flex">
         {toastMessage && (
-          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+          <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-2xl text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.3)"
+            }}
+          >
             {toastMessage}
           </div>
         )}
         {/* 왼쪽 사이드바 (400px 고정) */}
-        <div className="w-[400px] bg-gradient-to-b from-[#c5e7f5] to-white border-r-[3px] border-black flex flex-col h-full overflow-hidden">
+        <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
           {/* 헤더 영역 - Figma 스타일 */}
-          <div className="relative bg-[#80cee1] h-[198px] border-b-[3px] border-black shrink-0">
+          <div className="relative h-[198px] border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg shrink-0">
             {/* 햄버거 메뉴 버튼 */}
             <button className="absolute bg-white left-[19px] top-[23px] rounded-[12px] size-[42px] border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]">
               <div className="absolute left-[6px] size-[24px] top-[6px]">
@@ -508,16 +523,16 @@ export function PlaceDetailPage({
             </button>
 
             {/* 타이틀 */}
-            <p className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] h-[25.328px] leading-[30px] left-1/2 not-italic text-[16px] text-black text-center top-[32px] -translate-x-1/2">
+            <p className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] h-[25.328px] leading-[30px] left-1/2 not-italic text-[16px] text-white text-center top-[32px] -translate-x-1/2 drop-shadow-md">
               HAD BETTER
             </p>
 
             {/* 뒤로 가기 버튼 */}
             <button
               onClick={onClose}
-              className="absolute bg-white right-[19px] top-[25px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all z-10"
+              className="absolute bg-white/20 backdrop-blur-md right-[19px] top-[25px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
             >
-              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center">←</p>
+              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-white text-center drop-shadow-md">←</p>
             </button>
 
             {/* 장소 이름 입력 필드 스타일 박스 */}
@@ -597,35 +612,46 @@ export function PlaceDetailPage({
           <div className="flex-1 overflow-auto px-[20px] py-6">
             <div className="flex flex-col gap-[16px]">
               {/* 장소 정보 카드 */}
-              <div className="bg-white rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-5">
-                <div className="flex flex-col gap-3">
-                  {/* 거리 정보 */}
-                  <div className="flex items-center gap-2">
-                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">거리:</p>
-                    <div className="bg-[rgba(0,217,255,0.2)] border-[3px] border-[#00d9ff] rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
-                      <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[8px] text-[#00d9ff] leading-[9px]">
-                        {place.distance}
-                      </p>
-                    </div>
+              <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-white/30 shadow-lg p-5">
+                <div className="flex flex-col gap-4">
+                  {/* 장소 이름 */}
+                  <div>
+                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black mb-2">
+                      장소명
+                    </p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-black leading-[20px] break-words">
+                      {place.name}
+                    </p>
                   </div>
+
+                  {/* 거리 정보 */}
+                  {place.distance && (
+                    <div className="flex items-center gap-2">
+                      <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">거리:</p>
+                      <div className="bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/40 rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
+                        <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[8px] text-cyan-600 leading-[9px]">
+                          {place.distance}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 주소 */}
                   <div className="flex flex-col gap-1">
                     <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">주소:</p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] text-[#6b9080] leading-[16px]">
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] text-[#6b9080] leading-[18px] break-words">
                       {place.address}
                     </p>
                   </div>
 
                   {/* 즐겨찾기 버튼 */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                  <div className="flex items-center justify-between pt-3 border-t border-white/30">
                     <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">즐겨찾기</p>
                     <button
                       onClick={handleToggleFavorite}
-                      className="bg-white relative rounded-[14px] shrink-0 size-[48px]"
+                      className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95"
                     >
-                      <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[4px_4px_0px_0px_black]" />
-                      <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center p-[3px] relative size-full">
+                      <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
                         <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
                           {isFavoriteInitialized && isFavorited ? "⭐" : "☆"}
                         </p>
@@ -638,13 +664,12 @@ export function PlaceDetailPage({
           </div>
 
           {/* 하단 경로 안내 시작 버튼 */}
-          <div className="px-[20px] pb-6 pt-4 border-t-[3px] border-black bg-white">
+          <div className="px-[20px] pb-6 pt-4 border-t border-white/30 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
             <button
               onClick={() => onNavigate?.('route')}
-              className="bg-[#ff6b9d] h-[55.995px] relative rounded-[10px] w-full"
+              className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
             >
-              <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[10px] shadow-[6px_6px_0px_0px_black]" />
-              <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%]" style={{ fontVariationSettings: "'wght' 400" }}>
+              <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
                 경로 안내 시작! 🏁
               </p>
             </button>
@@ -669,7 +694,13 @@ export function PlaceDetailPage({
       }}
     >
       {toastMessage && (
-        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
+        <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-2xl text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.3)"
+          }}
+        >
           {toastMessage}
         </div>
       )}
@@ -680,16 +711,15 @@ export function PlaceDetailPage({
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute bg-white top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10"
+          className="absolute bg-white/20 backdrop-blur-md top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10 border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
         >
-          <div className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none rounded-[14px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]" />
-          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center">←</p>
+          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
         </button>
       </div>
 
       {/* 슬라이드 가능한 하단 시트 */}
       <div
-        className="absolute left-0 right-0 bg-white border-black border-l-[3px] border-r-[3px] border-solid border-t-[3px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all"
+        className="absolute left-0 right-0 bg-white/20 backdrop-blur-xl border-t border-white/30 rounded-tl-[24px] rounded-tr-[24px] shadow-2xl transition-all"
         style={{
           bottom: 0,
           height: `${sheetHeight}%`,
@@ -698,13 +728,13 @@ export function PlaceDetailPage({
       >
         {/* 드래그 핸들 */}
         <div
-          className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-[#d1d5dc] h-[5.996px] w-[48px] rounded-full cursor-grab active:cursor-grabbing"
+          className="absolute top-[16px] left-[50%] translate-x-[-50%] bg-white/40 backdrop-blur-sm h-[6px] w-[48px] rounded-full shadow-sm cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
         />
 
         {/* 컨텐츠 */}
-        <div className="absolute content-stretch flex flex-col gap-[16px] items-start left-0 right-0 overflow-auto px-[19.997px] py-0 top-[37.63px] bottom-0">
+        <div className="absolute left-0 right-0 top-[37.63px] bottom-0 flex flex-col px-[19.997px] py-4 overflow-hidden">
           {placeInfoContent}
         </div>
       </div>

@@ -10,9 +10,8 @@ import imgStar1 from "@/assets/star.png";
 import subwayMapImage from "@/assets/subway-map-image.png";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
+import placeService, { type SavedPlace, type SearchPlaceHistory } from "@/services/placeService";
 import userService from "@/services/userService";
-import placeService, { type SearchPlaceHistory, type SavedPlace } from "@/services/placeService";
-import routeService, { type RouteSearchHistory } from "@/services/routeService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
 import { useEffect, useState } from "react";
@@ -110,10 +109,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [searchHistories, setSearchHistories] = useState<SearchPlaceHistory[]>([]);
   const [isLoadingHistories, setIsLoadingHistories] = useState(false);
 
-  // 최근 경로 검색 기록 상태
-  const [routeSearchHistories, setRouteSearchHistories] = useState<RouteSearchHistory[]>([]);
-  const [isLoadingRouteHistories, setIsLoadingRouteHistories] = useState(false);
-
   // 웹/앱 화면 감지
   useEffect(() => {
     const checkViewport = () => {
@@ -130,6 +125,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [subwayPosition, setSubwayPosition] = useState({ x: 0, y: 0 });
   const [isSubwayDragging, setIsSubwayDragging] = useState(false);
   const [subwayDragStart, setSubwayDragStart] = useState({ x: 0, y: 0 });
+
+  // 시간대 선택 상태
+  const [timeOfDay, setTimeOfDay] = useState<"day" | "evening" | "night">("day");
 
   // 햄버거 메뉴 팝오버 상태
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -161,28 +159,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     }
   };
 
-  // 최근 경로 검색 기록 불러오기
-  const loadRouteSearchHistories = async () => {
-    try {
-      setIsLoadingRouteHistories(true);
-      const response = await routeService.getRouteSearchHistories(5);
-      if (response.status === "success" && response.data) {
-        setRouteSearchHistories(response.data);
-      } else {
-        setRouteSearchHistories([]);
-      }
-    } catch (error) {
-      console.error("최근 경로 검색 기록 불러오기 실패:", error);
-      setRouteSearchHistories([]);
-    } finally {
-      setIsLoadingRouteHistories(false);
-    }
-  };
-
   // 초기 마운트 시 최근 검색 기록 로드
   useEffect(() => {
     loadSearchHistories();
-    loadRouteSearchHistories();
   }, []);
 
   // SearchResultsPage 등에서 검색 기록이 갱신되었을 때 이벤트로 동기화
@@ -387,84 +366,163 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     }
   };
 
-  // 최근 경로 검색 기록 항목 클릭 시: 출발지/도착지 설정 및 경로 검색
-  const handleRouteHistoryClick = async (history: RouteSearchHistory) => {
-    try {
-      // 출발지와 도착지를 입력 필드에 설정
-      setStartLocation(history.departure.name);
-      setEndLocation(history.arrival.name);
+  // 시간대별 배경색
+  const getBackgroundGradient = () => {
+    switch (timeOfDay) {
+      case "evening":
+        // 선명한 저녁 하늘: 따뜻한 오렌지/핑크 톤
+        return "linear-gradient(180deg, #FF8C69 0%, #FFB347 35%, #FFD700 60%, #FFF8DC 85%, #FFFFFF 100%)";
+      case "night":
+        // 깊고 선명한 밤 하늘: 어두운 보라/파란 톤
+        return "linear-gradient(180deg, #1a1a3e 0%, #2d2d5e 30%, #3d3d7e 60%, #4d4d9e 85%, #5d5dae 100%)";
+      default: // day
+        return "linear-gradient(180deg, #b0d8e8 0%, #e0f0f8 48%, #ffffff 100%)";
+    }
+  };
 
-      // 장소 검색으로 좌표 가져오기 (검색 기록 저장 안 함)
-      const [departureResult, arrivalResult] = await Promise.all([
-        placeService.searchPlaces({ q: history.departure.name, limit: 1, save_history: false }),
-        placeService.searchPlaces({ q: history.arrival.name, limit: 1, save_history: false }),
-      ]);
-
-      if (
-        departureResult.status === "success" &&
-        departureResult.data &&
-        departureResult.data.length > 0 &&
-        arrivalResult.status === "success" &&
-        arrivalResult.data &&
-        arrivalResult.data.length > 0
-      ) {
-        const departurePlace = departureResult.data[0];
-        const arrivalPlace = arrivalResult.data[0];
-
-        const departureLocation: LocationWithCoords = {
-          name: departurePlace.name,
-          lat: departurePlace.coordinates.lat,
-          lon: departurePlace.coordinates.lon,
+  // 시간대별 태양/달 색상 및 위치
+  const getSunMoonProps = () => {
+    switch (timeOfDay) {
+      case "evening":
+        return {
+          cx: 270,
+          cy: 280, // 지평선 근처
+          r: 60,
+          glowColor: "#FF6347",
+          gradient: {
+            inner: "#FF4500",
+            middle: "#FF6347",
+            outer: "#FF8C69",
+          },
+          opacity: 0.95,
         };
-
-        const arrivalLocation: LocationWithCoords = {
-          name: arrivalPlace.name,
-          lat: arrivalPlace.coordinates.lat,
-          lon: arrivalPlace.coordinates.lon,
+      case "night":
+        return {
+          cx: 120,
+          cy: 150, // 높은 위치
+          r: 45,
+          glowColor: "#FFD700",
+          gradient: {
+            inner: "#FFD700",
+            middle: "#FFE44D",
+            outer: "#FFF8DC",
+          },
+          opacity: 0.95,
         };
-
-        // 경로 설정 및 페이지 이동
-        resetRoute();
-        setDepartureArrival(departureLocation, arrivalLocation);
-        setSelectedDeparture(departureLocation);
-        setSelectedArrival(arrivalLocation);
-        onNavigate?.("route");
-      } else {
-        alert("출발지 또는 도착지를 찾을 수 없습니다.");
-      }
-    } catch (error) {
-      console.error("경로 검색 기록 클릭 처리 실패:", error);
-      alert("경로 검색 중 오류가 발생했습니다.");
+      default: // day
+        return {
+          cx: 270,
+          cy: 200,
+          r: 55,
+          glowColor: "#FFE66B",
+          gradient: {
+            inner: "#FFE66B",
+            middle: "#FFD93D",
+            outer: "#FFB84D",
+          },
+          opacity: 0.85,
+        };
     }
   };
 
-  // 최근 경로 검색 기록 단건 삭제
-  const handleDeleteRouteHistory = async (historyId: number) => {
-    try {
-      // 먼저 화면에서 바로 제거 (UI 우선)
-      setRouteSearchHistories((prev) => prev.filter((h) => h.id !== historyId));
-      // 이후 서버에 삭제 요청 (실패해도 UI는 유지)
-      await routeService.deleteRouteSearchHistory(historyId);
-    } catch {
-      // 에러는 콘솔만 조용히 무시 (UI는 유지)
+  // 시간대별 구름 색상
+  const getCloudColor = () => {
+    switch (timeOfDay) {
+      case "evening":
+        // 저녁 하늘에 어울리는 따뜻한 오렌지/핑크 톤의 구름
+        return "#FFE4B5";
+      case "night":
+        // 밤 하늘에 어울리는 어두운 보라/회색 톤의 구름
+        return "#6B5B95";
+      default: // day
+        return "#ffffff";
     }
   };
 
-  // 최근 경로 검색 기록 전체 삭제
-  const handleClearRouteHistories = async () => {
-    if (routeSearchHistories.length === 0) return;
-    try {
-      await routeService.clearRouteSearchHistories();
-      setRouteSearchHistories([]);
-    } catch (error) {
-      console.error("경로 검색 기록 전체 삭제 실패:", error);
+  // 시간대별 산 그라데이션
+  const getMountainGradients = () => {
+    switch (timeOfDay) {
+      case "evening":
+        // 저녁 하늘에 어울리는 선명한 실루엣: 따뜻한 톤의 산
+        return {
+          m1: { top: "#FFE4B5", mid: "#8B7355", bottom: "#654321" },
+          m2: { top: "#FFDAB9", mid: "#A0522D", bottom: "#5C3317" },
+          m3: { top: "#FFE4B5", mid: "#8B7355", bottom: "#654321" },
+        };
+      case "night":
+        // 밤 하늘에 어울리는 어두운 실루엣: 깊은 보라/파란 톤의 산
+        return {
+          m1: { top: "#4B3F6B", mid: "#3D2F5F", bottom: "#2D1F4F" },
+          m2: { top: "#3D2F5F", mid: "#2D1F4F", bottom: "#1D0F3F" },
+          m3: { top: "#5B4F7B", mid: "#4B3F6B", bottom: "#3D2F5F" },
+        };
+      default: // day
+        return {
+          m1: { top: "#ffffff", mid: "#8dd4b0", bottom: "#4a9960" },
+          m2: { top: "#ffffff", mid: "#75c5a0", bottom: "#2d5f3f" },
+          m3: { top: "#ffffff", mid: "#96d9ba", bottom: "#4a9960" },
+        };
     }
   };
+
+  const sunMoonProps = getSunMoonProps();
+  const cloudColor = getCloudColor();
+  const mountainGradients = getMountainGradients();
+
+  // 시간대별 카드 스타일
+  const getCardStyle = () => {
+    switch (timeOfDay) {
+      case "evening":
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,182,193,0.35) 100%)",
+          border: "1px solid rgba(255,182,193,0.55)",
+          boxShadow: "0 18px 36px rgba(255,107,157,0.25), inset 0 1px 0 rgba(255,255,255,0.40)",
+        };
+      case "night":
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.45) 100%)",
+          border: "1px solid rgba(255,255,255,0.60)",
+          boxShadow: "0 18px 36px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.50)",
+        };
+      default: // day
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.28) 100%)",
+          border: "1px solid rgba(255,255,255,0.50)",
+          boxShadow: "0 18px 36px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)",
+        };
+    }
+  };
+
+  const getChipStyle = () => {
+    switch (timeOfDay) {
+      case "evening":
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,182,193,0.30) 100%)",
+          border: "1px solid rgba(255,182,193,0.50)",
+          boxShadow: "0 10px 20px rgba(255,107,157,0.20), inset 0 1px 0 rgba(255,255,255,0.35)",
+        };
+      case "night":
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.40) 100%)",
+          border: "1px solid rgba(255,255,255,0.55)",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.45)",
+        };
+      default: // day
+        return {
+          background: "linear-gradient(135deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.24) 100%)",
+          border: "1px solid rgba(255,255,255,0.48)",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.30)",
+        };
+    }
+  };
+
+  const cardStyle = getCardStyle();
+  const chipStyle = getChipStyle();
 
   return (
     <div className="relative size-full hb-search-page" style={{
-      // initial vibe에 더 가깝게: 하늘색 채도/대비를 살리고, 아래로 자연스럽게 fade
-      background: "linear-gradient(180deg, #c5e7f5 0%, #f3fbff 48%, #ffffff 100%)",
+      background: getBackgroundGradient(),
+      transition: "background 1s ease-in-out",
     }}>
       <style>
         {`
@@ -513,21 +571,13 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           .hb-search-page .hb-search-glass-card {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%);
-            border: 1px solid rgba(255,255,255,0.38);
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28);
-            backdrop-filter: blur(18px) saturate(160%);
-            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            transition: background 0.8s ease, border-color 0.8s ease, box-shadow 0.8s ease;
           }
 
           .hb-search-page .hb-search-glass-chip {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.12) 100%);
-            border: 1px solid rgba(255,255,255,0.36);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.24);
-            backdrop-filter: blur(16px) saturate(155%);
-            -webkit-backdrop-filter: blur(16px) saturate(155%);
+            transition: background 0.8s ease, border-color 0.8s ease, box-shadow 0.8s ease;
           }
 
           .hb-search-page .hb-search-glass-fun::before {
@@ -684,19 +734,19 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </linearGradient>
 
             <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ffffff" stopOpacity="0.95" />
-              <stop offset="0.45" stopColor="#8dd4b0" stopOpacity="0.85" />
-              <stop offset="1" stopColor="#4a9960" stopOpacity="0.45" />
+              <stop offset="0" stopColor={mountainGradients.m1.top} stopOpacity="0.95" />
+              <stop offset="0.45" stopColor={mountainGradients.m1.mid} stopOpacity="0.85" />
+              <stop offset="1" stopColor={mountainGradients.m1.bottom} stopOpacity="0.45" />
             </linearGradient>
             <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
-              <stop offset="0.5" stopColor="#75c5a0" stopOpacity="0.8" />
-              <stop offset="1" stopColor="#2d5f3f" stopOpacity="0.45" />
+              <stop offset="0" stopColor={mountainGradients.m2.top} stopOpacity="0.9" />
+              <stop offset="0.5" stopColor={mountainGradients.m2.mid} stopOpacity="0.8" />
+              <stop offset="1" stopColor={mountainGradients.m2.bottom} stopOpacity="0.45" />
             </linearGradient>
             <linearGradient id="m3" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ffffff" stopOpacity="0.92" />
-              <stop offset="0.55" stopColor="#96d9ba" stopOpacity="0.72" />
-              <stop offset="1" stopColor="#4a9960" stopOpacity="0.42" />
+              <stop offset="0" stopColor={mountainGradients.m3.top} stopOpacity="0.92" />
+              <stop offset="0.55" stopColor={mountainGradients.m3.mid} stopOpacity="0.72" />
+              <stop offset="1" stopColor={mountainGradients.m3.bottom} stopOpacity="0.42" />
             </linearGradient>
 
             <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
@@ -707,55 +757,72 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </filter>
           </defs>
 
-          {/* Sun - 산에 절반 가려지도록 오른쪽에 배치 */}
+          {/* Sun/Moon - 시간대에 따라 변경 */}
           <g>
             <defs>
-              <radialGradient id="sunGradient" cx="50%" cy="50%">
-                <stop offset="0%" stopColor="#FFE66B" stopOpacity="0.9" />
-                <stop offset="70%" stopColor="#FFD93D" stopOpacity="0.7" />
-                <stop offset="100%" stopColor="#FFB84D" stopOpacity="0.4" />
+              <radialGradient id="sunMoonGradient" cx="50%" cy="50%">
+                <stop offset="0%" stopColor={sunMoonProps.gradient.inner} stopOpacity="0.9" />
+                <stop offset="70%" stopColor={sunMoonProps.gradient.middle} stopOpacity="0.7" />
+                <stop offset="100%" stopColor={sunMoonProps.gradient.outer} stopOpacity="0.4" />
               </radialGradient>
             </defs>
-            {/* Sun glow effect */}
+            {/* Sun/Moon glow effect */}
             <circle
-              cx="270"
-              cy="200"
-              r="55"
-              fill="#FFE66B"
-              opacity="0.25"
+              cx={sunMoonProps.cx}
+              cy={sunMoonProps.cy}
+              r={sunMoonProps.r}
+              fill={sunMoonProps.glowColor}
+              opacity={timeOfDay === "night" ? "0.35" : timeOfDay === "evening" ? "0.45" : "0.25"}
             />
             <circle
-              cx="270"
-              cy="200"
-              r="45"
-              fill="url(#sunGradient)"
-              opacity="0.85"
+              cx={sunMoonProps.cx}
+              cy={sunMoonProps.cy}
+              r={sunMoonProps.r - 10}
+              fill="url(#sunMoonGradient)"
+              opacity={sunMoonProps.opacity}
             />
+            {/* 밤에는 별 추가 - 더 밝고 선명하게 */}
+            {timeOfDay === "night" && (
+              <>
+                <circle cx="80" cy="100" r="2.5" fill="#FFD700" opacity="1" />
+                <circle cx="150" cy="80" r="2" fill="#FFE44D" opacity="0.95" />
+                <circle cx="200" cy="120" r="2.5" fill="#FFD700" opacity="1" />
+                <circle cx="250" cy="70" r="1.8" fill="#FFF8DC" opacity="0.9" />
+                <circle cx="320" cy="90" r="2" fill="#FFE44D" opacity="0.95" />
+                <circle cx="360" cy="110" r="2.5" fill="#FFD700" opacity="1" />
+                <circle cx="100" cy="130" r="1.5" fill="#FFF8DC" opacity="0.85" />
+                <circle cx="280" cy="105" r="1.8" fill="#FFE44D" opacity="0.9" />
+                <circle cx="340" cy="75" r="2" fill="#FFD700" opacity="0.95" />
+              </>
+            )}
           </g>
 
-          {/* clouds - 태양 위에 배치하여 일부 가리기 */}
-          <g filter="url(#cloudSoft)" opacity="0.78">
+          {/* clouds - 시간대별 색상 */}
+          <g filter="url(#cloudSoft)" opacity={timeOfDay === "night" ? "0.65" : timeOfDay === "evening" ? "0.85" : "0.78"}>
             {/* left cloud cluster */}
             <g className="hb-search-cloud-drift">
               <g transform="translate(0 0) scale(1.18)">
                 <g className="hb-search-cloud-bob">
-                <circle cx="70" cy="90" r="26" fill="#ffffff" />
-                <circle cx="98" cy="86" r="20" fill="#ffffff" />
-                <circle cx="120" cy="94" r="22" fill="#ffffff" />
+                <circle cx="70" cy="90" r="26" fill={cloudColor} />
+                <circle cx="98" cy="86" r="20" fill={cloudColor} />
+                <circle cx="120" cy="94" r="22" fill={cloudColor} />
                 </g>
               </g>
             </g>
 
-            {/* right cloud cluster - 태양을 일부 가리도록 */}
+            {/* right cloud cluster */}
             <g className="hb-search-cloud-drift-slow">
               <g transform="translate(0 0) scale(1.12)">
                 <g className="hb-search-cloud-bob-slow">
-                <circle cx="300" cy="80" r="22" fill="#ffffff" />
-                <circle cx="322" cy="78" r="16" fill="#ffffff" />
-                <circle cx="340" cy="86" r="18" fill="#ffffff" />
-                {/* 태양을 가리는 추가 구름 */}
-                <circle cx="310" cy="95" r="20" fill="#ffffff" />
-                <circle cx="330" cy="100" r="18" fill="#ffffff" />
+                <circle cx="300" cy="80" r="22" fill={cloudColor} />
+                <circle cx="322" cy="78" r="16" fill={cloudColor} />
+                <circle cx="340" cy="86" r="18" fill={cloudColor} />
+                {timeOfDay !== "night" && (
+                  <>
+                    <circle cx="310" cy="95" r="20" fill={cloudColor} />
+                    <circle cx="330" cy="100" r="18" fill={cloudColor} />
+                  </>
+                )}
                 </g>
               </g>
             </g>
@@ -783,10 +850,28 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           <g transform="translate(0, 420)">
             <defs>
               <linearGradient id="waveFade" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="rgba(255,255,255,0.0)" />
-                <stop offset="0.3" stopColor="rgba(255,255,255,0.3)" />
-                <stop offset="0.7" stopColor="rgba(255,255,255,0.7)" />
-                <stop offset="1" stopColor="rgba(255,255,255,1.0)" />
+                {timeOfDay === "evening" ? (
+                  <>
+                    <stop offset="0" stopColor="rgba(255,218,185,0.0)" />
+                    <stop offset="0.3" stopColor="rgba(255,218,185,0.4)" />
+                    <stop offset="0.7" stopColor="rgba(255,239,213,0.8)" />
+                    <stop offset="1" stopColor="rgba(255,255,255,1.0)" />
+                  </>
+                ) : timeOfDay === "night" ? (
+                  <>
+                    <stop offset="0" stopColor="rgba(75,63,107,0.0)" />
+                    <stop offset="0.3" stopColor="rgba(93,79,123,0.4)" />
+                    <stop offset="0.7" stopColor="rgba(107,91,149,0.7)" />
+                    <stop offset="1" stopColor="rgba(125,109,169,1.0)" />
+                  </>
+                ) : (
+                  <>
+                    <stop offset="0" stopColor="rgba(255,255,255,0.0)" />
+                    <stop offset="0.3" stopColor="rgba(255,255,255,0.3)" />
+                    <stop offset="0.7" stopColor="rgba(255,255,255,0.7)" />
+                    <stop offset="1" stopColor="rgba(255,255,255,1.0)" />
+                  </>
+                )}
               </linearGradient>
             </defs>
             {/* 물결 모양 경계선 - 여러 개의 파도로 구성 */}
@@ -915,24 +1000,24 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           {/* 팝오버 본문 */}
           <div className="absolute left-[21px] top-[74px] z-30">
             <div
-              className="bg-white rounded-[16px] border-3 border-black shadow-[6px_6px_0px_0px_black] w-[190px] overflow-hidden"
+              className="bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 w-[190px] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={handleEditProfileClick}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#f3f4f6] active:bg-[#e5e7eb] transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between bg-white/25 hover:bg-white/35 active:bg-white/40 text-gray-800 backdrop-blur-sm shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-all first:rounded-t-[12px]"
               >
-                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-black">
+                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-gray-800">
                   내 정보 수정
                 </span>
                 <span className="text-[16px]">✏️</span>
               </button>
-              <div className="h-[1px] bg-black/10" />
+              <div className="h-[1px] bg-white/20 mx-2" />
               <button
                 type="button"
                 onClick={handleLogoutClick}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#fee2e2] active:bg-[#fecaca] transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between bg-white/25 hover:bg-red-500/20 active:bg-red-500/30 text-gray-800 backdrop-blur-sm shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-all last:rounded-b-[12px]"
               >
                 <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-[#b91c1c]">
                   로그아웃
@@ -1051,26 +1136,69 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           >
             <div className="mx-auto w-full max-w-[420px]">
               {/* Hero (greeting + destination search) */}
-              <div className="flex items-center gap-3">
-                <div className="relative size-[44px] rounded-full bg-white border border-black/10 shadow-[0px_10px_24px_rgba(0,0,0,0.14)] overflow-hidden shrink-0">
-                  <img
-                    alt=""
-                    src={imgCharacterGreenFront}
-                    className="absolute inset-0 size-full object-cover pointer-events-none select-none"
-                    style={{
-                      // 캐릭터 풀바디 이미지를 "얼굴 위주"로 크롭해서 원 안에 꽉 차게
-                      objectPosition: "50% 22%",
-                      transform: "scale(1.35)",
-                    }}
-                  />
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="relative size-[44px] rounded-full bg-white border border-black/10 shadow-[0px_10px_24px_rgba(0,0,0,0.14)] overflow-hidden shrink-0">
+                    <img
+                      alt=""
+                      src={imgCharacterGreenFront}
+                      className="absolute inset-0 size-full object-cover pointer-events-none select-none"
+                      style={{
+                        // 캐릭터 풀바디 이미지를 "얼굴 위주"로 크롭해서 원 안에 꽉 차게
+                        objectPosition: "50% 22%",
+                        transform: "scale(1.35)",
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
+                      사용자님,
+                    </p>
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
+                      어디로 레이싱 할까요?
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
-                    사용자님,
-                  </p>
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
-                    어디로 레이싱 할까요?
-                  </p>
+                {/* 시간대 선택 버튼 */}
+                <div className="shrink-0">
+                  <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1.5 border border-black/10 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setTimeOfDay("day")}
+                      className={`px-2.5 py-1 rounded-full text-[12px] font-bold transition-all ${
+                        timeOfDay === "day"
+                          ? "bg-[#FFD93D] text-black shadow-sm"
+                          : "text-black/60 hover:text-black"
+                      }`}
+                      title="낮"
+                    >
+                      ☀️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeOfDay("evening")}
+                      className={`px-2.5 py-1 rounded-full text-[12px] font-bold transition-all ${
+                        timeOfDay === "evening"
+                          ? "bg-[#FF6B9D] text-white shadow-sm"
+                          : "text-black/60 hover:text-black"
+                      }`}
+                      title="저녁"
+                    >
+                      🌅
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeOfDay("night")}
+                      className={`px-2.5 py-1 rounded-full text-[12px] font-bold transition-all ${
+                        timeOfDay === "night"
+                          ? "bg-[#1a1a2e] text-white shadow-sm"
+                          : "text-black/60 hover:text-black"
+                      }`}
+                      title="밤"
+                    >
+                      🌙
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1105,8 +1233,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               </div>
 
               {/* Start / End inputs */}
-              <div className="mt-5 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4">
-                  <div className="flex items-center gap-3 rounded-[18px] bg-white/75 backdrop-blur-sm px-4 py-3 border border-white/40 shadow-[0px_10px_22px_rgba(0,0,0,0.10)]">
+              <div
+                className="mt-5 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4"
+                style={{
+                  ...cardStyle,
+                  backdropFilter: "blur(18px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(18px) saturate(160%)",
+                }}
+              >
+                  <div className="flex items-center gap-3 rounded-[18px] bg-white/85 backdrop-blur-sm px-4 py-3 border border-white/55 shadow-[0px_10px_22px_rgba(0,0,0,0.14)]">
                   <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgGemGreen1} />
                 <input
                   type="text"
@@ -1117,7 +1252,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                   />
                 </div>
 
-                <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-white/75 backdrop-blur-sm px-4 py-3 border border-white/40 shadow-[0px_10px_22px_rgba(0,0,0,0.10)]">
+                <div className="mt-3 flex items-center gap-3 rounded-[18px] bg-white/85 backdrop-blur-sm px-4 py-3 border border-white/55 shadow-[0px_10px_22px_rgba(0,0,0,0.14)]">
                   <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgGemRed1} />
                 <input
                   type="text"
@@ -1174,8 +1309,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                       return;
                     }
                   } else {
-                    // 출발지 검색 (검색 기록 저장 안 함)
-                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1, save_history: false });
+                    // 출발지 검색
+                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1 });
                     if (departureResult.status === "success" && departureResult.data && departureResult.data.length > 0) {
                       const place = departureResult.data[0];
                       departureLocation = {
@@ -1190,8 +1325,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     }
                   }
 
-                  // 도착지 검색 (검색 기록 저장 안 함)
-                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1, save_history: false });
+                  // 도착지 검색
+                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1 });
                   if (arrivalResult.status === "success" && arrivalResult.data && arrivalResult.data.length > 0) {
                     const place = arrivalResult.data[0];
                     arrivalLocation = {
@@ -1246,17 +1381,16 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 setIsPlaceSearchOpen(true);
               }}
                     className="group hb-search-pressable rounded-[16px] hb-search-glass-chip px-2 py-3 flex flex-col items-center justify-center gap-2 hover:bg-white/20 transition-all"
+                    style={{
+                      ...chipStyle,
+                      backdropFilter: "blur(16px) saturate(155%)",
+                      WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                    }}
                   >
                     <div
-                      className="size-[56px] rounded-[16px] flex items-center justify-center"
+                      className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        background: favoriteLocations.home.length > 0
-                          ? "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 100%)"
-                          : "linear-gradient(135deg, rgba(255,230,107,0.75) 0%, rgba(255,230,107,0.60) 100%)",
-                        border: "1px solid rgba(255,255,255,0.45)",
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
-                        backdropFilter: "blur(12px) saturate(150%)",
-                        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                        backgroundColor: favoriteLocations.home.length > 0 ? '#ffffff' : '#ffc107',
                       }}
                     >
                       <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgWindow2} />
@@ -1275,17 +1409,16 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 setIsPlaceSearchOpen(true);
               }}
                     className="group hb-search-pressable rounded-[16px] hb-search-glass-chip px-2 py-3 flex flex-col items-center justify-center gap-2 hover:bg-white/20 transition-all"
+                    style={{
+                      ...chipStyle,
+                      backdropFilter: "blur(16px) saturate(155%)",
+                      WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                    }}
                   >
                     <div
-                      className="size-[56px] rounded-[16px] flex items-center justify-center"
+                      className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        background: favoriteLocations.school.length > 0
-                          ? "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 100%)"
-                          : "linear-gradient(135deg, rgba(110,231,183,0.75) 0%, rgba(110,231,183,0.60) 100%)",
-                        border: "1px solid rgba(255,255,255,0.45)",
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
-                        backdropFilter: "blur(12px) saturate(150%)",
-                        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                        backgroundColor: favoriteLocations.school.length > 0 ? '#ffffff' : '#6df3e3',
                       }}
                     >
                       <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgSaw1} />
@@ -1304,17 +1437,16 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 setIsPlaceSearchOpen(true);
               }}
                     className="group hb-search-pressable rounded-[16px] hb-search-glass-chip px-2 py-3 flex flex-col items-center justify-center gap-2 hover:bg-white/20 transition-all"
+                    style={{
+                      ...chipStyle,
+                      backdropFilter: "blur(16px) saturate(155%)",
+                      WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                    }}
                   >
                     <div
-                      className="size-[56px] rounded-[16px] flex items-center justify-center"
+                      className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        background: favoriteLocations.work.length > 0
-                          ? "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.20) 100%)"
-                          : "linear-gradient(135deg, rgba(255,138,138,0.75) 0%, rgba(255,138,138,0.60) 100%)",
-                        border: "1px solid rgba(255,255,255,0.45)",
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
-                        backdropFilter: "blur(12px) saturate(150%)",
-                        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                        backgroundColor: favoriteLocations.work.length > 0 ? '#ffffff' : '#ff6b9d',
                       }}
                     >
                       <img alt="" className="size-[34px] object-contain pointer-events-none" src={imgCoinGold2} />
@@ -1329,15 +1461,16 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     type="button"
               onClick={onOpenFavorites}
                     className="group hb-search-pressable rounded-[16px] hb-search-glass-chip px-2 py-3 flex flex-col items-center justify-center gap-2 hover:bg-white/20 transition-all"
+                    style={{
+                      ...chipStyle,
+                      backdropFilter: "blur(16px) saturate(155%)",
+                      WebkitBackdropFilter: "blur(16px) saturate(155%)",
+                    }}
                   >
                     <div
-                      className="size-[56px] rounded-[16px] flex items-center justify-center"
+                      className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        background: "linear-gradient(135deg, rgba(196,181,253,0.75) 0%, rgba(196,181,253,0.60) 100%)",
-                        border: "1px solid rgba(255,255,255,0.45)",
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
-                        backdropFilter: "blur(12px) saturate(150%)",
-                        WebkitBackdropFilter: "blur(12px) saturate(150%)",
+                        backgroundColor: '#a78bfa',
                       }}
                     >
                       <img alt="" className="size-[34px] object-contain pointer-events-none" src={imgStar1} />
@@ -1349,11 +1482,19 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 </div>
           </div>
 
-              {/* Recent section (placeholder UI kept) */}
-              <div className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4">
-                <div className="flex items-center justify-between">
+              {/* Recent section - Glassmorphism style */}
+              <div
+                className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4"
+                style={{
+                  ...cardStyle,
+                  backdropFilter: "blur(18px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(18px) saturate(160%)",
+                }}
+              >
+                {/* Header: Title and Delete All button */}
+                <div className="flex items-center justify-between mb-4">
                   <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
-                    최근 검색 기록
+                    최근 기록
                   </p>
                   <button
                     type="button"
@@ -1364,118 +1505,73 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     전체 삭제
                   </button>
                 </div>
-                {/* 최근 기록 리스트 (최대 5개, 화면 전체 스크롤로 표시) */}
-                <div className="mt-8 space-y-2">
-                  {isLoadingHistories && (
-                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                      최근 검색 기록을 불러오는 중...
-                    </p>
-                  )}
-                  {!isLoadingHistories && searchHistories.length === 0 && (
-                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                      최근 검색 기록이 없습니다.
-                    </p>
-                  )}
-                  {searchHistories.map((history) => (
-                    <div
-                      key={history.id}
-                      className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
-                    >
-                      <span 
-                        className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
-                        onClick={() => handleHistoryClick(history)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {history.keyword}
-                      </span>
-                      <button
-                        type="button"
-                        className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
-                        style={{ touchAction: 'manipulation' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteHistory(history.id);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
+
+                {/* Empty state message */}
+                {isLoadingHistories && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                    최근 검색 기록을 불러오는 중...
+                  </p>
+                )}
+                {!isLoadingHistories && searchHistories.length === 0 && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                    최근 검색 기록이 없습니다.
+                  </p>
+                )}
+
+                {/* Pill-shaped history items - centered and full width */}
+                {searchHistories.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-4">
+                    {searchHistories.map((history, index) => {
+                      // 최근 기록일수록 흰색, 오래된 기록일수록 파란색 계열
+                      const totalItems = searchHistories.length;
+                      const ratio = index / Math.max(totalItems - 1, 1); // 0 (최근) ~ 1 (오래됨)
+
+                      // 파란색 계열에서 흰색으로 그라데이션
+                      // ratio가 0일 때 흰색, ratio가 1일 때 파란색
+                      const whiteAmount = 1 - ratio; // 1 (최근) ~ 0 (오래됨)
+                      const blueAmount = ratio; // 0 (최근) ~ 1 (오래됨)
+
+                      // 파란색 RGB: 하늘색 계열 (135, 206, 250) ~ 더 진한 파란색 (100, 150, 200)
+                      const r = Math.round(255 * whiteAmount + 100 * blueAmount);
+                      const g = Math.round(255 * whiteAmount + 150 * blueAmount);
+                      const b = Math.round(255 * whiteAmount + 200 * blueAmount);
+                      const opacity = 0.32 + (blueAmount * 0.18); // 0.32 ~ 0.5
+
+                      return (
+                        <div
+                          key={history.id}
+                          className="relative rounded-full px-4 py-2.5 flex items-center gap-2 w-full group hover:bg-white/25 transition-all cursor-pointer"
+                          style={{
+                            background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, ${opacity}) 0%, rgba(${r}, ${g}, ${b}, ${opacity * 0.6}) 100%)`,
+                            border: '1px solid rgba(255,255,255,0.36)',
+                            boxShadow: '0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.24)',
+                            backdropFilter: 'blur(16px) saturate(155%)',
+                            WebkitBackdropFilter: 'blur(16px) saturate(155%)',
+                          }}
+                          onClick={() => handleHistoryClick(history)}
+                        >
+                          <span
+                            className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                          >
+                            {history.keyword}
+                          </span>
+                          <button
+                            type="button"
+                            className="shrink-0 size-[18px] flex items-center justify-center text-[12px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn transition-colors relative z-10"
+                            style={{ touchAction: 'manipulation' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteHistory(history.id);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-
-              {/* 안내 메시지 (검색 기록이 없을 때만 표시) */}
-              {searchHistories.length === 0 && !isLoadingHistories && (
-                <div className="mt-4 rounded-[16px] bg-[#E6F6FF]/90 border border-black/10 px-4 py-5 text-center shadow-[0px_10px_22px_rgba(0,0,0,0.12)]">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[13px] text-black/35">
-                    아직 최근 검색 기록이 없어요
-                  </p>
-                </div>
-              )}
-
-              {/* 최근 경로 기록 섹션 */}
-              <div className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4">
-                <div className="flex items-center justify-between">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
-                    최근 경로 기록
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleClearRouteHistories}
-                    disabled={routeSearchHistories.length === 0 || isLoadingRouteHistories}
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    전체 삭제
-                  </button>
-                </div>
-                {/* 최근 경로 기록 리스트 (최대 5개) */}
-                <div className="mt-8 space-y-2">
-                  {isLoadingRouteHistories && (
-                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                      최근 경로 기록을 불러오는 중...
-                    </p>
-                  )}
-                  {!isLoadingRouteHistories && routeSearchHistories.length === 0 && (
-                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
-                      최근 경로 기록이 없습니다.
-                    </p>
-                  )}
-                  {routeSearchHistories.map((history) => (
-                    <div
-                      key={history.id}
-                      className="w-full bg-white border-3 border-black rounded-[14px] px-3 py-2 flex items-center justify-between hover:bg-[#f3f4f6] transition-colors"
-                    >
-                      <span
-                        className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
-                        onClick={() => handleRouteHistoryClick(history)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {history.departure.name} → {history.arrival.name}
-                      </span>
-                      <button
-                        type="button"
-                        className="ml-2 min-w-[24px] min-h-[24px] flex items-center justify-center text-[14px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn relative z-20"
-                        style={{ touchAction: 'manipulation' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRouteHistory(history.id);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 안내 메시지 (경로 기록이 없을 때만 표시) */}
-              {routeSearchHistories.length === 0 && !isLoadingRouteHistories && (
-                <div className="mt-4 rounded-[16px] bg-[#E6F6FF]/90 border border-black/10 px-4 py-5 text-center shadow-[0px_10px_22px_rgba(0,0,0,0.12)]">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[13px] text-black/35">
-                    아직 최근 경로 기록이 없어요
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </>
@@ -1504,7 +1600,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               _poiPlaceId: place._poiPlaceId,
               _savedPlaceId: place._savedPlaceId,
             };
-            
+
             setFavoriteLocations((prev) => ({
               ...prev,
               [selectedFavoriteType]: [updatedPlace], // 각 카테고리는 하나만 저장 가능
@@ -1526,7 +1622,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           // 모달 닫고 경로 안내로 이동: 현재 위치 -> 선택된 장소
           setIsPlaceSearchOpen(false);
           setSelectedFavoriteType(null);
-          
+
           // routeStore에 출발지/도착지 설정
           if (place.coordinates) {
             // 출발지: 현재 위치 (사용자 위치 가져오기 시도)
@@ -1537,34 +1633,34 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     // 사용자 위치를 성공적으로 가져온 경우
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                    
+
                     // 좌표 유효성 검증
                     if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
                       console.warn("유효하지 않은 위치 좌표:", { lat, lon });
                       alert("위치 정보가 유효하지 않습니다. 브라우저 설정에서 위치 권한을 확인해주세요.");
                       return;
                     }
-                    
+
                     const currentLocation = {
                       name: "현재 위치",
                       lat: lat,
                       lon: lon,
                     };
-                    
+
                     // 도착지: 선택된 장소
                     const destination = {
                       name: place.name,
                       lat: place.coordinates!.lat,
                       lon: place.coordinates!.lon,
                     };
-                    
+
                     // 도착지 좌표 유효성 검증
                     if (isNaN(destination.lat) || isNaN(destination.lon) || destination.lat === 0 || destination.lon === 0) {
                       console.warn("유효하지 않은 도착지 좌표:", destination);
                       alert("도착지 정보가 유효하지 않습니다.");
                       return;
                     }
-                    
+
                     console.log("경로 설정:", { currentLocation, destination });
                     setDepartureArrival(currentLocation, destination);
                     // 경로 선택 페이지로 이동
@@ -1580,10 +1676,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     } else if (error.code === error.TIMEOUT) {
                       errorMessage = "위치 정보를 가져오는 데 시간이 초과되었습니다.";
                     }
-                    
+
                     console.warn("현재 위치를 가져올 수 없습니다:", error);
                     alert(errorMessage + "\n\n경로 안내를 계속하려면 출발지를 직접 입력해주세요.");
-                    
+
                     // 위치 가져오기 실패 시 경로 선택 페이지로 이동하지 않고
                     // 사용자가 출발지를 직접 입력할 수 있도록 SearchPage에 머무름
                     // (또는 출발지 입력 모달을 띄울 수도 있음)
@@ -1599,10 +1695,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 alert("이 브라우저는 위치 정보를 지원하지 않습니다.\n\n경로 안내를 계속하려면 출발지를 직접 입력해주세요.");
               }
             };
-            
+
             getCurrentLocation();
           }
-          
+
           // 로컬 state도 업데이트 (UI 표시용)
           setStartLocation("현재 위치");
           setEndLocation(place.name);
