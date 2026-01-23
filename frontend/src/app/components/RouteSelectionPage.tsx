@@ -356,7 +356,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         const coordinates: [number, number][] = [];
 
         detail.legs.forEach((legStep) => {
-          // passShape가 있으면 파싱
+          // passShape가 있으면 파싱 (BUS/SUBWAY 구간)
           if (legStep.passShape?.linestring) {
             const points = legStep.passShape.linestring.split(' ');
             points.forEach((point) => {
@@ -365,8 +365,21 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 coordinates.push([lon, lat]);
               }
             });
+          } else if (legStep.steps && legStep.steps.length > 0) {
+            // WALK 구간: steps[].linestring 사용 (실제 도보 경로)
+            legStep.steps.forEach((step) => {
+              if (step.linestring) {
+                const points = step.linestring.split(' ');
+                points.forEach((point) => {
+                  const [lon, lat] = point.split(',').map(Number);
+                  if (!isNaN(lon) && !isNaN(lat)) {
+                    coordinates.push([lon, lat]);
+                  }
+                });
+              }
+            });
           } else {
-            // passShape가 없으면 start/end 좌표 사용
+            // passShape도 steps도 없으면 start/end 좌표 사용 (fallback)
             coordinates.push([legStep.start.lon, legStep.start.lat]);
             coordinates.push([legStep.end.lon, legStep.end.lat]);
           }
