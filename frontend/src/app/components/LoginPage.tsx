@@ -5,6 +5,7 @@ import imgCharacterGreenFront1 from "@/assets/character-green-front.png";
 import imgCharacterYellowFront1 from "@/assets/character-yellow-front.png";
 import imgCharacterPurpleFront1 from "@/assets/character-purple-front.png";
 import imgTerrainGrassHorizontalMiddle10 from "@/assets/terrain-grass-horizontal-middle.png";
+import imgStar from "@/assets/star.png";
 import { useAuthStore } from "@/stores/authStore";
 import authService from "@/services/authService";
 
@@ -137,9 +138,36 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
             100% { transform: translateX(-18px); }
           }
 
+          @keyframes hb-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          @keyframes hb-bounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+          }
+
+          @keyframes hb-float-slow {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-8px) translateX(5px); }
+            50% { transform: translateY(-12px) translateX(0); }
+            75% { transform: translateY(-8px) translateX(-5px); }
+          }
+
+          @keyframes hb-shimmer {
+            0% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.6; transform: scale(1); }
+          }
+
           .hb-animate-float { animation: hb-float 3.6s ease-in-out infinite; }
           .hb-cloud-drift { animation: hb-cloud-drift 9s ease-in-out infinite; }
           .hb-cloud-drift-slow { animation: hb-cloud-drift 13s ease-in-out infinite; }
+          .hb-spin { animation: hb-spin 3s linear infinite; }
+          .hb-bounce { animation: hb-bounce 2s ease-in-out infinite; }
+          .hb-float-slow { animation: hb-float-slow 4s ease-in-out infinite; }
+          .hb-shimmer { animation: hb-shimmer 2.5s ease-in-out infinite; }
 
           .hb-cloud {
             position: absolute;
@@ -184,7 +212,11 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
           @media (prefers-reduced-motion: reduce) {
             .hb-animate-float,
             .hb-cloud-drift,
-            .hb-cloud-drift-slow {
+            .hb-cloud-drift-slow,
+            .hb-spin,
+            .hb-bounce,
+            .hb-float-slow,
+            .hb-shimmer {
               animation: none !important;
             }
           }
@@ -256,6 +288,23 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 배경 장식 요소들 (심플하게) */}
+      <div className="absolute inset-0 pointer-events-none z-[5] overflow-hidden">
+        {/* 별 2개만 */}
+        <img
+          src={imgStar}
+          alt=""
+          className="absolute top-[20%] left-[12%] w-[20px] md:w-[28px] h-[20px] md:h-[28px] opacity-60 hb-shimmer"
+          style={{ animationDelay: "0s" }}
+        />
+        <img
+          src={imgStar}
+          alt=""
+          className="absolute top-[25%] right-[15%] w-[18px] md:w-[26px] h-[18px] md:h-[26px] opacity-60 hb-shimmer"
+          style={{ animationDelay: "1.5s" }}
+        />
       </div>
 
       {/* Top tint overlay */}
@@ -427,9 +476,9 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
       </form>
 
       {/* 로그인 유지 체크박스 + 회원가입 버튼 */}
-      <div className="absolute left-1/2 translate-x-[-50%] top-[440px] md:top-[544px] flex flex-col md:flex-row items-center justify-center gap-[20px] md:gap-[150px] z-20">
+      <div className="absolute left-1/2 translate-x-[-50%] top-[440px] md:top-[580px] flex flex-row items-center justify-between z-20 w-[calc(100%-48px)] max-w-[340px] md:w-[602px]">
         {/* 로그인 유지 */}
-        <label className="flex flex-nowrap items-center gap-[16px] cursor-pointer hover:opacity-80 transition-opacity">
+        <label className="flex flex-nowrap items-center gap-[12px] cursor-pointer hover:opacity-80 transition-opacity">
           <input
             type="checkbox"
             checked={keepLoggedIn}
