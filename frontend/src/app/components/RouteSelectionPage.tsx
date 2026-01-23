@@ -1493,10 +1493,16 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
       {/* 바텀시트 */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white/20 backdrop-blur-xl border-t border-white/30 rounded-tl-[24px] rounded-tr-[24px] shadow-2xl transition-all"
+        className="absolute bottom-0 left-0 right-0 rounded-tl-[24px] rounded-tr-[24px] transition-all"
         style={{
           height: `${sheetHeight}%`,
           transitionDuration: isDragging ? "0ms" : "300ms",
+          // PlaceSearchModal.tsx와 동일한 시트 배경 스타일
+          background: "linear-gradient(135deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.75) 100%)",
+          border: "1px solid rgba(255,255,255,0.40)",
+          boxShadow: "0 -4px 8px 0px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.30)",
+          backdropFilter: "blur(18px) saturate(160%)",
+          WebkitBackdropFilter: "blur(18px) saturate(160%)",
         }}
       >
         {/* 드래그 핸들 */}

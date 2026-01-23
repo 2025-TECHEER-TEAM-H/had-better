@@ -6,7 +6,7 @@ import imgWindow2 from "@/assets/window.png";
 import placeService from "@/services/placeService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route" | "background";
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 interface Place {
   id: string;
@@ -465,6 +465,7 @@ export function PlaceSearchModal({
           targetLocation={targetLocation}
           markers={mapMarkers}
           onNavigate={onNavigate}
+          showControls={false}
         />
       </div>
 

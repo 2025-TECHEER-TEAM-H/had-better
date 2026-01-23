@@ -60,7 +60,7 @@ interface FavoriteLocations {
 
 export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
   const navigate = useNavigate();
-  const { refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
+  const { user, refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
   const { setDepartureArrival, resetRoute } = useRouteStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,6 +131,38 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [isSubwayDragging, setIsSubwayDragging] = useState(false);
   const [subwayDragStart, setSubwayDragStart] = useState({ x: 0, y: 0 });
 
+  // 노선도 위치 제한 함수 (이미지가 화면 밖으로 너무 많이 나가지 않도록)
+  const constrainSubwayPosition = (x: number, y: number, zoom: number) => {
+    // 뷰포트 크기 (대략적인 값, 실제로는 노선도 컨테이너 크기)
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight - 100; // 헤더 높이 제외 (줄임)
+    
+    // 확대된 이미지의 실제 크기
+    const imageWidth = viewportWidth * zoom;
+    const imageHeight = viewportHeight * zoom;
+    
+    // 이미지가 뷰포트보다 작으면 중앙 고정
+    if (imageWidth <= viewportWidth && imageHeight <= viewportHeight) {
+      return { x: 0, y: 0 };
+    }
+    
+    // 드래그 제한 범위 계산
+    // 이미지의 가장자리가 뷰포트 가장자리를 넘지 않도록
+    const maxX = (imageWidth - viewportWidth) / 2;
+    const maxY = (imageHeight - viewportHeight) / 2;
+    
+    // 줌 레벨에 따라 위쪽 드래그 제한을 동적으로 조정
+    // 줌이 작을 때(1.0): 위쪽 드래그 거의 없음 (5%)
+    // 줌이 클 때(3.0): 위쪽 드래그 충분히 허용 (85%)
+    const zoomFactor = Math.min(1, Math.max(0, (zoom - 1.0) / 2.0)); // 0 ~ 1 사이 값
+    const topDragRatio = 0.05 + (zoomFactor * 0.80); // 5% ~ 85%
+    
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY * topDragRatio, y)), // 줌에 따라 위쪽 드래그 허용
+    };
+  };
+
   // 시간대 선택 상태
   const [timeOfDay, setTimeOfDay] = useState<"day" | "evening" | "night">("day");
 
@@ -170,7 +202,18 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       setIsLoadingRouteHistories(true);
       const response = await routeService.getRouteSearchHistories(5);
       if (response.status === "success" && response.data) {
-        setRouteSearchHistories(response.data);
+        // UI에서 중복 제거: 출발지+도착지가 같은 기록은 최신 것만 남김
+        const seen = new Map<string, RouteSearchHistory>();
+        response.data.forEach((history) => {
+          const key = `${history.departure.name}|${history.arrival.name}`;
+          // Map에 없거나, 현재 기록이 더 최신이면 교체
+          if (!seen.has(key) || (seen.get(key)!.id < history.id)) {
+            seen.set(key, history);
+          }
+        });
+        // Map의 값들을 배열로 변환 (최신순 정렬)
+        const uniqueHistories = Array.from(seen.values()).sort((a, b) => b.id - a.id);
+        setRouteSearchHistories(uniqueHistories);
       } else {
         setRouteSearchHistories([]);
       }
@@ -314,10 +357,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   // 노선도 마우스 이동
   const handleSubwayMouseMove = (e: React.MouseEvent) => {
     if (!isSubwayDragging) return;
-    setSubwayPosition({
-      x: e.clientX - subwayDragStart.x,
-      y: e.clientY - subwayDragStart.y,
-    });
+    const newX = e.clientX - subwayDragStart.x;
+    const newY = e.clientY - subwayDragStart.y;
+    const constrained = constrainSubwayPosition(newX, newY, subwayZoom);
+    setSubwayPosition(constrained);
   };
 
   // 노선도 마우스 드래그 종료
@@ -339,10 +382,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const handleSubwayTouchMove = (e: React.TouchEvent) => {
     if (!isSubwayDragging) return;
     const touch = e.touches[0];
-    setSubwayPosition({
-      x: touch.clientX - subwayDragStart.x,
-      y: touch.clientY - subwayDragStart.y,
-    });
+    const newX = touch.clientX - subwayDragStart.x;
+    const newY = touch.clientY - subwayDragStart.y;
+    const constrained = constrainSubwayPosition(newX, newY, subwayZoom);
+    setSubwayPosition(constrained);
   };
 
   // 노선도 터치 종료
@@ -353,7 +396,11 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   // 노선도 마우스 휠로 줌
   const handleSubwayWheel = (e: React.WheelEvent) => {
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setSubwayZoom((prev) => Math.max(0.5, Math.min(3, prev + delta)));
+    const newZoom = Math.max(1.0, Math.min(3, subwayZoom + delta)); // 최소 줌 1.0으로 조정 (빈공간 방지)
+    setSubwayZoom(newZoom);
+    // 줌 변경 시 위치도 제한 범위 내로 조정
+    const constrained = constrainSubwayPosition(subwayPosition.x, subwayPosition.y, newZoom);
+    setSubwayPosition(constrained);
   };
 
   // 최근 기록 항목 클릭 시: 검색어 입력 + 검색 실행
@@ -1130,45 +1177,52 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       {isSubwayMode ? (
         // 지하철 노선도 표시
         <>
-          <AppHeader
-            onBack={() => {
-              if (isSubwayMode) {
+          {/* SearchPage(검색 탭)과 동일한 헤더 UI 유지: 검색바(목적지 입력) 제거 */}
+          <div className="relative z-20 hb-search-header">
+            <AppHeader
+              onBack={() => {
                 // 지하철 모드에서는 컨텍스트에서 온 기본 뒤로가기 동작 사용
                 onBack?.();
-              } else {
-                // 기본 검색 화면에서는 항상 SearchPage를 닫고 지도(MapView)로 이동
-                onNavigate?.("map");
-              }
-            }}
-            onNavigate={onNavigate}
-            onOpenDashboard={onOpenDashboard}
-            onMenuClick={handleToggleProfileMenu}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSearchSubmit={async (value) => {
-              const keyword = value.trim();
-              if (!keyword) return;
+              }}
+              onNavigate={onNavigate}
+              onOpenDashboard={onOpenDashboard}
+              onMenuClick={handleToggleProfileMenu}
+              title="" /* SearchPage에서만 커스텀 타이틀을 올려 디자인/폰트 통일 */
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSearchSubmit={async (value) => {
+                const keyword = value.trim();
+                if (!keyword) return;
 
-              // 헤더 입력값을 로컬 상태에도 반영
-              setSearchQuery(keyword);
+                // 헤더 입력값을 로컬 상태에도 반영
+                setSearchQuery(keyword);
 
-              if (onSearchSubmit) {
-                onSearchSubmit(keyword);
-              }
-            }}
-            currentPage="subway"
-            showSearchBar={true}
-          />
+                if (onSearchSubmit) {
+                  onSearchSubmit(keyword);
+                }
+              }}
+              currentPage="subway"
+              // 지하철 탭에서는 검색 입력 컨테이너를 숨기고(=검색 탭과 동일),
+              // 탭/버튼 기능은 그대로 유지
+              showSearchBar={false}
+            />
+            <div
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 hb-search-header-title"
+              style={{ top: "calc(33.29px + env(safe-area-inset-top, 0px))" }}
+            >
+              HAD BETTER
+            </div>
+          </div>
           {isWebView ? (
             // 웹 화면: 텍스트 표시
-            <div className="absolute inset-0 flex items-center justify-center p-5 z-0" style={{ paddingTop: '230px' }}>
+            <div className="absolute inset-0 flex items-center justify-center p-5 z-0" style={{ paddingTop: '100px' }}>
               <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f]">
                 노선도 이미지가 나왔습니다
               </p>
             </div>
           ) : (
             // 앱 화면: 노선도 이미지 표시
-            <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '230px' }}>
+            <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '100px' }}>
               <img
                 src={subwayMapImage}
                 alt="지하철 노선도"
@@ -1250,7 +1304,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                   </div>
                   <div className="min-w-0">
                     <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
-                      사용자님,
+                      {user?.nickname || "사용자"}님,
                     </p>
                     <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
                       어디로 레이싱 할까요?
@@ -1407,8 +1461,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                       return;
                     }
                   } else {
-                    // 출발지 검색
-                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1 });
+                    // 출발지 검색 (최근 기록에 저장하지 않음)
+                    const departureResult = await placeService.searchPlaces({ q: start, limit: 1, save_history: false });
                     if (departureResult.status === "success" && departureResult.data && departureResult.data.length > 0) {
                       const place = departureResult.data[0];
                       departureLocation = {
@@ -1423,8 +1477,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     }
                   }
 
-                  // 도착지 검색
-                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1 });
+                  // 도착지 검색 (최근 기록에 저장하지 않음)
+                  const arrivalResult = await placeService.searchPlaces({ q: end, limit: 1, save_history: false });
                   if (arrivalResult.status === "success" && arrivalResult.data && arrivalResult.data.length > 0) {
                     const place = arrivalResult.data[0];
                     arrivalLocation = {
