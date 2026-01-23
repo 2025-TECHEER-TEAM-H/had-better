@@ -1,11 +1,41 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
-import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
-import { searchRoutes, getRouteLegDetail, createRoute } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, PATH_TYPE_NAMES, type BotStatusUpdateEvent } from "@/types/route";
-import { ROUTE_COLORS } from "@/mocks/routeData";
-import { useRouteSSE } from "@/hooks/useRouteSSE";
+import imgGemGreen1 from "@/assets/gem-green.png";
+import imgGemRed1 from "@/assets/gem-red.png";
 import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
+import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, removeBusLayers, toggleBusLayers, updateAllBusPositions } from "@/components/map/busLayer";
+import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { getBusRoutePath, trackBusPositions } from "@/lib/api";
+import { ROUTE_COLORS } from "@/mocks/routeData";
+import { createRoute, getRouteLegDetail, searchRoutes } from "@/services/routeService";
+import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
+import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
+import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
+import imgBot1Character from "/assets/playerB/hud_player_pink.png"; // 분홍색 (봇1)
+import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
+
+// 지도 스타일 타입
+type MapStyleType = "default" | "dark" | "satellite-streets";
+
+// 지도 스타일 정보
+const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
+  default: {
+    url: "mapbox://styles/mapbox/outdoors-v12",
+    name: "기본 지도",
+    icon: "🗺️",
+  },
+  dark: {
+    url: "mapbox://styles/mapbox/navigation-night-v1",
+    name: "야간 모드",
+    icon: "🌙",
+  },
+  "satellite-streets": {
+    url: "mapbox://styles/mapbox/satellite-streets-v12",
+    name: "위성 지도",
+    icon: "🛰️",
+  },
+};
 
 // 숫자 이모지 배열 (1~10)
 const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
@@ -50,6 +80,16 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [isWebView, setIsWebView] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewRef>(null);
+  const [mapStyle, setMapStyle] = useState<MapStyleType>("default"); // 지도 스타일
+  const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
+  const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
+  const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(false); // 지하철 노선 레이어 상태
+  const [isBusLinesEnabled, setIsBusLinesEnabled] = useState(false); // 버스 노선 레이어 상태
+  const [showBusInputModal, setShowBusInputModal] = useState(false); // 버스 번호 입력 모달
+  const [busNumberInput, setBusNumberInput] = useState(""); // 버스 번호 입력값
+  const [trackedBusNumbers, setTrackedBusNumbers] = useState<string[]>([]); // 추적 중인 버스 번호
+  const layerButtonRef = useRef<HTMLButtonElement>(null); // 레이어 버튼 ref
+  const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
   // SSE 관련 상태
   const [activeRouteId, setActiveRouteId] = useState<number | null>(null);
@@ -191,6 +231,118 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     loadLegDetails();
   }, [searchResponse]);
 
+  // 지하철 노선도 레이어 표시/숨김
+  useEffect(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    if (isSubwayLinesEnabled) {
+      // 레이어 추가 (이미 있으면 내부에서 스킵)
+      addSubwayLayers(mapInstance);
+      toggleSubwayLayers(mapInstance, true);
+    } else {
+      // 레이어 숨김
+      toggleSubwayLayers(mapInstance, false);
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 시 레이어 제거
+      if (mapInstance && mapInstance.getStyle()) {
+        try {
+          removeSubwayLayers(mapInstance);
+        } catch {
+          // 지도가 이미 제거된 경우 무시
+        }
+      }
+    };
+  }, [isSubwayLinesEnabled]);
+
+  // 버스 실시간 위치 레이어 표시/숨김
+  useEffect(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (isBusLinesEnabled && trackedBusNumbers.length > 0) {
+      // 사용자가 입력한 버스 번호로 실시간 위치 조회
+      const loadBusPositions = async () => {
+        try {
+          console.log("[BusLayer] 추적 버스 API 호출:", trackedBusNumbers);
+
+          const response = await trackBusPositions(trackedBusNumbers);
+
+          console.log(`[BusLayer] API 응답: ${response.buses.length}대 버스`);
+
+          if (response.buses.length > 0) {
+            updateAllBusPositions(mapInstance, response.buses);
+          }
+
+          // 경로 데이터 로드 (최초 1회만 - 경로는 변하지 않음)
+          if (response.meta.routes.length > 0) {
+            for (const route of response.meta.routes) {
+              const pathData = await getBusRoutePath(route.route_id);
+              if (pathData?.geojson) {
+                addBusRoutePath(mapInstance, route.route_id, route.bus_number, pathData.geojson);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("[BusLayer] 버스 실시간 위치 로드 실패:", error);
+        }
+      };
+
+      // 레이어 추가 후 데이터 로드
+      addBusLayers(mapInstance).then(() => {
+        toggleBusLayers(mapInstance, true);
+        loadBusPositions();
+      });
+
+      // 15초마다 위치 업데이트
+      intervalId = setInterval(loadBusPositions, 15000);
+    } else if (isBusLinesEnabled && trackedBusNumbers.length === 0) {
+      // 버스 레이어 활성화했지만 추적할 버스가 없으면 입력 모달 표시
+      setShowBusInputModal(true);
+    } else {
+      // 레이어 숨김
+      toggleBusLayers(mapInstance, false);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (mapInstance && mapInstance.getStyle()) {
+        try {
+          clearBusData(mapInstance);
+          clearAllBusRoutePaths(mapInstance);
+          removeBusLayers(mapInstance);
+        } catch {
+          // 지도가 이미 제거된 경우 무시
+        }
+      }
+    };
+  }, [isBusLinesEnabled, trackedBusNumbers]);
+
+  // 팝오버 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isLayerPopoverOpen &&
+        popoverRef.current &&
+        layerButtonRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !layerButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsLayerPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isLayerPopoverOpen]);
+
   // 지도에 표시할 경로 라인 생성
   const routeLines = useMemo((): RouteLineInfo[] => {
     if (!searchResponse) return [];
@@ -224,7 +376,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           id: `route-${leg.route_leg_id}`,
           coordinates,
           color: colorScheme.line,
-          width: 4,
+          width: 8,
           opacity: 0.7,
         };
       }
@@ -436,7 +588,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       onNavigate("routeDetail");
     } catch (err: any) {
       console.error("경주 생성 실패:", err);
-      
+
       // Axios 에러인 경우 상세 메시지 추출
       let errorMessage = "경주 생성에 실패했습니다.";
       if (err?.response?.data?.error) {
@@ -457,7 +609,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
       alert(`경주 생성 실패: ${errorMessage}\n\n출발지와 도착지를 확인하고 다시 시도해주세요.`);
     } finally {
@@ -472,25 +624,41 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const routeContent = (
     <div className="flex flex-col h-full">
       {/* 타이틀 카드 */}
-      <div className="bg-[rgba(0,217,255,0.2)] h-[54px] rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] flex items-center justify-center mb-4">
-        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
-          {departure?.name && arrival?.name
-            ? `${departure.name} → ${arrival.name}`
-            : "각 플레이어의 경로를 선택하세요"}
-        </p>
+      <div className="bg-white/90 backdrop-blur-lg min-h-[64px] md:h-[54px] rounded-[10px] border border-white/50 shadow-lg flex items-center justify-center mb-4 px-4 md:px-0">
+        {departure?.name && arrival?.name ? (
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2">
+              <img alt="출발지" className="size-[24px] md:size-[20px] object-contain" src={imgGemGreen1} />
+              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold leading-tight">
+                {departure.name}
+              </p>
+            </div>
+            <p className="text-[16px] md:text-[14px]">→</p>
+            <div className="flex items-center gap-2">
+              <img alt="도착지" className="size-[24px] md:size-[20px] object-contain" src={imgGemRed1} />
+              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold leading-tight">
+                {arrival.name}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black text-center font-semibold leading-tight">
+            각 플레이어의 경로를 선택하세요
+          </p>
+        )}
       </div>
 
       {/* 로딩 상태 */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-          <span className="ml-3 font-['Wittgenstein',sans-serif] text-[12px]">경로 검색 중...</span>
+          <span className="ml-3 font-['Wittgenstein',sans-serif] text-[12px] text-black">경로 검색 중...</span>
         </div>
       )}
 
       {/* 에러 상태 */}
       {error && (
-        <div className="bg-red-100 border-[3px] border-red-500 rounded-[10px] p-4 mb-4">
+        <div className="bg-red-100/90 backdrop-blur-lg border border-red-300 rounded-[10px] p-4 mb-4 shadow-lg">
           <p className="font-['Wittgenstein',sans-serif] text-[12px] text-red-700">{error}</p>
         </div>
       )}
@@ -504,86 +672,122 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
             const timeMinutes = secondsToMinutes(leg.totalTime);
             const distanceStr = metersToKilometers(leg.totalDistance);
             const pathTypeName = PATH_TYPE_NAMES[leg.pathType] || "대중교통";
-            const isFirstRoute = index === 0;
+
+            // 이 경로에 할당된 플레이어 찾기
+            const assignedPlayer = getPlayerForRoute(leg.route_leg_id);
+            const assignedPlayerImage = assignedPlayer
+              ? assignedPlayer === 'user' ? imgUserCharacter :
+                assignedPlayer === 'bot1' ? imgBot1Character :
+                imgBot2Character
+              : null;
 
             return (
               <div
                 key={leg.route_leg_id}
-                className="rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-5"
-                style={{ backgroundColor: colorScheme.bg }}
+                className="rounded-[10px] border border-black/20 backdrop-blur-lg shadow-lg p-4 md:p-5"
+                style={{
+                  backgroundColor: colorScheme.bg,
+                }}
               >
-                <div className="flex gap-3 items-start">
+                <div className="flex flex-col gap-3 md:flex-row md:gap-4">
                   {/* 경로 번호 아이콘 */}
-                  <div className="bg-white size-[48px] border-[3px] border-black flex items-center justify-center shrink-0">
-                    <p className="text-[24px]">
-                      {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
-                    </p>
-                  </div>
-
-                  {/* 경로 정보 */}
-                  <div className="flex-1 flex flex-col gap-2">
-                    {/* 경로 이름 */}
-                    <div className="flex gap-2 items-center">
-                      <div
-                        className="h-[2px] w-[12px] border-[0.673px] border-black"
-                        style={{ backgroundColor: colorScheme.line }}
-                      />
-                      <p
-                        className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                          isFirstRoute ? "text-white" : "text-black"
-                        }`}
-                      >
-                        경로 {routeNumber} ({pathTypeName})
+                  <div className="flex items-center gap-3 md:flex-col md:items-start">
+                    <div className="bg-white size-[56px] md:size-[48px] border-[3px] border-black flex items-center justify-center shrink-0 rounded-lg shadow-md">
+                      <p className="text-[28px] md:text-[24px]">
+                        {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
                       </p>
                     </div>
 
-                    {/* 시간/거리/환승 */}
-                    <div className="flex gap-1 flex-wrap">
+                    {/* 경로 이름 - 모바일에서 아이콘 옆에 표시 */}
+                    <div className="flex gap-2 items-center md:hidden">
                       <div
-                        className={`${
-                          isFirstRoute ? "bg-[#ffd93d]" : "bg-white"
-                        } h-[20px] px-[9px] py-[5px] border-[3px] border-black flex items-center justify-center`}
-                      >
-                        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[9px]">
-                          {timeMinutes}분
-                        </p>
-                      </div>
-                      <div className="bg-white h-[20px] px-[9px] py-[5px] border-[3px] border-black flex items-center justify-center">
-                        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[9px]">
-                          {distanceStr}
-                        </p>
-                      </div>
-                      {leg.transferCount > 0 && (
-                        <div className="bg-white h-[20px] px-[9px] py-[5px] border-[3px] border-black flex items-center justify-center">
-                          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[9px]">
-                            환승 {leg.transferCount}회
+                        className="h-[3px] w-[16px] border-[0.673px] border-black rounded-full"
+                        style={{ backgroundColor: colorScheme.line }}
+                      />
+                      <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold">
+                        경로 {routeNumber} ({pathTypeName})
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 경로 정보 */}
+                  <div className="flex-1 flex flex-col gap-3 md:gap-2">
+                    <div className="flex items-start gap-3 md:gap-4">
+                      {/* 왼쪽: 경로 정보 */}
+                      <div className="flex-1 flex flex-col gap-3 md:gap-2">
+                        {/* 경로 이름 - 데스크톱에서만 표시 */}
+                        <div className="hidden md:flex gap-2 items-center">
+                          <div
+                            className="h-[2px] w-[12px] border-[0.673px] border-black"
+                            style={{ backgroundColor: colorScheme.line }}
+                          />
+                          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
+                            경로 {routeNumber} ({pathTypeName})
                           </p>
                         </div>
-                      )}
-                    </div>
 
-                    {/* 체크박스들 */}
-                    <div className="flex gap-[8px] items-center">
-                      {players.map((player) => (
-                        <label
-                          key={player}
-                          className="flex gap-1 items-center cursor-pointer"
-                          onClick={() => toggleAssignment(player, leg.route_leg_id)}
-                        >
-                          <div className="size-[12px] border-[1.5px] border-black bg-white flex items-center justify-center">
-                            {isAssigned(player, leg.route_leg_id) && (
-                              <div className="size-[6px] bg-black" />
-                            )}
-                          </div>
-                          <p
-                            className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                              isFirstRoute ? "text-white" : "text-black"
-                            }`}
+                        {/* 시간/거리/환승 */}
+                        <div className="flex gap-2 flex-wrap">
+                          <div
+                            className="bg-[#ffd93d] h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md"
                           >
-                            {PLAYER_LABELS[player]}
-                          </p>
-                        </label>
-                      ))}
+                            <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                              {timeMinutes}분
+                            </p>
+                          </div>
+                          <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md">
+                            <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                              {distanceStr}
+                            </p>
+                          </div>
+                          {leg.transferCount > 0 && (
+                            <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md">
+                              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                                환승 {leg.transferCount}회
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 체크박스들 */}
+                        <div className="flex gap-3 md:gap-[8px] items-center flex-wrap">
+                          {players.map((player) => (
+                            <label
+                              key={player}
+                              className="flex gap-2 md:gap-1 items-center cursor-pointer py-1 md:py-0"
+                              onClick={() => toggleAssignment(player, leg.route_leg_id)}
+                            >
+                              <div className="size-[18px] md:size-[12px] border-[2px] md:border-[1.5px] border-black bg-white flex items-center justify-center rounded-sm">
+                                {isAssigned(player, leg.route_leg_id) && (
+                                  <div className="size-[10px] md:size-[6px] bg-black rounded-sm" />
+                                )}
+                              </div>
+                              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-medium">
+                                {PLAYER_LABELS[player]}
+                              </p>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 오른쪽: 선택된 플레이어 이미지 */}
+                      <div className="flex items-center justify-center shrink-0">
+                        {assignedPlayerImage ? (
+                          <div className="bg-white/80 backdrop-blur-sm rounded-[12px] p-2 md:p-2.5 border-2 border-black/30 shadow-md">
+                            <img
+                              src={assignedPlayerImage}
+                              alt={assignedPlayer ? PLAYER_LABELS[assignedPlayer] : ''}
+                              className="size-[48px] md:size-[40px] object-contain drop-shadow-sm"
+                            />
+                          </div>
+                        ) : (
+                          <div className="bg-gray-100/50 rounded-[12px] p-2 md:p-2.5 border-2 border-dashed border-gray-300">
+                            <p className="font-['Wittgenstein',sans-serif] text-[10px] md:text-[8px] text-gray-400 text-center">
+                              선택<br />대기
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -594,9 +798,9 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       )}
 
       {/* 선택 현황 */}
-      <div className="bg-white rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-5 mt-4 mb-8">
-        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black mb-4">
-          선택 현황 :
+      <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-black/20 shadow-lg p-4 md:p-5 mt-4 mb-8">
+        <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black mb-4 font-semibold">
+          선택 현황
         </p>
         <div className="flex flex-col gap-3">
           {players.map((player) => {
@@ -605,17 +809,92 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
               (leg) => leg.route_leg_id === assignedRouteId
             );
             const routeNumber = routeIndex !== undefined && routeIndex >= 0 ? routeIndex + 1 : null;
+            const hasRoute = routeNumber !== null;
+
+            // 플레이어별 이미지 매핑 (초록색=유저, 나머지=봇)
+            const playerImage =
+              player === 'user' ? imgUserCharacter :
+              player === 'bot1' ? imgBot1Character :
+              imgBot2Character;
+
+            // 플레이어별 색상 테마
+            const playerColor =
+              player === 'user' ? 'green' :
+              player === 'bot1' ? 'pink' :
+              'yellow';
+
+            const colorClasses = {
+              green: {
+                bg: 'bg-green-50',
+                border: 'border-green-200',
+                badge: 'bg-green-500',
+                text: 'text-green-700',
+              },
+              pink: {
+                bg: 'bg-pink-50',
+                border: 'border-pink-200',
+                badge: 'bg-pink-500',
+                text: 'text-pink-700',
+              },
+              yellow: {
+                bg: 'bg-yellow-50',
+                border: 'border-yellow-200',
+                badge: 'bg-yellow-500',
+                text: 'text-yellow-700',
+              },
+            };
+
+            const colors = colorClasses[playerColor];
 
             return (
-              <div key={player} className="flex items-center gap-2">
-                <p className="text-[20px]">{PLAYER_ICONS[player]}</p>
-                <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
-                  {PLAYER_LABELS[player]}
-                </p>
-                <p className="text-[16px]">➡️</p>
-                <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
-                  경로 {routeNumber ?? "?"}
-                </p>
+              <div
+                key={player}
+                className={`${colors.bg} ${colors.border} border-2 rounded-[12px] p-3 md:p-4 flex items-center gap-3 md:gap-4 transition-all hover:shadow-md ${
+                  hasRoute ? 'opacity-100' : 'opacity-60'
+                }`}
+              >
+                {/* 플레이어 아이콘 */}
+                <div className="relative">
+                  <img
+                    src={playerImage}
+                    alt={PLAYER_LABELS[player]}
+                    className="size-[40px] md:size-[32px] object-contain drop-shadow-sm"
+                  />
+                  {hasRoute && (
+                    <div className="absolute -top-1 -right-1 size-[12px] bg-white rounded-full border-2 border-white flex items-center justify-center">
+                      <div className={`size-[6px] ${colors.badge} rounded-full`} />
+                    </div>
+                  )}
+                </div>
+
+                {/* 플레이어 이름 */}
+                <div className="flex-1">
+                  <p className={`font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] ${colors.text} font-semibold`}>
+                    {PLAYER_LABELS[player]}
+                  </p>
+                </div>
+
+                {/* 경로 번호 배지 */}
+                <div className="flex items-center gap-2">
+                  {hasRoute ? (
+                    <>
+                      <div className={`${colors.badge} text-white rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1 shadow-sm`}>
+                        <p className="font-['Wittgenstein',sans-serif] text-[16px] md:text-[14px] font-bold">
+                          {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
+                        </p>
+                      </div>
+                      <p className="font-['Wittgenstein',sans-serif] text-[12px] md:text-[10px] text-gray-600">
+                        경로 {routeNumber}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="bg-gray-200 text-gray-400 rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1">
+                      <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] font-medium">
+                        경로 선택 필요
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -667,40 +946,280 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
   // 모든 플레이어가 경로를 선택했는지 확인
   const allAssigned = areAllAssigned();
+  // 버튼 활성화 조건
+  const canStartNavigation = allAssigned && !isCreatingRoute;
 
-  // 할당된 모든 경로의 상세 정보가 로드되었는지 확인
-  const allLegDetailsLoaded = useMemo(() => {
-    if (!allAssigned) return false;
+  // 현재 위치로 이동
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) {
+      console.log("Geolocation을 지원하지 않는 브라우저입니다.");
+      return;
+    }
 
-    const userLegId = assignments.get('user');
-    const bot1LegId = assignments.get('bot1');
-    const bot2LegId = assignments.get('bot2');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { longitude, latitude } = position.coords;
+        const map = mapViewRef.current?.map;
 
-    return (
-      userLegId !== undefined && legDetails.has(userLegId) &&
-      bot1LegId !== undefined && legDetails.has(bot1LegId) &&
-      bot2LegId !== undefined && legDetails.has(bot2LegId)
+        if (map) {
+          map.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            duration: 1500,
+          });
+        }
+      },
+      (error) => {
+        console.warn("현재 위치를 가져올 수 없습니다:", error);
+      }
     );
-  }, [allAssigned, assignments, legDetails]);
+  };
 
-  // 버튼 활성화 조건: 모든 경로 할당 + 상세 정보 로드 완료 + 생성 중 아님
-  const canStartNavigation = allAssigned && allLegDetailsLoaded && !isCreatingRoute;
+  // 지도 스타일 변경
+  const handleStyleChange = useCallback((style: MapStyleType) => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    // 스타일이 아직 로딩 중이면 무시
+    if (!mapInstance.isStyleLoaded()) return;
+
+    // 현재 지도 상태 저장
+    const center = mapInstance.getCenter();
+    const zoom = mapInstance.getZoom();
+    const bearing = mapInstance.getBearing();
+    const pitch = mapInstance.getPitch();
+
+    // 스타일 변경 (diff: false로 경고 방지)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.setStyle(MAP_STYLES[style].url, { diff: false } as any);
+
+    // 스타일 로드 후 상태 복원 및 한국어 라벨 적용
+    mapInstance.once("style.load", () => {
+      if (!mapInstance) return;
+
+      // 지도 상태 복원
+      mapInstance.jumpTo({
+        center: center,
+        zoom: zoom,
+        bearing: bearing,
+        pitch: pitch,
+      });
+
+      // 한국어 라벨 적용 (위성 지도는 라벨이 없으므로 제외)
+      if (style !== "satellite-streets") {
+        const layers = mapInstance.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            if (layer.type === "symbol" && layer.layout?.["text-field"]) {
+              try {
+                mapInstance.setLayoutProperty(layer.id, "text-field", [
+                  "coalesce",
+                  ["get", "name_ko"],
+                  ["get", "name:ko"],
+                  ["get", "name"],
+                ]);
+              } catch {
+                // 일부 레이어는 text-field 변경이 불가능할 수 있음
+              }
+            }
+          });
+        }
+      }
+
+      // 야간 모드(navigation-night-v1)의 혼잡도 레이어 숨기기
+      if (style === "dark") {
+        const layers = mapInstance.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            // traffic 관련 레이어 숨기기
+            if (layer.id.includes("traffic")) {
+              try {
+                mapInstance.setLayoutProperty(layer.id, "visibility", "none");
+              } catch {
+                // 레이어 숨기기 실패 무시
+              }
+            }
+          });
+        }
+      }
+
+      // 3D 건물 상태 유지 (스타일 변경 후에도)
+      if (is3DBuildingsEnabled && mapInstance && !mapInstance.getLayer("3d-buildings")) {
+        // 중구 건물 GeoJSON 소스 추가
+        if (!mapInstance.getSource("junggu-buildings")) {
+          mapInstance.addSource("junggu-buildings", {
+            type: "geojson",
+            data: "/junggu_buildings.geojson",
+          });
+        }
+        // 건물 레이어 추가
+        mapInstance.addLayer({
+          id: "3d-buildings",
+          source: "junggu-buildings",
+          type: "fill-extrusion",
+          minzoom: 13,
+          paint: {
+            "fill-extrusion-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "height"],
+              0, "#d4e6d7",
+              10, "#a8d4ae",
+              20, "#7bc47f",
+              50, "#4a9960",
+              100, "#2d5f3f",
+            ],
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": 0,
+            "fill-extrusion-opacity": 0.75,
+          },
+        });
+      }
+    });
+
+    setMapStyle(style);
+    setIsLayerPopoverOpen(false);
+  }, [is3DBuildingsEnabled]);
+
+  // 3D 건물 레이어 추가 함수
+  const add3DBuildingsLayer = useCallback(async () => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    // 이미 레이어가 있으면 무시
+    if (mapInstance.getLayer("3d-buildings")) return;
+
+    // 중구 건물 GeoJSON 소스 추가
+    if (!mapInstance.getSource("junggu-buildings")) {
+      mapInstance.addSource("junggu-buildings", {
+        type: "geojson",
+        data: "/junggu_buildings.geojson",
+      });
+    }
+
+    // 건물 레이어 추가
+    mapInstance.addLayer({
+      id: "3d-buildings",
+      source: "junggu-buildings",
+      type: "fill-extrusion",
+      minzoom: 13,
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["get", "height"],
+          0, "#d4e6d7",
+          10, "#a8d4ae",
+          20, "#7bc47f",
+          50, "#4a9960",
+          100, "#2d5f3f",
+        ],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.75,
+      },
+    });
+  }, []);
+
+  // 3D 건물 레이어 제거 함수
+  const remove3DBuildingsLayer = useCallback(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+    if (mapInstance.getLayer("3d-buildings")) {
+      mapInstance.removeLayer("3d-buildings");
+    }
+    // 소스도 제거
+    if (mapInstance.getSource("junggu-buildings")) {
+      mapInstance.removeSource("junggu-buildings");
+    }
+  }, []);
+
+  // 3D 건물 토글 핸들러
+  const handle3DBuildingsToggle = useCallback(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+
+    const newState = !is3DBuildingsEnabled;
+    setIs3DBuildingsEnabled(newState);
+
+    if (newState) {
+      add3DBuildingsLayer();
+      // 3D 효과를 위해 pitch 추가
+      mapInstance.easeTo({
+        pitch: 45,
+        duration: 500,
+      });
+    } else {
+      remove3DBuildingsLayer();
+      // pitch 초기화
+      mapInstance.easeTo({
+        pitch: 0,
+        duration: 500,
+      });
+    }
+  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+
+  // 지하철 노선 토글 핸들러
+  const handleSubwayLinesToggle = useCallback(() => {
+    setIsSubwayLinesEnabled((prev) => !prev);
+  }, []);
+
+  // 버스 노선 토글 핸들러
+  const handleBusLinesToggle = useCallback(() => {
+    if (!isBusLinesEnabled) {
+      // 켤 때: 모달 표시 (팝오버는 유지)
+      setShowBusInputModal(true);
+    } else {
+      // 끌 때: 레이어 비활성화 및 추적 초기화
+      setIsBusLinesEnabled(false);
+      setTrackedBusNumbers([]);
+      setBusNumberInput("");
+      // 경로 및 마커 데이터 정리
+      const mapInstance = mapViewRef.current?.map;
+      if (mapInstance) {
+        clearBusData(mapInstance);
+        clearAllBusRoutePaths(mapInstance);
+      }
+    }
+  }, [isBusLinesEnabled]);
+
+  // 버스 번호 입력 확인 핸들러
+  const handleBusInputConfirm = useCallback(() => {
+    const numbers = busNumberInput
+      .split(/[,\s]+/) // 쉼표 또는 공백으로 분리
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+      .slice(0, 5); // 최대 5개
+
+    if (numbers.length > 0) {
+      setTrackedBusNumbers(numbers);
+      setIsBusLinesEnabled(true);
+      setShowBusInputModal(false);
+    }
+  }, [busNumberInput]);
+
+  // 버스 입력 모달 취소 핸들러
+  const handleBusInputCancel = useCallback(() => {
+    setShowBusInputModal(false);
+    setBusNumberInput("");
+  }, []);
+
 
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)
   if (isWebView) {
     return (
       <div className="fixed inset-0 z-50 flex">
         {/* 왼쪽 사이드바 */}
-        <div className="w-[400px] bg-white border-r-[3px] border-black flex flex-col h-full overflow-hidden">
+        <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
           {/* 헤더 */}
-          <div className="relative px-8 pt-6 pb-4 border-b-[3px] border-black bg-[#80cee1]">
+          <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
             <button
               onClick={onBack}
-              className="absolute top-6 right-8 bg-white rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all z-10"
+              className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
             >
-              <p className="font-['Wittgenstein',sans-serif] leading-[24px] text-[12px] text-black text-center">←</p>
+              <p className="font-['Wittgenstein',sans-serif] leading-[24px] text-[12px] text-white text-center drop-shadow-md">←</p>
             </button>
-            <p className="font-['Wittgenstein',sans-serif] leading-[30px] text-[12px] text-black text-center">
+            <p className="font-['Wittgenstein',sans-serif] leading-[30px] text-[12px] text-white text-center drop-shadow-md">
               경로 선택
             </p>
           </div>
@@ -711,26 +1230,18 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           </div>
 
           {/* 하단 고정 버튼 */}
-          <div className="p-5 bg-white border-t-[3px] border-black">
+          <div className="p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg border-t border-white/30">
             <button
               onClick={handleStartNavigation}
               disabled={!canStartNavigation}
-              className={`w-full h-[60px] rounded-[10px] border-[3px] border-black transition-all ${
+              className={`w-full h-[60px] rounded-[10px] border transition-all shadow-lg ${
                 canStartNavigation
-                  ? "bg-[#48d448] hover:bg-[#3db83d] cursor-pointer shadow-[0px_4px_0px_0px_#2d8b2d] active:shadow-[0px_2px_0px_0px_#2d8b2d] active:translate-y-[2px]"
-                  : "bg-[#99a1af] cursor-not-allowed"
+                  ? "border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 text-black"
+                  : "bg-gray-600 border-gray-500 cursor-not-allowed text-black"
               }`}
             >
-              <p
-                className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                  canStartNavigation ? "text-white" : "text-[#4a5565]"
-                }`}
-              >
-                {isCreatingRoute
-                  ? "경주 생성 중..."
-                  : allAssigned && !allLegDetailsLoaded
-                    ? "경로 로딩 중..."
-                    : "이동 시작! 🏁"}
+              <p className="font-['Wittgenstein',sans-serif] text-[16px] md:text-[14px] font-bold drop-shadow-md">
+                {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
               </p>
             </button>
           </div>
@@ -739,6 +1250,62 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         {/* 오른쪽 지도 영역 */}
         <div className="flex-1 relative">
           {mapContent}
+
+          {/* 버스 번호 입력 모달 */}
+          {showBusInputModal && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  버스 번호 입력
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
+                </p>
+                <input
+                  type="text"
+                  value={busNumberInput}
+                  onChange={(e) => setBusNumberInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleBusInputConfirm();
+                    }
+                  }}
+                  placeholder="예: 360, 472, 151"
+                  className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-[12px] text-base text-gray-900 placeholder:text-gray-600 focus:outline-none focus:border-white/60 focus:bg-white/40 transition-all mb-4"
+                  autoFocus
+                />
+                {trackedBusNumbers.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {trackedBusNumbers.map((num) => (
+                        <span
+                          key={num}
+                          className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                        >
+                          {num}번
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleBusInputCancel}
+                    className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleBusInputConfirm}
+                    className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                  >
+                    확인
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -757,7 +1324,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
       {/* 바텀시트 */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white border-black border-l-[3px] border-r-[3px] border-t-[3px] rounded-tl-[24px] rounded-tr-[24px] shadow-[0px_-4px_8px_0px_rgba(0,0,0,0.2)] transition-all"
+        className="absolute bottom-0 left-0 right-0 bg-white/20 backdrop-blur-xl border-t border-white/30 rounded-tl-[24px] rounded-tr-[24px] shadow-2xl transition-all"
         style={{
           height: `${sheetHeight}%`,
           transitionDuration: isDragging ? "0ms" : "300ms",
@@ -773,7 +1340,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           onMouseUp={handleDragEnd}
           onTouchEnd={handleDragEnd}
         >
-          <div className="bg-[#d1d5dc] h-[6px] w-[48px] rounded-full" />
+          <div className="bg-white/40 backdrop-blur-sm h-[6px] w-[48px] rounded-full shadow-sm" />
         </div>
 
         {/* 컨텐츠 영역 */}
@@ -782,38 +1349,258 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         </div>
 
         {/* 하단 고정 버튼 */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 bg-white">
+        <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
           <button
             onClick={handleStartNavigation}
             disabled={!canStartNavigation}
-            className={`w-full h-[60px] rounded-[10px] border-[3px] border-black transition-all ${
+            className={`w-full h-[60px] rounded-[10px] border transition-all shadow-lg ${
               canStartNavigation
-                ? "bg-[#48d448] hover:bg-[#3db83d] cursor-pointer shadow-[0px_4px_0px_0px_#2d8b2d] active:shadow-[0px_2px_0px_0px_#2d8b2d] active:translate-y-[2px]"
-                : "bg-[#99a1af] cursor-not-allowed"
+                ? "border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 text-black"
+                : "bg-gray-600 border-gray-500 cursor-not-allowed text-white"
             }`}
           >
-            <p
-              className={`font-['Wittgenstein',sans-serif] text-[12px] ${
-                canStartNavigation ? "text-white" : "text-[#4a5565]"
-              }`}
-            >
-              {isCreatingRoute
-                ? "경주 생성 중..."
-                : allAssigned && !allLegDetailsLoaded
-                  ? "경로 로딩 중..."
-                  : "이동 시작! 🏁"}
+            <p className="font-['Wittgenstein',sans-serif] text-[12px] drop-shadow-md">
+              {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
             </p>
           </button>
         </div>
       </div>
 
-      {/* 뒤로가기 버튼 - 레이어/현재위치 버튼 아래에 배치 (48x48, 레이어 버튼과 동일 사이즈) */}
-      <button
-        onClick={onBack}
-        className="absolute top-[136px] right-4 bg-white rounded-[12px] size-[48px] flex items-center justify-center border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors pointer-events-auto z-20"
-      >
-        <span className="text-[20px]">←</span>
-      </button>
+      {/* 오른쪽 세로 버튼 컨테이너 */}
+      <div className="absolute top-5 right-5 flex flex-col gap-3 z-10 pointer-events-none">
+        {/* 뒤로가기 버튼 */}
+        <button
+          onClick={onBack}
+          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+        >
+          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">←</p>
+        </button>
+
+        {/* 레이어 버튼 */}
+        <div className="relative">
+          <button
+            ref={layerButtonRef}
+            onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
+            className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto ${
+              isLayerPopoverOpen ? "bg-white/30" : ""
+            }`}
+            title="레이어"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {/* 레이어 팝오버 */}
+          {isLayerPopoverOpen && (
+            <div
+              ref={popoverRef}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+            >
+              <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                지도 스타일
+              </div>
+              <div className="flex flex-col gap-2">
+                {(Object.keys(MAP_STYLES) as MapStyleType[]).map((styleKey) => (
+                  <button
+                    key={styleKey}
+                    onClick={() => handleStyleChange(styleKey)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                      mapStyle === styleKey
+                        ? "bg-white/40 text-gray-900 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                        : "hover:bg-white/30 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
+                    }`}
+                  >
+                    <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
+                    <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                    {mapStyle === styleKey && (
+                      <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* 레이어 옵션 섹션 */}
+              <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                레이어 옵션
+              </div>
+              <div className="flex flex-col gap-2">
+                {/* 3D 건물 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handle3DBuildingsToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    is3DBuildingsEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🏢</span>
+                  <span className="text-sm font-medium">3D 건물</span>
+                  {/* 토글 스위치 */}
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      is3DBuildingsEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        is3DBuildingsEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* 지하철 노선 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSubwayLinesToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    isSubwayLinesEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🚇</span>
+                  <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                  {/* 토글 스위치 */}
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      isSubwayLinesEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        isSubwayLinesEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* 버스 노선 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBusLinesToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    isBusLinesEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🚌</span>
+                  <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                  {/* 토글 스위치 */}
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      isBusLinesEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        isBusLinesEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 현재 위치 버튼 */}
+        <button
+          onClick={handleMyLocation}
+          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+          title="내 위치로 이동"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
+            <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* 버스 번호 입력 모달 */}
+      {showBusInputModal && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              버스 번호 입력
+            </h3>
+            <p className="text-sm text-gray-700 mb-4">
+              추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
+            </p>
+            <input
+              type="text"
+              value={busNumberInput}
+              onChange={(e) => setBusNumberInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleBusInputConfirm();
+                }
+              }}
+              placeholder="예: 360, 472, 151"
+              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-[12px] text-base text-gray-900 placeholder:text-gray-600 focus:outline-none focus:border-white/60 focus:bg-white/40 transition-all mb-4"
+              autoFocus
+            />
+            {trackedBusNumbers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                <div className="flex flex-wrap gap-2">
+                  {trackedBusNumbers.map((num) => (
+                    <span
+                      key={num}
+                      className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                    >
+                      {num}번
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleBusInputCancel}
+                className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleBusInputConfirm}
+                className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
