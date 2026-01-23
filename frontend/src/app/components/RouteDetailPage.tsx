@@ -1,15 +1,40 @@
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
-import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
-import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
+import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
+import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
-import { getRouteLegDetail, updateRouteStatus } from "@/services/routeService";
-import { PLAYER_ICONS, PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
-import { metersToKilometers, MODE_ICONS, secondsToMinutes, type BotStatusUpdateEvent, type RouteResultResponse } from "@/types/route";
 import * as turf from "@turf/turf";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
+import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, getBusRoutePath, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
+import { trackBusPositions, getBusRoutePath as fetchBusRoutePath } from "@/lib/api";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
+// 지도 스타일 타입
+type MapStyleType = "default" | "dark" | "satellite-streets";
+
+// 지도 스타일 정보
+const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
+  default: {
+    url: "mapbox://styles/mapbox/outdoors-v12",
+    name: "기본 지도",
+    icon: "🗺️",
+  },
+  dark: {
+    url: "mapbox://styles/mapbox/navigation-night-v1",
+    name: "야간 모드",
+    icon: "🌙",
+  },
+  "satellite-streets": {
+    url: "mapbox://styles/mapbox/satellite-streets-v12",
+    name: "위성 지도",
+    icon: "🛰️",
+  },
+};
+
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
 interface RouteDetailPageProps {
   onBack?: () => void;
@@ -39,13 +64,26 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [isWebView, setIsWebView] = useState(false);
   const [showResultPopup, setShowResultPopup] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isRankingVisible, setIsRankingVisible] = useState(true); // 실시간 순위창 표시 상태
+
+  // 레이어 관련 상태
+  const [mapStyle, setMapStyle] = useState<MapStyleType>("default");
+  const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false);
+  const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false);
+  const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(false);
+  const [isBusLinesEnabled, setIsBusLinesEnabled] = useState(false);
+  const [showBusInputModal, setShowBusInputModal] = useState(false);
+  const [busNumberInput, setBusNumberInput] = useState("");
+  const [trackedBusNumbers, setTrackedBusNumbers] = useState<string[]>([]);
+  const layerButtonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // SSE 관련 상태
   const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
 
   // SSE 연결 (createRouteResponse에서 route_itinerary_id 가져옴)
   const activeRouteId = createRouteResponse?.route_itinerary_id || null;
-  const { botStates } = useRouteSSE(
+  const { status, botStates, connect, disconnect } = useRouteSSE(
     activeRouteId,
     {
       onConnected: (data) => {
@@ -63,6 +101,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           next.set(data.bot_id, data);
           return next;
         });
+
+        // 봇 진행률을 playerProgress에 반영
+        if (data.progress_percent !== undefined) {
+          // createRouteResponse에서 해당 봇의 인덱스 찾기
+          const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+          const botIndex = botParticipants.findIndex(p => p.bot_id === data.bot_id);
+          const player = botIndex === 0 ? 'bot1' as Player : 'bot2' as Player;
+
+          setPlayerProgress((prev) => {
+            const newProgress = new Map(prev);
+            // progress_percent는 0~100, playerProgress는 0~1
+            newProgress.set(player, data.progress_percent / 100);
+            return newProgress;
+          });
+        }
       },
       onBotBoarding: (data) => {
         console.log(`🚌 봇 ${data.bot_id} 탑승:`, data.station_name);
@@ -93,14 +146,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [routeResult, setRouteResult] = useState<RouteResultResponse | null>(null);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
 
-  // 시뮬레이션 상태
-  const [isSimulating, setIsSimulating] = useState(false);
+  // 시뮬레이션 상태 (SSE로 대체 - 주석 처리)
+  // const [isSimulating, setIsSimulating] = useState(false);
   const [playerProgress, setPlayerProgress] = useState<Map<Player, number>>(
     new Map([['user', 0], ['bot1', 0], ['bot2', 0]])
   );
   const [finishTimes, setFinishTimes] = useState<Map<Player, number>>(new Map()); // 도착 시간 기록
-  const simulationRef = useRef<number | null>(null);
-  const lastUpdateTime = useRef<number>(0);
+  // const simulationRef = useRef<number | null>(null);
+  // const lastUpdateTime = useRef<number>(0);
 
   // GPS 추적 상태
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -113,12 +166,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // GPS 테스트 모드 (가짜 GPS로 경로 따라 자동 이동)
   const [isGpsTestMode, setIsGpsTestMode] = useState(false);
-  const [_gpsTestProgress, setGpsTestProgress] = useState(0);
+  const [gpsTestProgress, setGpsTestProgress] = useState(0);
   const gpsTestRef = useRef<number | null>(null);
   const gpsTestLastUpdate = useRef<number>(0);
-  const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false);
-  const layerButtonRef = useRef<HTMLButtonElement>(null);
-  const layerPopoverRef = useRef<HTMLDivElement>(null);
+
+  // 사용자 자동 이동 (경로 데이터의 totalTime 기반)
+  const [isUserAutoMoving, setIsUserAutoMoving] = useState(false);
+  const [userProgress, setUserProgress] = useState(0);
+  const userAutoMoveRef = useRef<number | null>(null);
+  const raceStartTime = useRef<number | null>(null);
 
   // 도착 판정 기준 (미터)
   const ARRIVAL_THRESHOLD = 20;
@@ -168,6 +224,26 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     loadRouteDetails();
   }, [assignments]);
 
+  // 플레이어 색상에 따른 경로 라인 색상
+  const PLAYER_LINE_COLORS: Record<string, string> = {
+    green: '#7ed321',
+    pink: '#ff6b9d',
+    yellow: '#ffd93d',
+    purple: '#a78bfa',
+  };
+
+  // 플레이어의 색상 가져오기 (createRouteResponse 기반)
+  const getPlayerLineColor = useCallback((player: Player): string => {
+    if (player === 'user') {
+      return PLAYER_LINE_COLORS.green; // 유저는 항상 green
+    }
+    // 봇의 경우 createRouteResponse에서 색상 찾기
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+    const botIndex = player === 'bot1' ? 0 : 1;
+    const botType = botParticipants[botIndex]?.bot_type as string;
+    return PLAYER_LINE_COLORS[botType] || PLAYER_LINE_COLORS.purple;
+  }, [createRouteResponse]);
+
   // 지도에 표시할 경로 라인 생성
   const routeLines = useMemo<RouteLineInfo[]>(() => {
     const lines: RouteLineInfo[] = [];
@@ -176,11 +252,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       const detail = legDetails.get(routeLegId);
       if (!detail) continue;
 
-      // 경로 인덱스로 색상 결정
-      const legIndex = searchResponse?.legs.findIndex(
-        (leg) => leg.route_leg_id === routeLegId
-      ) ?? 0;
-      const colorScheme = ROUTE_COLORS[legIndex % ROUTE_COLORS.length];
+      // 플레이어 색상에 맞는 경로 색상 결정
+      const lineColor = getPlayerLineColor(player);
 
       // 각 구간(leg)의 좌표를 모아서 하나의 라인으로 생성
       const allCoordinates: [number, number][] = [];
@@ -206,7 +279,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         lines.push({
           id: `route-${player}`,
           coordinates: allCoordinates,
-          color: colorScheme.line,
+          color: lineColor,
           width: player === 'user' ? 6 : 4,
           opacity: player === 'user' ? 1 : 0.7,
         });
@@ -214,7 +287,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     }
 
     return lines;
-  }, [assignments, legDetails, searchResponse]);
+  }, [assignments, legDetails, getPlayerLineColor]);
 
   // 출발지/도착지 마커 생성
   const endpoints = useMemo<EndpointMarker[]>(() => {
@@ -536,29 +609,43 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     });
   }, [stopGpsTestMode]);
 
-  // 시뮬레이션 시작
-  const startSimulation = useCallback(() => {
-    if (isSimulating) return;
+  // 사용자 경로의 총 소요 시간(초) 가져오기
+  const getUserTotalTime = useCallback((): number => {
+    const userRouteLegId = assignments.get('user');
+    if (!userRouteLegId || !searchResponse) return 0;
 
-    setIsSimulating(true);
-    const now = Date.now();
-    lastUpdateTime.current = now;
-    setSimulationStartTime(now); // 시뮬레이션 시작 시간 기록
+    const legSummary = searchResponse.legs.find((leg) => leg.route_leg_id === userRouteLegId);
+    return legSummary?.totalTime || 0;
+  }, [assignments, searchResponse]);
 
-    // 플레이어별 속도 (봇들은 약간씩 다르게)
-    const speeds: Record<Player, number> = {
-      user: 0.02,   // 1초당 2% 진행
-      bot1: 0.018,  // 1초당 1.8% 진행
-      bot2: 0.022,  // 1초당 2.2% 진행
-    };
+  // 사용자 자동 이동 시작 (경로 데이터의 totalTime 기반)
+  const startUserAutoMove = useCallback(() => {
+    if (isUserAutoMoving || isGpsTracking || isGpsTestMode) return;
+
+    const totalTime = getUserTotalTime();
+    if (totalTime <= 0) {
+      console.warn('사용자 경로의 totalTime을 가져올 수 없습니다.');
+      return;
+    }
+
+    console.log(`🚀 사용자 자동 이동 시작 (예상 소요 시간: ${totalTime}초)`);
+
+    setIsUserAutoMoving(true);
+    raceStartTime.current = Date.now();
+    setSimulationStartTime(Date.now()); // 결과 생성용
 
     const animate = () => {
-      const now = Date.now();
-      const deltaTime = (now - lastUpdateTime.current) / 1000; // 초 단위
-      lastUpdateTime.current = now;
+      if (!raceStartTime.current) return;
 
+      const elapsed = (Date.now() - raceStartTime.current) / 1000; // 경과 시간 (초)
+      const progress = Math.min(elapsed / totalTime, 1); // 진행률 (0~1)
+
+      setUserProgress(progress);
       setPlayerProgress((prev) => {
         const newProgress = new Map(prev);
+        newProgress.set('user', progress);
+        return newProgress;
+      });
 
       // 도착 처리
       if (progress >= 1) {
@@ -570,6 +657,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             newTimes.set('user', Date.now());
             return newTimes;
           }
+          return prevTimes;
         });
         setIsUserAutoMoving(false);
         userAutoMoveRef.current = null;
@@ -578,31 +666,122 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         return;
       }
 
-        return newProgress;
-      });
+      userAutoMoveRef.current = requestAnimationFrame(animate);
+    };
 
     userAutoMoveRef.current = requestAnimationFrame(animate);
   }, [isUserAutoMoving, isGpsTracking, isGpsTestMode, getUserTotalTime, handleUserArrived]);
 
-    simulationRef.current = requestAnimationFrame(animate);
-  }, [isSimulating]);
-
-  // 시뮬레이션 정지
-  const stopSimulation = useCallback(() => {
-    setIsSimulating(false);
-    if (simulationRef.current) {
-      cancelAnimationFrame(simulationRef.current);
-      simulationRef.current = null;
+  // 사용자 자동 이동 중지
+  const stopUserAutoMove = useCallback(() => {
+    setIsUserAutoMoving(false);
+    if (userAutoMoveRef.current) {
+      cancelAnimationFrame(userAutoMoveRef.current);
+      userAutoMoveRef.current = null;
     }
   }, []);
 
-  // 시뮬레이션 리셋
-  const resetSimulation = useCallback(() => {
-    stopSimulation();
-    setPlayerProgress(new Map([['user', 0], ['bot1', 0], ['bot2', 0]]));
-    setFinishTimes(new Map()); // 도착 시간 기록도 초기화
-    setSimulationStartTime(null); // 시작 시간도 초기화
-  }, [stopSimulation]);
+  // 경로 상세 정보 로드 완료 시 사용자 자동 이동 시작
+  useEffect(() => {
+    // 경로 상세 정보가 로드되고, 사용자 경로가 할당되어 있으면 자동 이동 시작
+    const userRouteLegId = assignments.get('user');
+    if (
+      userRouteLegId &&
+      legDetails.has(userRouteLegId) &&
+      !isLoadingDetails &&
+      !isUserAutoMoving &&
+      !isGpsTracking &&
+      !isGpsTestMode &&
+      !isUserArrived
+    ) {
+      // 약간의 지연 후 시작 (UI 렌더링 완료 후)
+      const timer = setTimeout(() => {
+        startUserAutoMove();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [assignments, legDetails, isLoadingDetails, isUserAutoMoving, isGpsTracking, isGpsTestMode, isUserArrived, startUserAutoMove]);
+
+  // 컴포넌트 언마운트 시 사용자 자동 이동 정리
+  useEffect(() => {
+    return () => {
+      if (userAutoMoveRef.current) {
+        cancelAnimationFrame(userAutoMoveRef.current);
+      }
+    };
+  }, []);
+
+  // 시뮬레이션 시작 (SSE로 대체 - 주석 처리)
+  // const startSimulation = useCallback(() => {
+  //   if (isSimulating) return;
+
+  //   setIsSimulating(true);
+  //   const now = Date.now();
+  //   lastUpdateTime.current = now;
+  //   setSimulationStartTime(now); // 시뮬레이션 시작 시간 기록
+
+  //   // 플레이어별 속도 (봇들은 약간씩 다르게)
+  //   const speeds: Record<Player, number> = {
+  //     user: 0.02,   // 1초당 2% 진행
+  //     bot1: 0.018,  // 1초당 1.8% 진행
+  //     bot2: 0.022,  // 1초당 2.2% 진행
+  //   };
+
+  //   const animate = () => {
+  //     const now = Date.now();
+  //     const deltaTime = (now - lastUpdateTime.current) / 1000; // 초 단위
+  //     lastUpdateTime.current = now;
+
+  //     setPlayerProgress((prev) => {
+  //       const newProgress = new Map(prev);
+
+  //       (['user', 'bot1', 'bot2'] as Player[]).forEach((player) => {
+  //         const current = prev.get(player) || 0;
+  //         if (current < 1) {
+  //           // 약간의 랜덤성 추가 (±10%)
+  //           const randomFactor = 0.9 + Math.random() * 0.2;
+  //           const newValue = Math.min(current + speeds[player] * deltaTime * randomFactor, 1);
+  //           newProgress.set(player, newValue);
+
+  //           // 100% 도달 시 도착 시간 기록
+  //           if (newValue >= 1) {
+  //             setFinishTimes((prevTimes) => {
+  //               if (!prevTimes.has(player)) {
+  //                 const newTimes = new Map(prevTimes);
+  //                 newTimes.set(player, Date.now());
+  //                 return newTimes;
+  //               }
+  //               return prevTimes;
+  //             });
+  //           }
+  //         }
+  //       });
+
+  //       return newProgress;
+  //     });
+
+  //     simulationRef.current = requestAnimationFrame(animate);
+  //   };
+
+  //   simulationRef.current = requestAnimationFrame(animate);
+  // }, [isSimulating]);
+
+  // // 시뮬레이션 정지
+  // const stopSimulation = useCallback(() => {
+  //   setIsSimulating(false);
+  //   if (simulationRef.current) {
+  //     cancelAnimationFrame(simulationRef.current);
+  //     simulationRef.current = null;
+  //   }
+  // }, []);
+
+  // // 시뮬레이션 리셋
+  // const resetSimulation = useCallback(() => {
+  //   stopSimulation();
+  //   setPlayerProgress(new Map([['user', 0], ['bot1', 0], ['bot2', 0]]));
+  //   setFinishTimes(new Map()); // 도착 시간 기록도 초기화
+  //   setSimulationStartTime(null); // 시작 시간도 초기화
+  // }, [stopSimulation]);
 
   // 시뮬레이션 시작 시간 기록
   const [simulationStartTime, setSimulationStartTime] = useState<number | null>(null);
@@ -710,6 +889,20 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     };
   }, [userRouteId, simulationStartTime, finishTimes, playerProgress, departure, arrival, createRouteResponse]);
 
+  // 경주 결과 조회 (백엔드 API 사용 시)
+  const fetchRouteResult = useCallback(async () => {
+    const routeId = userRouteId || 1;
+
+    setIsLoadingResult(true);
+    try {
+      const result = await getRouteResult(routeId);
+      setRouteResult(result);
+    } catch (error) {
+      console.error('경주 결과 조회 실패:', error);
+    } finally {
+      setIsLoadingResult(false);
+    }
+  }, [userRouteId]);
 
   // 도착 완료 처리 (상태 변경 + 결과 생성 + 팝업 표시)
   const handleFinishRoute = useCallback(async () => {
@@ -755,14 +948,333 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     await handleFinishRoute();
   }, [handleFinishRoute]);
 
-  // 컴포넌트 언마운트 시 정리
+  // 현재 위치로 이동
+  const handleMyLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      console.log("Geolocation을 지원하지 않는 브라우저입니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { longitude, latitude } = position.coords;
+        const map = mapViewRef.current?.map;
+
+        if (map) {
+          map.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            duration: 1500,
+          });
+        }
+      },
+      (error) => {
+        console.warn("현재 위치를 가져올 수 없습니다:", error);
+      }
+    );
+  }, []);
+
+  // 지도 스타일 변경
+  const handleStyleChange = useCallback((style: MapStyleType) => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    if (!mapInstance.isStyleLoaded()) return;
+
+    const center = mapInstance.getCenter();
+    const zoom = mapInstance.getZoom();
+    const bearing = mapInstance.getBearing();
+    const pitch = mapInstance.getPitch();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.setStyle(MAP_STYLES[style].url, { diff: false } as any);
+
+    mapInstance.once("style.load", () => {
+      if (!mapInstance) return;
+
+      mapInstance.jumpTo({
+        center: center,
+        zoom: zoom,
+        bearing: bearing,
+        pitch: pitch,
+      });
+
+      if (style !== "satellite-streets") {
+        const layers = mapInstance.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            if (layer.type === "symbol" && layer.layout?.["text-field"]) {
+              try {
+                mapInstance.setLayoutProperty(layer.id, "text-field", [
+                  "coalesce",
+                  ["get", "name_ko"],
+                  ["get", "name:ko"],
+                  ["get", "name"],
+                ]);
+              } catch {
+                // 일부 레이어는 text-field 변경이 불가능할 수 있음
+              }
+            }
+          });
+        }
+      }
+
+      if (style === "dark") {
+        const layers = mapInstance.getStyle().layers;
+        if (layers) {
+          layers.forEach((layer) => {
+            if (layer.id.includes("traffic")) {
+              try {
+                mapInstance.setLayoutProperty(layer.id, "visibility", "none");
+              } catch {
+                // 레이어 숨기기 실패 무시
+              }
+            }
+          });
+        }
+      }
+
+      if (is3DBuildingsEnabled && mapInstance && !mapInstance.getLayer("3d-buildings")) {
+        if (!mapInstance.getSource("junggu-buildings")) {
+          mapInstance.addSource("junggu-buildings", {
+            type: "geojson",
+            data: "/junggu_buildings.geojson",
+          });
+        }
+        mapInstance.addLayer({
+          id: "3d-buildings",
+          source: "junggu-buildings",
+          type: "fill-extrusion",
+          minzoom: 13,
+          paint: {
+            "fill-extrusion-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "height"],
+              0, "#d4e6d7",
+              10, "#a8d4ae",
+              20, "#7bc47f",
+              50, "#4a9960",
+              100, "#2d5f3f",
+            ],
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": 0,
+            "fill-extrusion-opacity": 0.75,
+          },
+        });
+      }
+    });
+
+    setMapStyle(style);
+    setIsLayerPopoverOpen(false);
+  }, [is3DBuildingsEnabled]);
+
+  // 3D 건물 레이어 추가 함수
+  const add3DBuildingsLayer = useCallback(async () => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    if (mapInstance.getLayer("3d-buildings")) return;
+
+    if (!mapInstance.getSource("junggu-buildings")) {
+      mapInstance.addSource("junggu-buildings", {
+        type: "geojson",
+        data: "/junggu_buildings.geojson",
+      });
+    }
+
+    mapInstance.addLayer({
+      id: "3d-buildings",
+      source: "junggu-buildings",
+      type: "fill-extrusion",
+      minzoom: 13,
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["get", "height"],
+          0, "#d4e6d7",
+          10, "#a8d4ae",
+          20, "#7bc47f",
+          50, "#4a9960",
+          100, "#2d5f3f",
+        ],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.75,
+      },
+    });
+  }, []);
+
+  // 3D 건물 레이어 제거 함수
+  const remove3DBuildingsLayer = useCallback(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+    if (mapInstance.getLayer("3d-buildings")) {
+      mapInstance.removeLayer("3d-buildings");
+    }
+    if (mapInstance.getSource("junggu-buildings")) {
+      mapInstance.removeSource("junggu-buildings");
+    }
+  }, []);
+
+  // 3D 건물 토글 핸들러
+  const handle3DBuildingsToggle = useCallback(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+
+    const newState = !is3DBuildingsEnabled;
+    setIs3DBuildingsEnabled(newState);
+
+    if (newState) {
+      add3DBuildingsLayer();
+      mapInstance.easeTo({
+        pitch: 45,
+        duration: 500,
+      });
+    } else {
+      remove3DBuildingsLayer();
+      mapInstance.easeTo({
+        pitch: 0,
+        duration: 500,
+      });
+    }
+  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+
+  // 지하철 노선 토글 핸들러
+  const handleSubwayLinesToggle = useCallback(() => {
+    setIsSubwayLinesEnabled((prev) => !prev);
+  }, []);
+
+  // 버스 노선 토글 핸들러
+  const handleBusLinesToggle = useCallback(() => {
+    if (!isBusLinesEnabled) {
+      setShowBusInputModal(true);
+    } else {
+      setIsBusLinesEnabled(false);
+      setTrackedBusNumbers([]);
+      setBusNumberInput("");
+      const mapInstance = mapViewRef.current?.map;
+      if (mapInstance) {
+        clearBusData(mapInstance);
+        clearAllBusRoutePaths(mapInstance);
+      }
+    }
+  }, [isBusLinesEnabled]);
+
+  // 버스 번호 입력 확인 핸들러
+  const handleBusInputConfirm = useCallback(() => {
+    const numbers = busNumberInput
+      .split(/[,\s]+/)
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+      .slice(0, 5);
+
+    if (numbers.length > 0) {
+      setTrackedBusNumbers(numbers);
+      setIsBusLinesEnabled(true);
+      setShowBusInputModal(false);
+    }
+  }, [busNumberInput]);
+
+  // 버스 번호 입력 취소 핸들러
+  const handleBusInputCancel = useCallback(() => {
+    setShowBusInputModal(false);
+    setBusNumberInput("");
+  }, []);
+
+  // 지하철 노선 레이어 관리
   useEffect(() => {
-    return () => {
-      if (simulationRef.current) {
-        cancelAnimationFrame(simulationRef.current);
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance) return;
+
+    if (isSubwayLinesEnabled) {
+      if (mapInstance.isStyleLoaded()) {
+        addSubwayLayers(mapInstance);
+      } else {
+        mapInstance.once("style.load", () => {
+          addSubwayLayers(mapInstance);
+        });
+      }
+    } else {
+      removeSubwayLayers(mapInstance);
+    }
+  }, [isSubwayLinesEnabled]);
+
+  // 버스 레이어 관리
+  useEffect(() => {
+    const mapInstance = mapViewRef.current?.map;
+    if (!mapInstance || trackedBusNumbers.length === 0) return;
+
+    let intervalId: NodeJS.Timeout | null = null;
+    let isInitialized = false;
+
+    const loadBusData = async () => {
+      // trackBusPositions를 호출하여 버스 번호로 실제 route_id와 위치 정보를 가져옴
+      const response = await trackBusPositions(trackedBusNumbers);
+
+      // 버스 위치 업데이트
+      if (response.buses.length > 0) {
+        updateAllBusPositions(mapInstance, response.buses);
+      }
+
+      // 최초 1회만 경로 데이터 로드 (경로는 변하지 않음)
+      if (!isInitialized && response.meta.routes.length > 0) {
+        isInitialized = true;
+        for (const route of response.meta.routes) {
+          try {
+            const pathData = await fetchBusRoutePath(route.route_id);
+            if (pathData?.geojson) {
+              addBusRoutePath(mapInstance, route.route_id, route.bus_number, pathData.geojson);
+            }
+          } catch (error) {
+            console.error(`버스 ${route.bus_number} 경로 조회 실패:`, error);
+          }
+        }
       }
     };
-  }, []);
+
+    if (isBusLinesEnabled && mapInstance.isStyleLoaded()) {
+      addBusLayers(mapInstance);
+      loadBusData();
+      intervalId = setInterval(loadBusData, 15000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isBusLinesEnabled, trackedBusNumbers]);
+
+  // 레이어 팝오버 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isLayerPopoverOpen &&
+        popoverRef.current &&
+        layerButtonRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !layerButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsLayerPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isLayerPopoverOpen]);
+
+  // 컴포넌트 언마운트 시 정리 (시뮬레이션 - SSE로 대체됨)
+  // useEffect(() => {
+  //   return () => {
+  //     if (simulationRef.current) {
+  //       cancelAnimationFrame(simulationRef.current);
+  //     }
+  //   };
+  // }, []);
 
   // 플레이어 마커 생성 (GPS 또는 시뮬레이션 위치 기반)
   // 주석: MovingCharacter로 대체하여 사용하지 않음
@@ -909,28 +1421,80 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     };
   }, [isDragging, startY, startHeight]);
 
-  // 캐릭터 색상 매핑 (user: green, bot1: purple, bot2: yellow)
-  const PLAYER_COLORS: Record<Player, CharacterColor> = {
-    user: 'green',
-    bot1: 'purple',
-    bot2: 'yellow',
+  // 유저 캐릭터 색상 (고정)
+  const USER_COLOR: CharacterColor = 'green';
+
+  // 플레이어 색상에 따른 그라디언트
+  const PLAYER_GRADIENTS: Record<CharacterColor, string> = {
+    green: 'from-[#7ed321] to-[#4a9960]',
+    pink: 'from-[#ff6b9d] to-[#e84393]',
+    yellow: 'from-[#ffd93d] to-[#f39c12]',
+    purple: 'from-[#a78bfa] to-[#8b5cf6]',
   };
 
-  // 봇 목록 (SSE로부터 받은 botPositions)
-  const botList = Array.from(botPositions.entries()).map(([botId, state]) => ({
-    botId,
-    state,
-    // bot1 = id 1, bot2 = id 2
-    player: botId === 1 ? 'bot1' as Player : 'bot2' as Player,
-  }));
+  // 봇 ID로 봇 타입(색상) 찾기
+  const getBotColor = useCallback((botId: number): CharacterColor => {
+    // createRouteResponse에서 해당 bot_id를 가진 참가자 찾기
+    const participant = createRouteResponse?.participants.find(
+      (p) => p.type === 'BOT' && p.bot_id === botId
+    );
+    // bot_type이 있으면 사용, 없으면 기본값 purple
+    return (participant?.bot_type as CharacterColor) || 'purple';
+  }, [createRouteResponse]);
 
-  // user의 현재 위치 계산 (GPS 추적 중이면 실제 위치, 아니면 시뮬레이션 위치)
+  // 봇 목록 (SSE 데이터 + 출발지 fallback)
+  const botList = useMemo(() => {
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+
+    return botParticipants.map((participant, index) => {
+      const botId = participant.bot_id!;
+      const state = botPositions.get(botId);
+      const player = index === 0 ? 'bot1' as Player : 'bot2' as Player;
+
+      // SSE에서 받은 위치가 없으면 출발지를 기본 위치로 사용
+      const position = state?.position || (departure ? { lon: departure.lon, lat: departure.lat } : null);
+      const botStatus = state?.status || 'WALKING';
+
+      return {
+        botId,
+        state: state ? { ...state, position } : { position, status: botStatus } as any,
+        player,
+        color: getBotColor(botId),
+        hasRealPosition: !!state?.position,
+      };
+    });
+  }, [botPositions, createRouteResponse, getBotColor, departure]);
+
+  // 순위표용 PLAYER_COLORS (레거시 호환)
+  const PLAYER_COLORS: Record<Player, CharacterColor> = useMemo(() => {
+    const colors: Record<Player, CharacterColor> = {
+      user: USER_COLOR,
+      bot1: 'purple',
+      bot2: 'yellow',
+    };
+
+    // createRouteResponse에서 실제 봇 색상 가져오기
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+    if (botParticipants[0]?.bot_type) {
+      colors.bot1 = botParticipants[0].bot_type as CharacterColor;
+    }
+    if (botParticipants[1]?.bot_type) {
+      colors.bot2 = botParticipants[1].bot_type as CharacterColor;
+    }
+
+    return colors;
+  }, [createRouteResponse]);
+
+  // user의 현재 위치 계산 (우선순위: GPS 추적 > GPS 테스트 > 자동 이동)
   const userPosition = useMemo(() => {
     if (isGpsTracking && userLocation) {
       // GPS 추적 중: 실제 GPS 위치 사용
       return { lon: userLocation[0], lat: userLocation[1] };
+    } else if (isGpsTestMode && userLocation) {
+      // GPS 테스트 모드: 가짜 GPS 위치 사용
+      return { lon: userLocation[0], lat: userLocation[1] };
     } else {
-      // 시뮬레이션: 진행률 기반 위치 계산
+      // 자동 이동 또는 초기 상태: 진행률 기반 위치 계산
       const progress = playerProgress.get('user') || 0;
       const pos = getPositionOnRoute('user', progress);
       if (pos) {
@@ -938,94 +1502,41 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       }
     }
     return null;
-  }, [isGpsTracking, userLocation, playerProgress, getPositionOnRoute]);
+  }, [isGpsTracking, isGpsTestMode, userLocation, playerProgress, getPositionOnRoute]);
 
-  // 내 위치로 이동 (RouteDetailPage용)
-  const handleMyLocation = useCallback(() => {
-    const mapInstance = mapViewRef.current?.map;
-    if (!mapInstance) return;
-
-    if (userLocation) {
-      // 이미 위치가 있으면 그곳으로 이동
-      mapInstance.flyTo({
-        center: userLocation,
-        zoom: 15,
-        duration: 1500,
-      });
-    } else if (isGpsTracking || isGpsTestMode) {
-      // GPS 추적 중이면 현재 위치 가져오기
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { longitude, latitude } = position.coords;
-            const coords: [number, number] = [longitude, latitude];
-            setUserLocation(coords);
-            mapInstance.flyTo({
-              center: coords,
-              zoom: 15,
-              duration: 1500,
-            });
-          },
-          (error) => {
-            console.error('위치 가져오기 실패:', error.message);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-          }
-        );
-      }
-    } else {
-      // GPS 추적이 꺼져있으면 경로의 시작점으로 이동
-      if (departure) {
-        mapInstance.flyTo({
-          center: [departure.lon, departure.lat],
-          zoom: 15,
-          duration: 1500,
-        });
-      }
-    }
-  }, [userLocation, isGpsTracking, isGpsTestMode, departure]);
-
-  // 레이어 팝오버 외부 클릭 감지
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isLayerPopoverOpen &&
-        layerPopoverRef.current &&
-        layerButtonRef.current &&
-        !layerPopoverRef.current.contains(event.target as Node) &&
-        !layerButtonRef.current.contains(event.target as Node)
-      ) {
-        setIsLayerPopoverOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isLayerPopoverOpen]);
+  // 경로 로딩 중인지 확인 (assignments는 있지만 routeLines가 비어있는 경우)
+  const isRouteLoading = assignments.size > 0 && routeLines.length === 0;
 
   // 지도 컨텐츠
   const mapContent = (
     <>
       <MapView
+        key={`map-${routeLines.length > 0 ? 'loaded' : 'loading'}`}
         ref={mapViewRef}
-        currentPage="routeDetail"
+        currentPage="route"
         routeLines={routeLines}
         endpoints={endpoints}
         fitToRoutes={routeLines.length > 0}
-        onNavigate={onNavigate}
       />
+
+      {/* 경로 로딩 오버레이 */}
+      {isRouteLoading && (
+        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
+          <div className="bg-white rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-8 py-6 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin" />
+            <p className="font-['Wittgenstein',sans-serif] text-[14px] text-black">
+              경로 불러오는 중...
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* User 캐릭터 (GPS 또는 시뮬레이션 위치) */}
       {userPosition && (
         <MovingCharacter
           key="user"
           map={mapViewRef.current?.map || null}
-          color={PLAYER_COLORS.user}
+          color={USER_COLOR}
           botId={0}
           currentPosition={userPosition}
           status="WALKING"
@@ -1035,19 +1546,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         />
       )}
 
-      {/* Bot 캐릭터들 (SSE 데이터) */}
-      {botList.map(({ botId, state, player }) => (
-        <MovingCharacter
-          key={botId}
-          map={mapViewRef.current?.map || null}
-          color={PLAYER_COLORS[player]}
-          botId={botId}
-          currentPosition={state.position}
-          status={state.status}
-          updateInterval={5000}
-          size={64}
-          animationSpeed={150}
-        />
+      {/* Bot 캐릭터들 (SSE 데이터 + 출발지 fallback) */}
+      {botList.map(({ botId, state, color }) => (
+        state.position ? (
+          <MovingCharacter
+            key={botId}
+            map={mapViewRef.current?.map || null}
+            color={color}
+            botId={botId}
+            currentPosition={state.position}
+            status={state.status}
+            updateInterval={30000}  // SSE 업데이트 주기(30초)에 맞춤
+            size={64}
+            animationSpeed={150}
+          />
+        ) : null
       ))}
     </>
   );
@@ -1167,7 +1680,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 실시간 순위 카드
   const rankingCard = (
-    <div className="bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-[19.366px] pt-[19.366px] pb-[12px]">
+    <div className="bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-[19.366px] pt-[19.366px] pb-[12px] relative">
+      {/* 닫기 버튼 */}
+      <button
+        onClick={() => setIsRankingVisible(false)}
+        className="absolute top-2 right-2 w-[24px] h-[24px] rounded-full border-[2px] border-black bg-white flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors"
+      >
+        <span className="text-[12px] font-bold">✕</span>
+      </button>
       <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black text-center leading-[18px] mb-[12px]">
         실시간 순위 🏆
       </p>
@@ -1175,9 +1695,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {/* 순위 목록 */}
       <div className="flex flex-col gap-[7.995px]">
         {rankings.map(({ player, progress }, index) => {
-          const route = getPlayerRoute(player);
-          const colorScheme = route ? ROUTE_COLORS[route.legIndex % ROUTE_COLORS.length] : ROUTE_COLORS[0];
+          const playerColor = PLAYER_COLORS[player];
           const progressPercent = Math.round(progress * 100);
+          // 플레이어 색상에 맞는 프로그레스바 배경색
+          const progressBarColor = playerColor === 'green' ? '#7ed321' :
+                                   playerColor === 'pink' ? '#ff6b9d' :
+                                   playerColor === 'yellow' ? '#ffd93d' :
+                                   playerColor === 'purple' ? '#a78bfa' : '#7ed321';
 
           return (
             <div key={player} className="flex gap-[7.995px] items-center">
@@ -1186,11 +1710,18 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   {index + 1}위
                 </p>
               </div>
-              <p className="text-[20px] leading-[28px]">{PLAYER_ICONS[player]}</p>
+              {/* 캐릭터 헬멧 이미지 */}
+              <div className="w-[32px] h-[32px] flex items-center justify-center">
+                <img
+                  src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
+                  alt={`${player} character`}
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div className="flex-1 bg-white h-[18px] rounded-[4px] border-[3px] border-black overflow-hidden">
                 <div
                   className="h-full transition-all duration-300"
-                  style={{ width: `${progressPercent}%`, backgroundColor: colorScheme.bg }}
+                  style={{ width: `${progressPercent}%`, backgroundColor: progressBarColor }}
                 />
               </div>
               <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px] w-[35px] text-right">
@@ -1201,8 +1732,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         })}
       </div>
 
-      {/* 시뮬레이션 컨트롤 버튼 */}
-      <div className="flex gap-2 mt-3">
+      {/* 시뮬레이션 컨트롤 버튼 (SSE로 대체 - 주석 처리) */}
+      {/* <div className="flex gap-2 mt-3">
         <button
           onClick={isSimulating ? stopSimulation : startSimulation}
           className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
@@ -1220,16 +1751,17 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         >
           <span className="text-[14px]">🔄</span>
         </button>
-      </div>
+      </div> */}
     </div>
   );
 
   // 경로 카드 생성
-  const renderRouteCard = (player: Player) => {
+  const renderRouteCard = (player: Player, index: number) => {
     const route = getPlayerRoute(player);
     if (!route || !route.summary) return null;
 
-    const colorScheme = ROUTE_COLORS[route.legIndex % ROUTE_COLORS.length];
+    const playerColor = PLAYER_COLORS[player];
+    const playerGradient = PLAYER_GRADIENTS[playerColor];
     const timeMinutes = secondsToMinutes(route.summary.totalTime);
     const distanceStr = metersToKilometers(route.summary.totalDistance);
     const isUser = player === "user";
@@ -1237,12 +1769,16 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return (
       <div
         key={player}
-        className={`bg-gradient-to-b ${colorScheme.gradient} rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-[23.364px]`}
+        className={`bg-gradient-to-b ${playerGradient} rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-[23.364px]`}
       >
         {/* 헤더 */}
         <div className="flex gap-[11.992px] items-center mb-[16px]">
-          <div className="bg-white rounded-[10px] w-[48px] h-[48px] border-[3px] border-black flex items-center justify-center">
-            <p className="text-[24px] leading-[36px]">{PLAYER_ICONS[player]}</p>
+          <div className="bg-white rounded-[10px] w-[48px] h-[48px] border-[3px] border-black flex items-center justify-center overflow-hidden">
+            <img
+              src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
+              alt={`${player} character`}
+              className="w-[36px] h-[36px] object-contain"
+            />
           </div>
           <div className="flex-1">
             <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[18px] mb-[3.997px]">
@@ -1303,7 +1839,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   // 경로 카드들
   const routeCards = (
     <div className="flex flex-col gap-[16px]">
-      {players.map((player) => renderRouteCard(player))}
+      {players.map((player, index) => renderRouteCard(player, index))}
     </div>
   );
 
@@ -1336,9 +1872,18 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             {gpsStatusCard}
 
             {/* 실시간 순위 */}
-            <div className="mb-4">
-              {rankingCard}
-            </div>
+            {isRankingVisible ? (
+              <div className="mb-4">
+                {rankingCard}
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsRankingVisible(true)}
+                className="mb-4 ml-auto bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-3 flex items-center justify-center hover:scale-[1.02] active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
+              >
+                <span className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">순위 보기</span>
+              </button>
+            )}
 
             {/* 경로 카드들 */}
             {routeCards}
@@ -1369,101 +1914,231 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         <div className="flex-1 relative">
           {mapContent}
 
-          {/* 왼쪽 세로 버튼들 */}
-          <div className="absolute left-[20px] top-[50%] transform -translate-y-1/2 flex flex-col gap-3 z-30">
-            {/* 뒤로가기 버튼 */}
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
-                title="뒤로가기"
-              >
-                <span className="text-[20px] leading-[24px]">←</span>
-              </button>
-            )}
-
+          {/* 오른쪽 상단 버튼 컨테이너 */}
+          <div className="absolute top-5 right-5 flex flex-col gap-3 z-10">
             {/* 레이어 버튼 */}
-            <button
-              ref={layerButtonRef}
-              onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-              className={`bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all ${
-                isLayerPopoverOpen ? 'bg-white/95' : ''
-              }`}
-              title="레이어"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            <div className="relative">
+              <button
+                ref={layerButtonRef}
+                onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
+                className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all ${
+                  isLayerPopoverOpen ? "bg-white/30" : ""
+                }`}
+                title="레이어"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
 
-            {/* 타겟/위치 버튼 */}
+              {/* 레이어 팝오버 */}
+              {isLayerPopoverOpen && (
+                <div
+                  ref={popoverRef}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+                >
+                  <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                    지도 스타일
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {(Object.keys(MAP_STYLES) as MapStyleType[]).map((styleKey) => (
+                      <button
+                        key={styleKey}
+                        onClick={() => handleStyleChange(styleKey)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                          mapStyle === styleKey
+                            ? "bg-white/40 text-gray-900 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                            : "hover:bg-white/30 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
+                        }`}
+                      >
+                        <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
+                        <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                        {mapStyle === styleKey && (
+                          <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 레이어 옵션 섹션 */}
+                  <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                    레이어 옵션
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {/* 3D 건물 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handle3DBuildingsToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        is3DBuildingsEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🏢</span>
+                      <span className="text-sm font-medium">3D 건물</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          is3DBuildingsEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            is3DBuildingsEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* 지하철 노선 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubwayLinesToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        isSubwayLinesEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🚇</span>
+                      <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          isSubwayLinesEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            isSubwayLinesEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* 버스 노선 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBusLinesToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        isBusLinesEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🚌</span>
+                      <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          isBusLinesEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            isBusLinesEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 현재 위치 버튼 */}
             <button
               onClick={handleMyLocation}
-              className="bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
+              className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
               title="내 위치로 이동"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.8)" strokeWidth="2"/>
-                <path d="M12 2V6" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M12 18V22" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M2 12H6" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M18 12H22" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
+                <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
+        </div>
 
-          {/* 레이어 팝오버 */}
-          {isLayerPopoverOpen && (
-            <div ref={layerPopoverRef} className="absolute left-[76px] top-[50%] transform -translate-y-1/2 bg-white/95 backdrop-blur-lg rounded-[12px] border-[2px] border-black shadow-[4px_4px_0px_0px_black] p-4 min-w-[200px] z-40">
-              <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-gray-300">
-                지도 스타일
-              </div>
-              <div className="flex flex-col gap-2">
+        {/* 버스 번호 입력 모달 */}
+        {showBusInputModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                버스 번호 입력
+              </h3>
+              <p className="text-sm text-gray-700 mb-4">
+                추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
+              </p>
+              <input
+                type="text"
+                value={busNumberInput}
+                onChange={(e) => setBusNumberInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleBusInputConfirm();
+                  }
+                }}
+                placeholder="예: 360, 472, 151"
+                className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-[12px] text-base text-gray-900 placeholder:text-gray-600 focus:outline-none focus:border-white/60 focus:bg-white/40 transition-all mb-4"
+                autoFocus
+              />
+              {trackedBusNumbers.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {trackedBusNumbers.map((num) => (
+                      <span
+                        key={num}
+                        className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                      >
+                        {num}번
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    const mapInstance = mapViewRef.current?.map;
-                    if (mapInstance) {
-                      mapInstance.setStyle('mapbox://styles/mapbox/outdoors-v12', { diff: false } as any);
-                    }
-                    setIsLayerPopoverOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
+                  onClick={handleBusInputCancel}
+                  className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
                 >
-                  <span className="text-lg">🗺️</span>
-                  <span className="text-sm font-medium">기본 지도</span>
+                  취소
                 </button>
                 <button
-                  onClick={() => {
-                    const mapInstance = mapViewRef.current?.map;
-                    if (mapInstance) {
-                      mapInstance.setStyle('mapbox://styles/mapbox/navigation-night-v1', { diff: false } as any);
-                    }
-                    setIsLayerPopoverOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
+                  onClick={handleBusInputConfirm}
+                  className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
                 >
-                  <span className="text-lg">🌙</span>
-                  <span className="text-sm font-medium">야간 모드</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const mapInstance = mapViewRef.current?.map;
-                    if (mapInstance) {
-                      mapInstance.setStyle('mapbox://styles/mapbox/satellite-streets-v12', { diff: false } as any);
-                    }
-                    setIsLayerPopoverOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
-                >
-                  <span className="text-lg">🛰️</span>
-                  <span className="text-sm font-medium">위성 지도</span>
+                  확인
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 결과 팝업 */}
         <ResultPopup
@@ -1481,115 +2156,189 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   // 모바일 뷰
   return (
     <div ref={containerRef} className="relative size-full overflow-hidden bg-white">
-      {/* 지도 배경 */}
-      <div className="absolute inset-0">
+      {/* 지도 배경 - z-0으로 UI 요소들보다 아래에 배치 */}
+      <div className="absolute inset-0 z-0">
         {mapContent}
       </div>
 
-      {/* 왼쪽 세로 버튼들 */}
-      <div className="absolute left-[20px] top-[50%] transform -translate-y-1/2 flex flex-col gap-3 z-30">
-        {/* 뒤로가기 버튼 */}
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
-            title="뒤로가기"
-          >
-            <span className="text-[20px] leading-[24px]">←</span>
-          </button>
-        )}
-
-        {/* 레이어 버튼 */}
-        <button
-          ref={layerButtonRef}
-          onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-          className={`bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all ${
-            isLayerPopoverOpen ? 'bg-white/95' : ''
-          }`}
-          title="레이어"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-
-        {/* 타겟/위치 버튼 */}
-        <button
-          onClick={handleMyLocation}
-          className="bg-white/90 backdrop-blur-md rounded-[12px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] size-[48px] flex items-center justify-center hover:bg-white active:shadow-[1px_1px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
-          title="내 위치로 이동"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.8)" strokeWidth="2"/>
-            <path d="M12 2V6" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M12 18V22" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M2 12H6" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M18 12H22" stroke="rgba(0,0,0,0.8)" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
-      </div>
-
-      {/* 레이어 팝오버 */}
-      {isLayerPopoverOpen && (
-        <div ref={layerPopoverRef} className="absolute left-[76px] top-[50%] transform -translate-y-1/2 bg-white/95 backdrop-blur-lg rounded-[12px] border-[2px] border-black shadow-[4px_4px_0px_0px_black] p-4 min-w-[200px] z-40">
-          <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-gray-300">
-            지도 스타일
-          </div>
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => {
-                const mapInstance = mapViewRef.current?.map;
-                if (mapInstance) {
-                  mapInstance.setStyle('mapbox://styles/mapbox/outdoors-v12', { diff: false } as any);
-                }
-                setIsLayerPopoverOpen(false);
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
-            >
-              <span className="text-lg">🗺️</span>
-              <span className="text-sm font-medium">기본 지도</span>
-            </button>
-            <button
-              onClick={() => {
-                const mapInstance = mapViewRef.current?.map;
-                if (mapInstance) {
-                  mapInstance.setStyle('mapbox://styles/mapbox/navigation-night-v1', { diff: false } as any);
-                }
-                setIsLayerPopoverOpen(false);
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
-            >
-              <span className="text-lg">🌙</span>
-              <span className="text-sm font-medium">야간 모드</span>
-            </button>
-            <button
-              onClick={() => {
-                const mapInstance = mapViewRef.current?.map;
-                if (mapInstance) {
-                  mapInstance.setStyle('mapbox://styles/mapbox/satellite-streets-v12', { diff: false } as any);
-                }
-                setIsLayerPopoverOpen(false);
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all text-left"
-            >
-              <span className="text-lg">🛰️</span>
-              <span className="text-sm font-medium">위성 지도</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 경주취소 버튼 */}
+      {/* 경주취소 버튼 - 레이어 버튼 왼쪽에 배치 */}
       <button
         onClick={handleCancelRoute}
-        className="absolute right-[5.97%] top-[1.5%] bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-30"
+        className="absolute right-[72px] top-[16px] bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-30"
       >
         <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[18px]">
           경주취소
         </p>
       </button>
+
+      {/* 오른쪽 세로 버튼 컨테이너 (레이어, 현재 위치) */}
+      <div className="absolute top-[60px] right-5 flex flex-col gap-3 z-10 pointer-events-none">
+        {/* 레이어 버튼 */}
+        <div className="relative">
+          <button
+            ref={layerButtonRef}
+            onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
+            className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto ${
+              isLayerPopoverOpen ? "bg-white/30" : ""
+            }`}
+            title="레이어"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {/* 레이어 팝오버 */}
+          {isLayerPopoverOpen && (
+            <div
+              ref={popoverRef}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
+            >
+              <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                지도 스타일
+              </div>
+              <div className="flex flex-col gap-2">
+                {(Object.keys(MAP_STYLES) as MapStyleType[]).map((styleKey) => (
+                  <button
+                    key={styleKey}
+                    onClick={() => handleStyleChange(styleKey)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                      mapStyle === styleKey
+                        ? "bg-white/40 text-gray-900 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                        : "hover:bg-white/30 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
+                    }`}
+                  >
+                    <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
+                    <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                    {mapStyle === styleKey && (
+                      <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* 레이어 옵션 섹션 */}
+              <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                레이어 옵션
+              </div>
+              <div className="flex flex-col gap-2">
+                {/* 3D 건물 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handle3DBuildingsToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    is3DBuildingsEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🏢</span>
+                  <span className="text-sm font-medium">3D 건물</span>
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      is3DBuildingsEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        is3DBuildingsEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* 지하철 노선 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSubwayLinesToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    isSubwayLinesEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🚇</span>
+                  <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      isSubwayLinesEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        isSubwayLinesEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* 버스 노선 토글 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBusLinesToggle();
+                  }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                    isBusLinesEnabled
+                      ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                      : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                  }`}
+                >
+                  <span className="text-lg">🚌</span>
+                  <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                  <div
+                    className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                      isBusLinesEnabled
+                        ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                        : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                        isBusLinesEnabled
+                          ? "translate-x-5 bg-white shadow-md"
+                          : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                      }`}
+                    />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 현재 위치 버튼 */}
+        <button
+          onClick={handleMyLocation}
+          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+          title="내 위치로 이동"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
+            <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
 
       {/* GPS 상태 표시 - 상단 좌측 */}
       <div className="absolute left-[20px] top-[12px] z-30">
@@ -1668,15 +2417,29 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       </div>
 
       {/* 실시간 순위 카드 - 슬라이드업 위 */}
-      <div
-        className="absolute left-[20.05px] right-[20.05px] z-20 transition-all"
-        style={{
-          bottom: `calc(${sheetHeight}% + 30px)`,
-          transitionDuration: isDragging ? "0ms" : "300ms",
-        }}
-      >
-        {rankingCard}
-      </div>
+      {isRankingVisible ? (
+        <div
+          className="absolute left-[20.05px] right-[20.05px] z-20 transition-all"
+          style={{
+            bottom: `calc(${sheetHeight}% + 30px)`,
+            transitionDuration: isDragging ? "0ms" : "300ms",
+          }}
+        >
+          {rankingCard}
+        </div>
+      ) : (
+        /* 순위창 토글 버튼 - 순위창이 숨겨졌을 때 표시 (오른쪽 배치) */
+        <button
+          onClick={() => setIsRankingVisible(true)}
+          className="absolute right-[20.05px] z-20 bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-2 flex items-center hover:scale-105 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
+          style={{
+            bottom: `calc(${sheetHeight}% + 30px)`,
+            transitionDuration: isDragging ? "0ms" : "300ms",
+          }}
+        >
+          <span className="font-['Wittgenstein',sans-serif] text-[11px] text-black font-bold">순위 보기</span>
+        </button>
+      )}
 
       {/* 슬라이드업 - 경로 카드들 */}
       <div
@@ -1722,6 +2485,62 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           {allPlayersFinished ? '🚀' : '⏳'}
         </p>
       </button>
+
+      {/* 버스 번호 입력 모달 */}
+      {showBusInputModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              버스 번호 입력
+            </h3>
+            <p className="text-sm text-gray-700 mb-4">
+              추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
+            </p>
+            <input
+              type="text"
+              value={busNumberInput}
+              onChange={(e) => setBusNumberInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleBusInputConfirm();
+                }
+              }}
+              placeholder="예: 360, 472, 151"
+              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-[12px] text-base text-gray-900 placeholder:text-gray-600 focus:outline-none focus:border-white/60 focus:bg-white/40 transition-all mb-4"
+              autoFocus
+            />
+            {trackedBusNumbers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                <div className="flex flex-wrap gap-2">
+                  {trackedBusNumbers.map((num) => (
+                    <span
+                      key={num}
+                      className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                    >
+                      {num}번
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleBusInputCancel}
+                className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleBusInputConfirm}
+                className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 결과 팝업 */}
       <ResultPopup

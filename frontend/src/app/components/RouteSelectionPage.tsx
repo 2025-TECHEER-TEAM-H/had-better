@@ -1251,6 +1251,175 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         <div className="flex-1 relative">
           {mapContent}
 
+          {/* 오른쪽 상단 버튼들 */}
+          <div className="absolute top-5 right-5 flex flex-col gap-3 z-10">
+            {/* 레이어 버튼 */}
+            <div className="relative">
+              <button
+                ref={layerButtonRef}
+                onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
+                className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all ${
+                  isLayerPopoverOpen ? "bg-white/30" : ""
+                }`}
+                title="레이어"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {/* 레이어 팝오버 */}
+              {isLayerPopoverOpen && (
+                <div
+                  ref={popoverRef}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+                >
+                  <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                    지도 스타일
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {(Object.keys(MAP_STYLES) as MapStyleType[]).map((styleKey) => (
+                      <button
+                        key={styleKey}
+                        onClick={() => handleStyleChange(styleKey)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                          mapStyle === styleKey
+                            ? "bg-white/40 text-gray-900 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                            : "hover:bg-white/30 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]"
+                        }`}
+                      >
+                        <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
+                        <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                        {mapStyle === styleKey && (
+                          <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 레이어 옵션 섹션 */}
+                  <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                    레이어 옵션
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {/* 3D 건물 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handle3DBuildingsToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        is3DBuildingsEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🏢</span>
+                      <span className="text-sm font-medium">3D 건물</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          is3DBuildingsEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            is3DBuildingsEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* 지하철 노선 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubwayLinesToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        isSubwayLinesEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🚇</span>
+                      <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          isSubwayLinesEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            isSubwayLinesEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* 버스 노선 토글 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBusLinesToggle();
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                        isBusLinesEnabled
+                          ? "bg-white/50 text-gray-900 backdrop-blur-sm shadow-[inset_0_3px_6px_rgba(0,0,0,0.15),inset_0_1px_2px_rgba(0,0,0,0.1)] border border-white/40"
+                          : "bg-white/25 hover:bg-white/35 text-gray-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] border border-white/20 shadow-sm"
+                      }`}
+                    >
+                      <span className="text-lg">🚌</span>
+                      <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                      <div
+                        className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
+                          isBusLinesEnabled
+                            ? "bg-green-500/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]"
+                            : "bg-white/35 border border-white/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                            isBusLinesEnabled
+                              ? "translate-x-5 bg-white shadow-md"
+                              : "translate-x-0.5 bg-white border border-white/50 shadow-sm"
+                          }`}
+                        />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 현재 위치 버튼 */}
+            <button
+              onClick={handleMyLocation}
+              className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+              title="내 위치로 이동"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
+                <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+
           {/* 버스 번호 입력 모달 */}
           {showBusInputModal && (
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1398,7 +1567,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
             <div
               ref={popoverRef}
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
             >
               <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                 지도 스타일

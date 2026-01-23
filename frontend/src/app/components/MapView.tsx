@@ -168,10 +168,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const defaultCenter: [number, number] = [126.9780, 37.5665];
   const defaultZoom = 14;
 
-  // ref로 map 객체 노출
+  // ref로 map 객체 노출 (isMapLoaded 변경 시 업데이트)
   useImperativeHandle(ref, () => ({
     map: map.current,
-  }));
+  }), [isMapLoaded]);
 
   // 지도 초기화
   useEffect(() => {

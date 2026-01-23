@@ -11,6 +11,7 @@ import subwayMapImage from "@/assets/subway-map-image.png";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import placeService, { type SavedPlace, type SearchPlaceHistory } from "@/services/placeService";
+import routeService, { type RouteSearchHistory } from "@/services/routeService";
 import userService from "@/services/userService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
@@ -109,6 +110,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [searchHistories, setSearchHistories] = useState<SearchPlaceHistory[]>([]);
   const [isLoadingHistories, setIsLoadingHistories] = useState(false);
 
+  // 최근 경로 검색 기록 상태
+  const [routeSearchHistories, setRouteSearchHistories] = useState<RouteSearchHistory[]>([]);
+  const [isLoadingRouteHistories, setIsLoadingRouteHistories] = useState(false);
+
   // 웹/앱 화면 감지
   useEffect(() => {
     const checkViewport = () => {
@@ -159,9 +164,28 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     }
   };
 
+  // 최근 경로 검색 기록 불러오기
+  const loadRouteSearchHistories = async () => {
+    try {
+      setIsLoadingRouteHistories(true);
+      const response = await routeService.getRouteSearchHistories(5);
+      if (response.status === "success" && response.data) {
+        setRouteSearchHistories(response.data);
+      } else {
+        setRouteSearchHistories([]);
+      }
+    } catch (error) {
+      console.error("최근 경로 검색 기록 불러오기 실패:", error);
+      setRouteSearchHistories([]);
+    } finally {
+      setIsLoadingRouteHistories(false);
+    }
+  };
+
   // 초기 마운트 시 최근 검색 기록 로드
   useEffect(() => {
     loadSearchHistories();
+    loadRouteSearchHistories();
   }, []);
 
   // SearchResultsPage 등에서 검색 기록이 갱신되었을 때 이벤트로 동기화
@@ -363,6 +387,80 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       setSearchHistories([]);
     } catch (error) {
       console.error("검색 기록 전체 삭제 실패:", error);
+    }
+  };
+
+  // 최근 경로 검색 기록 단건 삭제
+  const handleDeleteRouteHistory = async (historyId: number) => {
+    try {
+      // 먼저 화면에서 바로 제거 (UI 우선)
+      setRouteSearchHistories((prev) => prev.filter((h) => h.id !== historyId));
+      // 이후 서버에 삭제 요청 (실패해도 UI는 유지)
+      await routeService.deleteRouteSearchHistory(historyId);
+    } catch {
+      // 에러는 콘솔만 조용히 무시 (UI는 유지)
+    }
+  };
+
+  // 최근 경로 검색 기록 전체 삭제
+  const handleClearRouteHistories = async () => {
+    if (routeSearchHistories.length === 0) return;
+    try {
+      await routeService.clearRouteSearchHistories();
+      setRouteSearchHistories([]);
+    } catch (error) {
+      console.error("경로 검색 기록 전체 삭제 실패:", error);
+    }
+  };
+
+  // 최근 경로 검색 기록 클릭 핸들러
+  const handleRouteHistoryClick = async (history: RouteSearchHistory) => {
+    try {
+      // 출발지와 도착지를 입력 필드에 설정
+      setStartLocation(history.departure.name);
+      setEndLocation(history.arrival.name);
+
+      // 장소 검색으로 좌표 가져오기 (검색 기록 저장 안 함)
+      const [departureResult, arrivalResult] = await Promise.all([
+        placeService.searchPlaces({ q: history.departure.name, limit: 1, save_history: false }),
+        placeService.searchPlaces({ q: history.arrival.name, limit: 1, save_history: false }),
+      ]);
+
+      if (
+        departureResult.status === "success" &&
+        departureResult.data &&
+        departureResult.data.length > 0 &&
+        arrivalResult.status === "success" &&
+        arrivalResult.data &&
+        arrivalResult.data.length > 0
+      ) {
+        const departurePlace = departureResult.data[0];
+        const arrivalPlace = arrivalResult.data[0];
+
+        const departureLocation: LocationWithCoords = {
+          name: departurePlace.name,
+          lat: departurePlace.coordinates.lat,
+          lon: departurePlace.coordinates.lon,
+        };
+
+        const arrivalLocation: LocationWithCoords = {
+          name: arrivalPlace.name,
+          lat: arrivalPlace.coordinates.lat,
+          lon: arrivalPlace.coordinates.lon,
+        };
+
+        // 경로 설정 및 페이지 이동
+        resetRoute();
+        setDepartureArrival(departureLocation, arrivalLocation);
+        setSelectedDeparture(departureLocation);
+        setSelectedArrival(arrivalLocation);
+        onNavigate?.("route");
+      } else {
+        alert("출발지 또는 도착지를 찾을 수 없습니다.");
+      }
+    } catch (error) {
+      console.error("경로 검색 기록 클릭 처리 실패:", error);
+      alert("경로 검색 중 오류가 발생했습니다.");
     }
   };
 
@@ -1562,6 +1660,94 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteHistory(history.id);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 최근 경로 기록 섹션 */}
+              <div
+                className="mt-7 rounded-[22px] hb-search-glass-card hb-search-glass-fun p-4"
+                style={{
+                  ...cardStyle,
+                  backdropFilter: "blur(18px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(18px) saturate(160%)",
+                }}
+              >
+                {/* Header: Title and Delete All button */}
+                <div className="flex items-center justify-between mb-4">
+                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
+                    최근 경로 기록
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleClearRouteHistories}
+                    disabled={routeSearchHistories.length === 0 || isLoadingRouteHistories}
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    전체 삭제
+                  </button>
+                </div>
+
+                {/* Empty state message */}
+                {isLoadingRouteHistories && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                    최근 경로 기록을 불러오는 중...
+                  </p>
+                )}
+                {!isLoadingRouteHistories && routeSearchHistories.length === 0 && (
+                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                    최근 경로 기록이 없습니다.
+                  </p>
+                )}
+
+                {/* Route history items */}
+                {routeSearchHistories.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-4">
+                    {routeSearchHistories.map((history, index) => {
+                      // 최근 기록일수록 흰색, 오래된 기록일수록 초록색 계열
+                      const totalItems = routeSearchHistories.length;
+                      const ratio = index / Math.max(totalItems - 1, 1);
+                      const whiteAmount = 1 - ratio;
+                      const greenAmount = ratio;
+
+                      // 초록색 계열 그라데이션
+                      const r = Math.round(255 * whiteAmount + 100 * greenAmount);
+                      const g = Math.round(255 * whiteAmount + 200 * greenAmount);
+                      const b = Math.round(255 * whiteAmount + 150 * greenAmount);
+                      const opacity = 0.32 + (greenAmount * 0.18);
+
+                      return (
+                        <div
+                          key={history.id}
+                          className="relative rounded-full px-4 py-2.5 flex items-center gap-2 w-full group hover:bg-white/25 transition-all cursor-pointer"
+                          style={{
+                            background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, ${opacity}) 0%, rgba(${r}, ${g}, ${b}, ${opacity * 0.6}) 100%)`,
+                            border: '1px solid rgba(255,255,255,0.36)',
+                            boxShadow: '0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.24)',
+                            backdropFilter: 'blur(16px) saturate(155%)',
+                            WebkitBackdropFilter: 'blur(16px) saturate(155%)',
+                          }}
+                          onClick={() => handleRouteHistoryClick(history)}
+                        >
+                          <span
+                            className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                          >
+                            {history.departure.name} → {history.arrival.name}
+                          </span>
+                          <button
+                            type="button"
+                            className="shrink-0 size-[18px] flex items-center justify-center text-[12px] font-bold text-[#b91c1c] hover:text-[#7f1d1d] active:text-[#991b1b] css-4hzbpn transition-colors relative z-10"
+                            style={{ touchAction: 'manipulation' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRouteHistory(history.id);
                             }}
                           >
                             ✕
