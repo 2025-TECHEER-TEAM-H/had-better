@@ -2,6 +2,7 @@ import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
 import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
+import { useUserDistance } from "@/hooks/useUserDistance";
 
 interface PlaceDetailPageProps {
   isOpen: boolean;
@@ -42,13 +43,19 @@ export function PlaceDetailPage({
   onNavigate,
   onOpenDashboard,
 }: PlaceDetailPageProps) {
-  const [sheetHeight, setSheetHeight] = useState(35); // 초기 높이 35%
+  const [sheetHeight, setSheetHeight] = useState(40); // 초기 높이 40% (컨텐츠가 모두 보이도록)
   const [isDragging, setIsDragging] = useState(false);
   const [startY, setStartY] = useState(0);
-  const [startHeight, setStartHeight] = useState(35);
+  const [startHeight, setStartHeight] = useState(40);
   const [isWebView, setIsWebView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // GPS 거리 계산
+  const { getDistanceTo, formatDistance } = useUserDistance();
+  const calculatedDistance = place?.coordinates
+    ? formatDistance(getDistanceTo(place.coordinates.lon, place.coordinates.lat))
+    : null;
 
   // 즐겨찾기 상태 관리
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
@@ -321,9 +328,9 @@ export function PlaceDetailPage({
   const handleDragEnd = () => {
     setIsDragging(false);
 
-    // 스냅 포인트: 35%, 60%, 85%
-    if (sheetHeight < 47.5) {
-      setSheetHeight(35);
+    // 스냅 포인트: 40%, 60%, 85%
+    if (sheetHeight < 50) {
+      setSheetHeight(40);
     } else if (sheetHeight < 72.5) {
       setSheetHeight(60);
     } else {
@@ -418,11 +425,11 @@ export function PlaceDetailPage({
 
         {/* 하단: 거리와 주소 정보 */}
         <div className="flex flex-col gap-2 pt-3 border-t border-white/30">
-          {place.distance && (
+          {(calculatedDistance || place.distance) && (
             <div className="flex items-center gap-2">
               <span className="text-[12px]">📍</span>
               <p className="css-4hzbpn font-['Wittgenstein:Medium',sans-serif] font-medium leading-[16px] text-[#4a9960] text-[12px]">
-                {place.distance}
+                {calculatedDistance || place.distance}
               </p>
             </div>
           )}
@@ -624,13 +631,13 @@ export function PlaceDetailPage({
                     </p>
                   </div>
 
-                  {/* 거리 정보 */}
-                  {place.distance && (
+                  {/* 거리 정보 (GPS 기반) */}
+                  {(calculatedDistance || place.distance) && (
                     <div className="flex items-center gap-2">
                       <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">거리:</p>
                       <div className="bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/40 rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
                         <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[8px] text-cyan-600 leading-[9px]">
-                          {place.distance}
+                          {calculatedDistance || place.distance}
                         </p>
                       </div>
                     </div>

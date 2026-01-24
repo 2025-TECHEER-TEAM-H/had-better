@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import placeService from "@/services/placeService";
+import { useUserDistance } from "@/hooks/useUserDistance";
 
 interface FavoritePlace {
   id: number;
@@ -51,7 +52,10 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isSearchResultsOpen, setIsSearchResultsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
+  // GPS 거리 계산
+  const { getDistanceTo, formatDistance } = useUserDistance();
+
   // 초기 즐겨찾기 상태 저장 (창을 닫을 때 변경사항 확인용)
   const [initialFavoritesState, setInitialFavoritesState] = useState<Map<number, boolean>>(new Map());
 
@@ -99,7 +103,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           savedPlaceId: savedPlace.saved_place_id,
           name: savedPlace.poi_place.name,
           address: savedPlace.poi_place.address,
-          distance: "거리", // TODO: 거리 계산 필요 시 추가
+          distance: "", // GPS 거리는 렌더링 시 계산
           icon: getCategoryIcon(savedPlace.category),
           isFavorited: true,
           coordinates: savedPlace.poi_place.coordinates,
@@ -497,7 +501,9 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
                     </p>
                     <div className="bg-[rgba(0,217,255,0.2)] border-[1.346px] border-[#00d9ff] rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
                       <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[6px] text-[#00d9ff] leading-[9px]">
-                        {place.distance}
+                        {place.coordinates
+                          ? formatDistance(getDistanceTo(place.coordinates.lon, place.coordinates.lat))
+                          : place.distance || "-"}
                       </p>
                     </div>
                   </div>
@@ -564,7 +570,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
               savedPlaceId: 0, // 검색 결과에서는 savedPlaceId를 모르므로 0으로 설정
               name: result.name,
               address: result.status || "주소 없음",
-              distance: result.distance || "거리",
+              distance: result.distance || "", // GPS 거리는 렌더링 시 계산
               icon: result.icon,
               isFavorited: result.isFavorited || false,
               coordinates: result.coordinates,
