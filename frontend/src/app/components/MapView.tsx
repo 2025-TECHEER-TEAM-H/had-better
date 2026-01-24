@@ -1,16 +1,13 @@
 import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, removeBusLayers, toggleBusLayers, updateAllBusPositions } from "@/components/map/busLayer";
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
 import { getBusRoutePath, trackBusPositions } from "@/lib/api";
-import { useMapStore } from "@/stores/mapStore";
+import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
-
-// 지도 스타일 타입
-type MapStyleType = "default" | "dark" | "satellite-streets";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
@@ -144,7 +141,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
-  const [mapStyle, setMapStyle] = useState<MapStyleType>("default"); // 지도 스타일
+  const { mapStyle, setMapStyle } = useMapStore(); // 지도 스타일 (글로벌 스토어)
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
   const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(showSubwayLines); // 지하철 노선 레이어 상태
@@ -189,7 +186,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/outdoors-v12",
+      style: MAP_STYLES[mapStyle].url, // 글로벌 스토어의 스타일 사용
       center: initialCenter,
       zoom: initialZoom,
       // 한국어 라벨 표시
@@ -854,7 +851,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
 
     return () => {
       // 컴포넌트 언마운트 시 레이어 제거
-      if (mapInstance && mapInstance.getStyle()) {
+      if (mapInstance && mapInstance.isStyleLoaded()) {
         try {
           removeSubwayLayers(mapInstance);
         } catch {
@@ -919,7 +916,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       if (intervalId) {
         clearInterval(intervalId);
       }
-      if (mapInstance && mapInstance.getStyle()) {
+      if (mapInstance && mapInstance.isStyleLoaded()) {
         try {
           clearBusData(mapInstance);
           clearAllBusRoutePaths(mapInstance);

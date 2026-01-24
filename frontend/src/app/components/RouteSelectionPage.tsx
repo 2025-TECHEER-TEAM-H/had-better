@@ -7,6 +7,7 @@ import { useRouteSSE } from "@/hooks/useRouteSSE";
 import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import { createRoute, getRouteLegDetail, searchRoutes } from "@/services/routeService";
+import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,9 +15,6 @@ import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } fro
 import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
 import imgBot1Character from "/assets/playerB/hud_player_pink.png"; // 분홍색 (봇1)
 import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
-
-// 지도 스타일 타입
-type MapStyleType = "default" | "dark" | "satellite-streets";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
@@ -80,7 +78,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const [isWebView, setIsWebView] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewRef>(null);
-  const [mapStyle, setMapStyle] = useState<MapStyleType>("default"); // 지도 스타일
+  const { mapStyle, setMapStyle } = useMapStore(); // 지도 스타일 (글로벌 스토어)
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
   const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(false); // 지하철 노선 레이어 상태
@@ -1554,16 +1552,18 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         </div>
       </div>
 
-      {/* 오른쪽 세로 버튼 컨테이너 */}
-      <div className="absolute top-5 right-5 flex flex-col gap-3 z-10 pointer-events-none">
-        {/* 뒤로가기 버튼 */}
+      {/* 좌상단 뒤로가기 버튼 */}
+      <div className="absolute top-5 left-5 z-10">
         <button
           onClick={onBack}
-          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
         >
           <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">←</p>
         </button>
+      </div>
 
+      {/* 오른쪽 세로 버튼 컨테이너 */}
+      <div className="absolute top-5 right-5 flex flex-col gap-3 z-10 pointer-events-none">
         {/* 레이어 버튼 */}
         <div className="relative">
           <button
