@@ -456,6 +456,7 @@ export function PlaceSearchModal({
         onSearchSubmit={handleSearch}
         currentPage="search"
         showSearchBar={true}
+        modalHeaderVariant="solid"
       />
 
       {/* 백그라운드 지도 - MapView 컴포넌트 사용 */}
@@ -730,9 +731,9 @@ export function PlaceSearchModal({
           <div
             className="relative w-[340px] rounded-[18px] px-5 py-4"
             style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)",
-              border: "1px solid rgba(255,255,255,0.38)",
-              boxShadow: "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)",
+              background: "linear-gradient(135deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.75) 100%)",
+              border: "1px solid rgba(255,255,255,0.40)",
+              boxShadow: "0 -4px 8px 0px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.30)",
               backdropFilter: "blur(18px) saturate(160%)",
               WebkitBackdropFilter: "blur(18px) saturate(160%)",
             }}

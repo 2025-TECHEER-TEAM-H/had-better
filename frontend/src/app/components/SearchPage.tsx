@@ -834,7 +834,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             font-size: 16px;
             line-height: 30px;
             letter-spacing: 0.6px;
-            color: #0a0a0a;
+            color: #000000 !important;
+            opacity: 1 !important;
+            /* 가독성만 올리기(두께 변화 최소): 부드러운 그림자로 대비 강화 */
+            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
           }
 
           @media (prefers-reduced-motion: reduce) {
@@ -1207,22 +1210,22 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               showSearchBar={false}
             />
             <div
-              className="pointer-events-none absolute left-1/2 -translate-x-1/2 hb-search-header-title"
-              style={{ top: "calc(33.29px + env(safe-area-inset-top, 0px))" }}
+              className="pointer-events-none absolute inset-x-0 hb-search-header-title text-center"
+              style={{ top: "calc(21px + env(safe-area-inset-top, 0px))", color: "#000" }}
             >
               HAD BETTER
             </div>
           </div>
           {isWebView ? (
             // 웹 화면: 텍스트 표시
-            <div className="absolute inset-0 flex items-center justify-center p-5 z-0" style={{ paddingTop: '100px' }}>
+            <div className="absolute inset-0 flex items-center justify-center p-5 z-0" style={{ paddingTop: '140px' }}>
               <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f]">
                 노선도 이미지가 나왔습니다
               </p>
             </div>
           ) : (
             // 앱 화면: 노선도 이미지 표시
-            <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '100px' }}>
+            <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '140px' }}>
               <img
                 src={subwayMapImage}
                 alt="지하철 노선도"
@@ -1272,8 +1275,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               showSearchBar={false}
             />
             <div
-              className="pointer-events-none absolute left-1/2 -translate-x-1/2 hb-search-header-title"
-              style={{ top: "calc(33.29px + env(safe-area-inset-top, 0px))" }}
+              className="pointer-events-none absolute inset-x-0 hb-search-header-title text-center"
+              style={{ top: "calc(21px + env(safe-area-inset-top, 0px))", color: "#000" }}
             >
               HAD BETTER
             </div>
@@ -1284,7 +1287,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             // AppHeader의 sideInset(16px)과 기준선을 맞춰 통일감 확보
             className="relative z-10 px-4 pb-7"
             // 탭바(44px) 아래 여백이 자연스럽게 떨어지도록 약간 조정
-            style={{ paddingTop: "calc(168px + env(safe-area-inset-top, 0px))" }}
+            style={{ paddingTop: "calc(140px + env(safe-area-inset-top, 0px))" }}
           >
             <div className="mx-auto w-full max-w-[420px]">
               {/* Hero (greeting + destination search) */}
