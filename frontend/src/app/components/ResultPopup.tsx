@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import svgPaths from "@/imports/svg-wsb2k3tlfm";
 import type { RouteResultResponse } from "@/types/route";
 import { formatDuration } from "@/types/route";
@@ -9,6 +10,7 @@ interface ResultPopupProps {
   onClose: () => void;
   onNavigate?: (page: PageType) => void;
   onOpenDashboard?: () => void;
+  onCloseDashboard?: () => void; // 대시보드 닫기 콜백 (Main 버튼 클릭 시 사용)
   result?: RouteResultResponse | null; // 경주 결과 데이터
   isLoading?: boolean; // 로딩 상태
 }
@@ -40,31 +42,33 @@ const PARTICIPANT_ICONS: Record<string, string> = {
   BOT: '🤖',
 };
 
-export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, result, isLoading }: ResultPopupProps) {
+export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading }: ResultPopupProps) {
   if (!isOpen) return null;
 
   // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
-  // 1) 항상 먼저 지도(Map)로 한 번 이동
-  // 2) 그 다음 검색(Search) 페이지로 이동
-  // 이렇게 하면 SearchPage의 검색 탭에서 뒤로가기 버튼을 눌렀을 때
-  // 브라우저 히스토리 기준 바로 이전 화면이 MapView가 되도록 보장할 수 있음.
-  const navigateToSearchMain = () => {
-    if (!onNavigate) return;
-    onNavigate("map");
-    onNavigate("search");
-  };
-
+  // 1) 결과 팝업 닫기
+  // 2) 대시보드 팝업 닫기 (있는 경우)
+  // 3) Search 페이지로 이동
   const handleMainClick = () => {
-    onClose();
-    navigateToSearchMain();
+    onClose(); // 결과 팝업 닫기
+    onCloseDashboard?.(); // 대시보드 팝업 닫기
+    if (onNavigate) {
+      onNavigate("search"); // Search 페이지로 이동
+    }
   };
 
   const handleDashboardClick = () => {
-    onOpenDashboard?.();
+    onClose(); // 결과 팝업 닫기
+    // 대시보드에서 열린 경우: 팝업만 닫으면 대시보드가 보임
+    // 경주 끝난 후 열린 경우: onOpenDashboard로 대시보드 열기
+    if (onOpenDashboard) {
+      onOpenDashboard();
+    }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+  // Portal을 사용하여 body에 직접 렌더링 (다른 팝업 위에 표시되도록)
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
       {/* 팝업 컨텐츠 */}
       <div className="relative w-[378px] h-[841px] mx-auto">
         {/* 배경 */}
@@ -80,19 +84,8 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, resu
           </svg>
         </div>
 
-        {/* 헤더 - 햄버거 메뉴, 제목, X 버튼 */}
+        {/* 헤더 - 제목, X 버튼 */}
         <div className="absolute left-[37px] top-[29px] right-[37px]">
-          {/* 햄버거 메뉴 */}
-          <div className="absolute bg-white border-[3px] border-black h-[43.697px] left-0 rounded-[12px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] top-0 w-[42px]">
-            <div className="absolute left-[6px] size-[24px] top-[6px]">
-              <div className="h-[24px] overflow-clip relative w-full flex flex-col items-center justify-center gap-[4px] py-[5px]">
-                <div className="w-[16px] h-[2px] bg-black rounded-full" />
-                <div className="w-[16px] h-[2px] bg-black rounded-full" />
-                <div className="w-[16px] h-[2px] bg-black rounded-full" />
-              </div>
-            </div>
-          </div>
-
           {/* 제목 */}
           <p className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] h-[26.351px] leading-[30px] left-[154.77px] text-[16px] text-black text-center top-[9.36px] translate-x-[-50%] w-[195.542px]">
             HAD BETTER
@@ -100,10 +93,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, resu
 
           {/* X 버튼 */}
           <button
-            onClick={() => {
-              onClose();
-              navigateToSearchMain();
-            }}
+            onClick={onClose}
             className="absolute bg-white right-0 h-[42.156px] rounded-[14px] top-[2.08px] w-[40.312px] border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] flex items-center justify-center hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all"
           >
             <p className="css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black">x</p>
@@ -210,6 +200,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, resu
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

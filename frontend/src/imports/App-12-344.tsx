@@ -5,15 +5,18 @@ import { LogoutButton } from "./Button";
 import characterGreenFront from "@/assets/character-green-front.png";
 import userService, { type UserStats, type RecentGame } from "@/services/userService";
 import { useAuthStore } from "@/stores/authStore";
+import { getRouteResult } from "@/services/routeService";
+import { ResultPopup } from "@/app/components/ResultPopup";
+import type { RouteResultResponse } from "@/types/route";
 
 // 최근 게임 아이템 컴포넌트
-function RecentGameItem({ game }: { game: RecentGame }) {
+function RecentGameItem({ game, onClick }: { game: RecentGame; onClick?: () => void }) {
   // duration과 rank를 합쳐서 표시 (예: "15분 23초 - 1위" 또는 "NULL - CANCELED")
   const durationWithRank = `${game.duration} - ${game.rank}`;
 
   return (
     <div
-      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full"
+      className="h-[62.674px] relative rounded-[14px] shrink-0 w-full cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
       style={{
         background: "linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.45) 100%)",
         border: "1px solid rgba(255,255,255,0.50)",
@@ -21,6 +24,7 @@ function RecentGameItem({ game }: { game: RecentGame }) {
         backdropFilter: "blur(12px) saturate(150%)",
         WebkitBackdropFilter: "blur(12px) saturate(150%)",
       }}
+      onClick={onClick}
     >
       <div className="flex flex-row items-center size-full">
         <div className="content-stretch flex items-center px-[13.338px] py-[1.346px] relative size-full">
@@ -40,39 +44,82 @@ function RecentGameItem({ game }: { game: RecentGame }) {
 }
 
 // 최근 게임 섹션 컴포넌트
-function RecentGamesSection({ recentGames }: { recentGames: RecentGame[] }) {
+function RecentGamesSection({ recentGames, onCloseDashboard, onNavigate }: { recentGames: RecentGame[]; onCloseDashboard?: () => void; onNavigate?: (page: PageType) => void }) {
+  const [showResultPopup, setShowResultPopup] = useState(false);
+  const [selectedResult, setSelectedResult] = useState<RouteResultResponse | null>(null);
+  const [isLoadingResult, setIsLoadingResult] = useState(false);
+
+  // 게임 아이템 클릭 핸들러
+  const handleGameClick = async (game: RecentGame) => {
+    setIsLoadingResult(true);
+    setShowResultPopup(true);
+
+    try {
+      const result = await getRouteResult(game.id);
+      setSelectedResult(result);
+    } catch (error) {
+      console.error('경주 결과 조회 실패:', error);
+      // 에러 시에도 팝업은 유지하고 빈 결과 표시
+      setSelectedResult(null);
+    } finally {
+      setIsLoadingResult(false);
+    }
+  };
+
+  // 결과 팝업 닫기
+  const handleCloseResultPopup = () => {
+    setShowResultPopup(false);
+    setSelectedResult(null);
+  };
+
   return (
-    <div
-      className="relative rounded-[22px] shrink-0 w-full"
-      style={{
-        background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
-        border: "1px solid rgba(255,255,255,0.50)",
-        boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
-        backdropFilter: "blur(16px) saturate(155%)",
-        WebkitBackdropFilter: "blur(16px) saturate(155%)",
-      }}
-    >
-      <div className="content-stretch flex flex-col gap-[16px] items-start pb-[16px] pt-[26.688px] px-[26.688px] relative size-full">
-        {/* 헤더 */}
-        <div className="h-[19.997px] relative shrink-0 w-full">
-          <p className="absolute font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] left-0 text-[#2d5f3f] text-[14px] top-[-0.31px]" style={{ fontVariationSettings: "'wght' 400" }}>
-            최근 게임
-          </p>
-        </div>
-        {/* 게임 목록 */}
-        <div className="flex flex-col gap-[8px] w-full">
-          {recentGames.length > 0 ? (
-            recentGames.map((game) => (
-              <RecentGameItem key={game.id} game={game} />
-            ))
-          ) : (
-            <div className="text-center py-4 text-[#6b9080] text-[14px]">
-              아직 진행한 게임이 없습니다
-            </div>
-          )}
+    <>
+      <div
+        className="relative rounded-[22px] shrink-0 w-full"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.50) 100%)",
+          border: "1px solid rgba(255,255,255,0.50)",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.40)",
+          backdropFilter: "blur(16px) saturate(155%)",
+          WebkitBackdropFilter: "blur(16px) saturate(155%)",
+        }}
+      >
+        <div className="content-stretch flex flex-col gap-[16px] items-start pb-[16px] pt-[26.688px] px-[26.688px] relative size-full">
+          {/* 헤더 */}
+          <div className="h-[19.997px] relative shrink-0 w-full">
+            <p className="absolute font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] left-0 text-[#2d5f3f] text-[14px] top-[-0.31px]" style={{ fontVariationSettings: "'wght' 400" }}>
+              최근 게임
+            </p>
+          </div>
+          {/* 게임 목록 */}
+          <div className="flex flex-col gap-[8px] w-full">
+            {recentGames.length > 0 ? (
+              recentGames.map((game) => (
+                <RecentGameItem
+                  key={game.id}
+                  game={game}
+                  onClick={() => handleGameClick(game)}
+                />
+              ))
+            ) : (
+              <div className="text-center py-4 text-[#6b9080] text-[14px]">
+                아직 진행한 게임이 없습니다
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* 경주 결과 팝업 */}
+      <ResultPopup
+        isOpen={showResultPopup}
+        onClose={handleCloseResultPopup}
+        onCloseDashboard={onCloseDashboard}
+        onNavigate={onNavigate}
+        result={selectedResult}
+        isLoading={isLoadingResult}
+      />
+    </>
   );
 }
 
@@ -2298,20 +2345,22 @@ function Container56() {
   );
 }
 
-function Container57({ onLogout, stats, nickname, email }: { onLogout?: () => void; stats: UserStats; nickname: string; email: string }) {
+function Container57({ onLogout, onCloseDashboard, onNavigate, stats, nickname, email }: { onLogout?: () => void; onCloseDashboard?: () => void; onNavigate?: (page: PageType) => void; stats: UserStats; nickname: string; email: string }) {
   return (
     <div className="h-[1954.909px] relative shrink-0 w-full" data-name="Container">
       <div className="content-stretch flex flex-col gap-[23.995px] items-center pb-0 pt-[23.995px] px-[16px] relative size-full">
         <Container8 nickname={nickname} email={email} />
         <Container15 stats={stats} />
-        <RecentGamesSection recentGames={stats.recent_games} />
+        <RecentGamesSection recentGames={stats.recent_games} onCloseDashboard={onCloseDashboard} onNavigate={onNavigate} />
         <LogoutButton onClick={onLogout} />
       </div>
     </div>
   );
 }
 
-function DashboardPage({ onClose, onLogout }: { onClose?: () => void; onLogout?: () => void }) {
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
+
+function DashboardPage({ onClose, onLogout, onNavigate }: { onClose?: () => void; onLogout?: () => void; onNavigate?: (page: PageType) => void }) {
   // 사용자 정보 가져오기
   const user = useAuthStore((state) => state.user);
 
@@ -2348,6 +2397,8 @@ function DashboardPage({ onClose, onLogout }: { onClose?: () => void; onLogout?:
       <Container2 onClose={onClose} />
       <Container57
         onLogout={onLogout}
+        onCloseDashboard={onClose}
+        onNavigate={onNavigate}
         stats={stats}
         nickname={user?.nickname || "Guest"}
         email={user?.email || ""}
