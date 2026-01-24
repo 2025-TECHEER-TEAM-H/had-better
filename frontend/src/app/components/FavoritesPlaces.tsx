@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import placeService from "@/services/placeService";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
+import favoriteStarFilled from "@/assets/favorite-star-filled.png";
 
 interface FavoritePlace {
   id: number;
@@ -446,7 +448,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           {/* 타이틀 배경 */}
           <div className="bg-white border-2 border-black rounded-[16px] h-[42px] flex items-center justify-center mb-6">
             <p className="font-['Wittgenstein:Bold_Italic','Noto_Sans_KR:Bold',sans-serif] font-bold italic text-[20px] text-black">
-              자주 가는 곳
+              즐겨찾기
             </p>
           </div>
 
@@ -507,9 +509,11 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
                     onClick={(e) => toggleFavorite(place.id, e)}
                     className="bg-white rounded-[14px] size-[48px] flex items-center justify-center border-[2.693px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-gray-50 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all shrink-0"
                   >
-                    <p className="text-[32px] leading-[48px]">
-                      {place.isFavorited ? "⭐" : "☆"}
-                    </p>
+                    <img
+                      src={place.isFavorited ? favoriteStarFilled : favoriteStarEmpty}
+                      alt={place.isFavorited ? "즐겨찾기됨" : "즐겨찾기 안됨"}
+                      className="size-[36px] object-contain pointer-events-none"
+                    />
                   </button>
                 </div>
               </div>
