@@ -298,6 +298,7 @@ export function MainLayout() {
         isOpen={isDashboardOpen}
         onClose={() => setIsDashboardOpen(false)}
         onLogout={handleLogout}
+        onNavigate={handleNavigate}
       />
 
       {/* 즐겨찾기 팝업 */}

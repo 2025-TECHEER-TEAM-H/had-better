@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
+import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
 import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
@@ -11,9 +12,6 @@ import { MovingCharacter, type CharacterColor } from "@/components/MovingCharact
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
 import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, getBusRoutePath, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
 import { trackBusPositions, getBusRoutePath as fetchBusRoutePath } from "@/lib/api";
-
-// 지도 스타일 타입
-type MapStyleType = "default" | "dark" | "satellite-streets";
 
 // 사용자 경로 시뮬레이션을 위한 Leg 타이밍 정보
 interface LegTiming {
@@ -77,7 +75,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [isRankingVisible, setIsRankingVisible] = useState(true); // 실시간 순위창 표시 상태
 
   // 레이어 관련 상태
-  const [mapStyle, setMapStyle] = useState<MapStyleType>("default");
+  const { mapStyle, setMapStyle } = useMapStore();
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false);
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false);
   const [isSubwayLinesEnabled, setIsSubwayLinesEnabled] = useState(false);
@@ -2330,10 +2328,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         {mapContent}
       </div>
 
-      {/* 경주취소 버튼 - 레이어 버튼 왼쪽에 배치 */}
+      {/* 경주취소 버튼 - 좌상단에 배치 */}
       <button
         onClick={handleCancelRoute}
-        className="absolute right-[72px] top-[16px] bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-30"
+        className="absolute left-[20px] top-[16px] bg-gradient-to-b from-[#00f2fe] to-[#4facfe] rounded-[16px] border-[3px] border-black shadow-[0px_6px_0px_0px_rgba(0,0,0,0.3)] px-[20px] py-[3px] hover:scale-105 transition-transform z-30"
       >
         <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[18px]">
           경주취소
@@ -2341,7 +2339,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       </button>
 
       {/* 오른쪽 세로 버튼 컨테이너 (레이어, 현재 위치) */}
-      <div className="absolute top-[60px] right-5 flex flex-col gap-3 z-10 pointer-events-none">
+      <div className="absolute top-[20px] right-5 flex flex-col gap-3 z-10 pointer-events-none">
         {/* 레이어 버튼 */}
         <div className="relative">
           <button
@@ -2509,8 +2507,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         </button>
       </div>
 
-      {/* GPS 상태 표시 - 상단 좌측 */}
-      <div className="absolute left-[20px] top-[12px] z-30">
+      {/* GPS 상태 표시 - 좌측 (경주취소 버튼 아래) */}
+      <div className="absolute left-[20px] top-[60px] z-30">
         <div className={`rounded-[10px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] px-3 py-2 ${
           isOffRoute ? 'bg-[#ff6b6b]' : isUserArrived ? 'bg-[#4ecdc4]' : 'bg-white'
         }`}>

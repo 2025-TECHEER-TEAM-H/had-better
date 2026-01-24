@@ -1,12 +1,15 @@
 import { DashboardPage } from "@/imports/App-12-344";
 
+type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
+
 interface DashboardPopupProps {
   isOpen: boolean;
   onClose: () => void;
   onLogout?: () => void;
+  onNavigate?: (page: PageType) => void;
 }
 
-export function DashboardPopup({ isOpen, onClose, onLogout }: DashboardPopupProps) {
+export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: DashboardPopupProps) {
   if (!isOpen) return null;
 
   return (
@@ -310,7 +313,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout }: DashboardPopupProp
           {/* 대시보드 콘텐츠 */}
           <div className="relative min-h-full flex flex-col">
             <div className="flex-1">
-              <DashboardPage onClose={onClose} onLogout={onLogout} />
+              <DashboardPage onClose={onClose} onLogout={onLogout} onNavigate={onNavigate} />
             </div>
           </div>
         </div>

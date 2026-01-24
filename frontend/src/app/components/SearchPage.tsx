@@ -1583,10 +1583,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     <div
                       className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        backgroundColor: favoriteLocations.home.length > 0 ? '#ffffff' : '#ffc107',
+                        backgroundColor: favoriteLocations.home.length > 0 ? '#ffc107' : 'rgba(200, 200, 200, 0.4)',
                       }}
                     >
-                      <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgWindow2} />
+                      <img
+                        alt=""
+                        className="size-[28px] object-contain pointer-events-none"
+                        src={imgWindow2}
+                        style={{ opacity: favoriteLocations.home.length > 0 ? 1 : 0.4 }}
+                      />
               </div>
                     <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
                       집
@@ -1611,10 +1616,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     <div
                       className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        backgroundColor: favoriteLocations.school.length > 0 ? '#ffffff' : '#6df3e3',
+                        backgroundColor: favoriteLocations.school.length > 0 ? '#6df3e3' : 'rgba(200, 200, 200, 0.4)',
                       }}
                     >
-                      <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgSaw1} />
+                      <img
+                        alt=""
+                        className="size-[28px] object-contain pointer-events-none"
+                        src={imgSaw1}
+                        style={{ opacity: favoriteLocations.school.length > 0 ? 1 : 0.4 }}
+                      />
               </div>
                     <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
                       학교
@@ -1639,10 +1649,15 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     <div
                       className="size-[56px] rounded-[16px] flex items-center justify-center backdrop-blur-lg border border-white/40 shadow-lg"
                       style={{
-                        backgroundColor: favoriteLocations.work.length > 0 ? '#ffffff' : '#ff6b9d',
+                        backgroundColor: favoriteLocations.work.length > 0 ? '#ff6b9d' : 'rgba(200, 200, 200, 0.4)',
                       }}
                     >
-                      <img alt="" className="size-[34px] object-contain pointer-events-none" src={imgCoinGold2} />
+                      <img
+                        alt=""
+                        className="size-[34px] object-contain pointer-events-none"
+                        src={imgCoinGold2}
+                        style={{ opacity: favoriteLocations.work.length > 0 ? 1 : 0.4 }}
+                      />
                     </div>
                     <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
                       회사
