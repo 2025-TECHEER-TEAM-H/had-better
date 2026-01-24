@@ -1,4 +1,6 @@
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
+import favoriteStarFilled from "@/assets/favorite-star-filled.png";
 import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
@@ -446,14 +448,13 @@ export function PlaceDetailPage({
             {/* 즐겨찾기 버튼 */}
             <button
               onClick={handleToggleFavorite}
-              className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95"
+              className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95 flex items-center justify-center"
             >
-              <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
-                <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
-                  {/* 초기 로딩이 끝나기 전까지는 항상 빈 별로 표시해서 플리커(⭐→☆) 느낌을 없앤다 */}
-                  {isFavoriteInitialized && isFavorited ? "⭐" : "☆"}
-                </p>
-              </div>
+              <img
+                src={isFavoriteInitialized && isFavorited ? favoriteStarFilled : favoriteStarEmpty}
+                alt={isFavoriteInitialized && isFavorited ? "즐겨찾기됨" : "즐겨찾기 안됨"}
+                className="size-[36px] object-contain pointer-events-none"
+              />
             </button>
           </div>
         </div>
@@ -691,13 +692,13 @@ export function PlaceDetailPage({
                     <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">즐겨찾기</p>
                     <button
                       onClick={handleToggleFavorite}
-                      className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95"
+                      className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95 flex items-center justify-center"
                     >
-                      <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
-                        <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
-                          {isFavoriteInitialized && isFavorited ? "⭐" : "☆"}
-                        </p>
-                      </div>
+                    <img
+                      src={isFavoriteInitialized && isFavorited ? favoriteStarFilled : favoriteStarEmpty}
+                      alt={isFavoriteInitialized && isFavorited ? "즐겨찾기됨" : "즐겨찾기 안됨"}
+                      className="size-[36px] object-contain pointer-events-none"
+                    />
                     </button>
                   </div>
                 </div>

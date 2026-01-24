@@ -4,6 +4,8 @@ import placeService, {
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
 import { useUserDistance } from "@/hooks/useUserDistance";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
+import favoriteStarFilled from "@/assets/favorite-star-filled.png";
 
 // UI용 검색 결과 타입
 interface SearchResult {
@@ -559,13 +561,13 @@ export function SearchResultsPage({
             e.stopPropagation();
             handleToggleFavorite(result.id);
           }}
-          className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] transition-all hover:bg-white active:scale-95 border border-white/40 shadow-md"
+          className="bg-white relative rounded-[14px] shrink-0 size-[48px] transition-all hover:bg-white active:scale-95 border border-white/40 shadow-md flex items-center justify-center"
         >
-          <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
-            <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[48px] text-[#0a0a0a] text-[32px] tracking-[0.4063px]">
-              {result.isFavorited ? "⭐" : "☆"}
-            </p>
-          </div>
+          <img
+            src={result.isFavorited ? favoriteStarFilled : favoriteStarEmpty}
+            alt={result.isFavorited ? "즐겨찾기됨" : "즐겨찾기 안됨"}
+            className="size-[36px] object-contain pointer-events-none"
+          />
         </button>
       </div>
     </div>
