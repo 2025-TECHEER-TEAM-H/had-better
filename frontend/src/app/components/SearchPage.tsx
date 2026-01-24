@@ -15,6 +15,7 @@ import routeService, { type RouteSearchHistory } from "@/services/routeService";
 import userService from "@/services/userService";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouteStore } from "@/stores/routeStore";
+import { useNavigationStore } from "@/stores/navigationStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -62,6 +63,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const navigate = useNavigate();
   const { user, refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
   const { setDepartureArrival, resetRoute } = useRouteStore();
+  const { departure: navDeparture, arrival: navArrival, hasNavigationIntent, autoSearch, clearNavigation } = useNavigationStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startLocation, setStartLocation] = useState("");
@@ -230,6 +232,42 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     loadSearchHistories();
     loadRouteSearchHistories();
   }, []);
+
+  // 네비게이션 인텐트 소비 (즐겨찾기에서 경로 안내 시작 시)
+  useEffect(() => {
+    if (hasNavigationIntent && navDeparture && navArrival) {
+      const departureLocation = {
+        name: navDeparture.name,
+        lat: navDeparture.lat,
+        lon: navDeparture.lon,
+      };
+      const arrivalLocation = {
+        name: navArrival.name,
+        lat: navArrival.lat,
+        lon: navArrival.lon,
+      };
+
+      // 출발지/도착지 텍스트 필드 설정
+      setStartLocation(navDeparture.name);
+      setEndLocation(navArrival.name);
+
+      // 좌표 정보 설정
+      setSelectedDeparture(departureLocation);
+      setSelectedArrival(arrivalLocation);
+
+      // 자동 검색이 활성화된 경우 바로 경로 페이지로 이동
+      if (autoSearch) {
+        resetRoute();
+        setDepartureArrival(departureLocation, arrivalLocation);
+        // 네비게이션 인텐트 소비 완료 후 경로 페이지로 이동
+        clearNavigation();
+        onNavigate?.("route");
+      } else {
+        // 자동 검색이 아닌 경우 인텐트만 소비
+        clearNavigation();
+      }
+    }
+  }, [hasNavigationIntent, navDeparture, navArrival, autoSearch, clearNavigation, resetRoute, setDepartureArrival, onNavigate]);
 
   // SearchResultsPage 등에서 검색 기록이 갱신되었을 때 이벤트로 동기화
   useEffect(() => {

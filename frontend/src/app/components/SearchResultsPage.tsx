@@ -3,6 +3,7 @@ import placeService, {
 } from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
+import { useUserDistance } from "@/hooks/useUserDistance";
 import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
 import favoriteStarFilled from "@/assets/favorite-star-filled.png";
 
@@ -105,6 +106,9 @@ export function SearchResultsPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(10); // 현재 표시할 개수
+
+  // GPS 거리 계산
+  const { getDistanceTo, formatDistance } = useUserDistance();
 
   // 즐겨찾기 상태 관리 (poi_place_id -> saved_place_id 매핑)
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
@@ -509,7 +513,11 @@ export function SearchResultsPage({
 
   const buildSubline = (result: SearchResult) => {
     const status = (result.status || "").trim();
-    const distance = (result.distance || "").trim();
+    // GPS 거리 우선, 없으면 API 거리 사용
+    const gpsDistance = result.coordinates
+      ? formatDistance(getDistanceTo(result.coordinates.lon, result.coordinates.lat))
+      : null;
+    const distance = gpsDistance || (result.distance || "").trim();
     if (status && distance) return `${status} · ${distance}`;
     return status || distance || "";
   };
