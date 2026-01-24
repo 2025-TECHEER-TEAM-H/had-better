@@ -47,6 +47,12 @@ interface AppHeaderProps {
   onSearchSubmit?: (value: string) => void;
   currentPage?: PageType;
   showSearchBar?: boolean;
+  /**
+   * 탭이 없는 모달(예: PlaceSearchModal)에서 헤더/검색바의 배경 스타일을 선택합니다.
+   * - glass: 기존 반투명/블러 스타일
+   * - solid: 불투명한 단색 흰색 스타일 (슬라이드업 시트와 톤 통일용)
+   */
+  modalHeaderVariant?: "glass" | "solid";
 }
 
 export function AppHeader({
@@ -60,6 +66,7 @@ export function AppHeader({
   onSearchSubmit,
   currentPage = "search",
   showSearchBar = true,
+  modalHeaderVariant = "glass",
 }: AppHeaderProps) {
   const isContextTitle = title !== "HAD BETTER";
   const searchPlaceholder = isContextTitle
@@ -82,11 +89,12 @@ export function AppHeader({
   const hasTabs = !!onNavigate;
   // 탭이 없는 모달(PlaceSearchModal)에서는 헤더 높이를 줄여 지도 영역을 더 확보
   // SearchPage의 "지도 노출" 디자인을 위해 검색바 없는 경우 헤더를 더 컴팩트하게
-  const headerHeight = hasTabs ? (showSearchBar ? 206 : 142) : showSearchBar ? 150 : 96;
+  const headerHeight = hasTabs ? (showSearchBar ? 206 : 130) : showSearchBar ? 150 : 96;
   // 버튼 위치: 세이프 에어리어 포함해서 "상단 라인"에 정렬되게
   const menuTop = hasTabs ? 14 : 12;
   const sideInset = hasTabs ? 16 : 14;
-  const titleTop = hasTabs ? 33.29 : 24;
+  // 타이틀을 버튼의 수직 중앙에 맞춤 (버튼 높이 44px, 타이틀 line-height 30px 기준)
+  const titleTop = hasTabs ? 21 : 19;
   const searchTop = hasTabs ? 78.03 : 62;
   // 뒤로가기 버튼은 타이틀 라인과 시각적으로 정렬되게(탭 없는 모달에서 약간 아래로)
   const backTop = hasTabs ? 14 : 12;
@@ -95,14 +103,28 @@ export function AppHeader({
   const searchInnerTop = hasTabs ? 12.3 : 9.5;
   const searchInputHeight = hasTabs ? 36.752 : 32;
   // 탭 위치도 세이프에어리어를 고려해, 상단 버튼들과 같은 리듬으로 맞춤
-  const tabsTop = showSearchBar ? 155.02 : 96;
+  const tabsTop = showSearchBar ? 155.02 : 70;
   const safeTop = "env(safe-area-inset-top, 0px)";
-  // PlaceSearchModal (hasTabs가 false)에서는 glassmorphism 스타일 적용
-  const headerBg = !hasTabs && showSearchBar
-    ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
-    : showSearchBar
-      ? "linear-gradient(180deg, rgba(197,231,245,1) 0%, rgba(217,243,255,0.75) 40%, rgba(255,255,255,0.18) 78%, rgba(255,255,255,0) 100%)"
-      : "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(197,231,245,0.65) 55%, rgba(255,255,255,0) 100%)";
+  const isModal = !hasTabs;
+  const isModalGlass = isModal && showSearchBar && modalHeaderVariant === "glass";
+  const isModalSolid = isModal && showSearchBar && modalHeaderVariant === "solid";
+
+  // PlaceSearchModal 하단 슬라이드업 시트와 동일한 토큰(톤)으로 맞추기
+  const sheetBg =
+    "linear-gradient(135deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.75) 100%)";
+  const sheetBorder = "1px solid rgba(255,255,255,0.40)";
+  // 하단 시트는 위로 그림자가 져서(0 -4px ...) 뜨는 느낌인데,
+  // 헤더는 아래 방향 그림자가 자연스러워서 y만 반대로 맞춥니다(톤/강도는 동일).
+  const sheetShadowHeader = "0 4px 8px 0px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.30)";
+  const sheetBackdrop = "blur(18px) saturate(160%)";
+
+  const headerBg = isModalSolid
+    ? sheetBg
+    : isModalGlass
+      ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
+      : showSearchBar
+        ? "linear-gradient(180deg, rgba(197,231,245,1) 0%, rgba(217,243,255,0.75) 40%, rgba(255,255,255,0.18) 78%, rgba(255,255,255,0) 100%)"
+        : "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(197,231,245,0.65) 55%, rgba(255,255,255,0) 100%)";
 
   return (
     <div className="relative w-full z-20">
@@ -112,17 +134,22 @@ export function AppHeader({
         style={{ height: `${headerHeight}px` }}
       >
         <div
-          className={`absolute inset-0 ${
-            !hasTabs && showSearchBar
-              ? "backdrop-blur-[18px] saturate-[160%]"
-              : ""
-          }`}
+          className={`absolute inset-0 ${isModalGlass || isModalSolid ? "backdrop-blur-[18px] saturate-[160%]" : ""}`}
           style={{
             background: headerBg,
-            ...(!hasTabs && showSearchBar ? {
-              border: "1px solid rgba(255,255,255,0.38)",
-              boxShadow: "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)",
-            } : {}),
+            ...(isModalGlass
+              ? {
+                  border: "1px solid rgba(255,255,255,0.38)",
+                  boxShadow: "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)",
+                }
+              : isModalSolid
+                ? {
+                    border: sheetBorder,
+                    boxShadow: sheetShadowHeader,
+                    backdropFilter: sheetBackdrop,
+                    WebkitBackdropFilter: sheetBackdrop,
+                  }
+                : {}),
           }}
         />
         {/* bottom edge line (HUD style) - 숨김 처리 (PlaceSearchModal에서 검색창 느낌을 위해) */}
@@ -173,15 +200,23 @@ export function AppHeader({
       {/* HAD BETTER 타이틀 */}
       {isContextTitle ? (
         <p
-          className="absolute left-1/2 -translate-x-1/2 z-10 css-4hzbpn font-['Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-black leading-[22px]"
-          style={{ top: `calc(${titleTop}px + ${safeTop})` }}
+          className="absolute left-1/2 -translate-x-1/2 z-10 css-4hzbpn font-['Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[30px]"
+          style={{ 
+            top: `calc(${titleTop}px + ${safeTop})`,
+            color: '#000000',
+            opacity: 1
+          }}
         >
           {title}
         </p>
       ) : (
         <p
-          className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] h-[26.351px] leading-[30px] left-[50%] not-italic text-[16px] text-black text-center translate-x-[-50%] w-[195.542px] z-10"
-          style={{ top: `calc(${titleTop}px + ${safeTop})` }}
+          className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[30px] left-[50%] not-italic text-[16px] text-center translate-x-[-50%] w-[195.542px] z-10"
+          style={{ 
+            top: `calc(${titleTop}px + ${safeTop})`,
+            color: '#000000',
+            opacity: 1
+          }}
         >
           {title}
         </p>
@@ -199,19 +234,23 @@ export function AppHeader({
         >
           <div
             className={`relative rounded-[18px] shrink-0 w-full overflow-hidden ${
-              !hasTabs
-                ? "border-2 border-black/25 shadow-[0px_6px_0px_rgba(0,0,0,0.22)]"
-                : "border-2 border-black/25 shadow-[0px_6px_0px_rgba(0,0,0,0.22)]"
+              isModalSolid
+                ? ""
+                : !hasTabs
+                  ? "border-2 border-black/25 shadow-[0px_6px_0px_rgba(0,0,0,0.22)]"
+                  : "border-2 border-black/25 shadow-[0px_6px_0px_rgba(0,0,0,0.22)]"
             }`}
             style={{
               height: `${searchBarHeight}px`,
-              background: !hasTabs
-                ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
-                : "rgba(255,255,255,0.95)",
-              backdropFilter: !hasTabs ? "blur(18px) saturate(160%)" : "blur(8px)",
-              WebkitBackdropFilter: !hasTabs ? "blur(18px) saturate(160%)" : "blur(8px)",
-              border: !hasTabs ? "1px solid rgba(255,255,255,0.38)" : undefined,
-              boxShadow: !hasTabs ? "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)" : undefined,
+              background: isModalSolid
+                ? sheetBg
+                : !hasTabs
+                  ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
+                  : "rgba(255,255,255,0.95)",
+              backdropFilter: isModalSolid ? sheetBackdrop : isModalGlass ? sheetBackdrop : !hasTabs ? undefined : "blur(8px)",
+              WebkitBackdropFilter: isModalSolid ? sheetBackdrop : isModalGlass ? sheetBackdrop : !hasTabs ? undefined : "blur(8px)",
+              border: isModalSolid ? sheetBorder : isModalGlass ? "1px solid rgba(255,255,255,0.38)" : undefined,
+              boxShadow: isModalSolid ? sheetShadowHeader : isModalGlass ? "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)" : undefined,
             }}
           >
             {/* 집 - 노란색 원형 그라데이션 (아이콘 뒤) */}
@@ -393,15 +432,19 @@ export function AppHeader({
         style={{
           top: `calc(${backTop}px + env(safe-area-inset-top, 0px))`,
           right: `${backRight}px`,
-          background: !hasTabs
-            ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
-            : "rgba(255,255,255,0.95)",
-          backdropFilter: !hasTabs ? "blur(18px) saturate(160%)" : "blur(8px)",
-          WebkitBackdropFilter: !hasTabs ? "blur(18px) saturate(160%)" : "blur(8px)",
-          border: !hasTabs ? "1px solid rgba(255,255,255,0.38)" : "2px solid rgba(0,0,0,0.25)",
-          boxShadow: !hasTabs
+          background: isModalSolid
+            ? sheetBg
+            : !hasTabs
+              ? "linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)"
+              : "rgba(255,255,255,0.95)",
+          backdropFilter: isModalSolid ? sheetBackdrop : isModalGlass ? sheetBackdrop : !hasTabs ? undefined : "blur(8px)",
+          WebkitBackdropFilter: isModalSolid ? sheetBackdrop : isModalGlass ? sheetBackdrop : !hasTabs ? undefined : "blur(8px)",
+          border: isModalSolid ? sheetBorder : isModalGlass ? "1px solid rgba(255,255,255,0.38)" : "2px solid rgba(0,0,0,0.25)",
+          boxShadow: isModalGlass
             ? "0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28)"
-            : "0px 6px 0px rgba(0,0,0,0.22)",
+            : isModalSolid
+              ? sheetShadowHeader
+              : "0px 6px 0px rgba(0,0,0,0.22)",
         }}
         data-name="Button"
       >
