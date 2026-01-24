@@ -3,6 +3,8 @@ import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
 import { useUserDistance } from "@/hooks/useUserDistance";
+import { useNavigationStore } from "@/stores/navigationStore";
+import { useLocationStore } from "@/stores/locationStore";
 
 interface PlaceDetailPageProps {
   isOpen: boolean;
@@ -56,6 +58,39 @@ export function PlaceDetailPage({
   const calculatedDistance = place?.coordinates
     ? formatDistance(getDistanceTo(place.coordinates.lon, place.coordinates.lat))
     : null;
+
+  // 네비게이션 상태
+  const { setNavigation } = useNavigationStore();
+  const { userLocation } = useLocationStore();
+
+  // 경로 안내 시작 핸들러
+  const handleStartNavigation = () => {
+    if (!place?.coordinates) {
+      console.warn("장소 좌표가 없습니다.");
+      return;
+    }
+
+    // 출발지: 사용자 GPS 위치 (없으면 기본값 사용)
+    const departure = userLocation
+      ? { name: "현재 위치", lat: userLocation[1], lon: userLocation[0] }
+      : { name: "현재 위치", lat: 37.5665, lon: 126.978 }; // 서울시청 기본값
+
+    // 도착지: 선택된 장소
+    const arrival = {
+      name: place.name,
+      lat: place.coordinates.lat,
+      lon: place.coordinates.lon,
+    };
+
+    // 네비게이션 스토어에 설정
+    setNavigation(departure, arrival);
+
+    // PlaceDetailPage 닫기 (selectedPlaceForDetail 초기화)
+    onClose();
+
+    // SearchPage로 이동
+    onNavigate?.('search');
+  };
 
   // 즐겨찾기 상태 관리
   const [savedPlacesMap, setSavedPlacesMap] = useState<Map<number, number>>(new Map());
@@ -444,7 +479,7 @@ export function PlaceDetailPage({
 
       {/* 경로 안내 시작 버튼 - 하단 고정 */}
       <button
-        onClick={() => onNavigate?.('route')}
+        onClick={handleStartNavigation}
         className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg flex-shrink-0 mt-auto"
       >
         <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
@@ -673,7 +708,7 @@ export function PlaceDetailPage({
           {/* 하단 경로 안내 시작 버튼 */}
           <div className="px-[20px] pb-6 pt-4 border-t border-white/30 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
             <button
-              onClick={() => onNavigate?.('route')}
+              onClick={handleStartNavigation}
               className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
             >
               <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
