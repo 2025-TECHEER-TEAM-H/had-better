@@ -255,6 +255,7 @@ export type RouteStatus = 'PENDING' | 'RUNNING' | 'FINISHED' | 'CANCELED';
 // 경주 상태 변경 요청
 export interface UpdateRouteStatusRequest {
   status: RouteStatus;
+  progress_percent?: number; // CANCELED 시 유저의 현재 진행률 (0~100)
 }
 
 // 경주 상태 변경 응답

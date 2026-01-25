@@ -554,7 +554,7 @@ class RouteStatusUpdateView(APIView):
 
         # FINISHED인 경우 SSE 이벤트 발행 (순위 계산 포함)
         if new_status == Route.Status.FINISHED:
-            # 순위 계산: 자신보다 먼저 도착한 참가자 수 + 1
+            # 순위 계산: 자신보다 먼저 도착한 참가자 수 + 1 (duration 기준)
             rank = (
                 Route.objects.filter(
                     route_itinerary=route.route_itinerary,
@@ -566,6 +566,12 @@ class RouteStatusUpdateView(APIView):
                 ).count()
                 + 1
             )
+
+            # rank와 is_win DB에 저장
+            route.rank = rank
+            route.is_win = (rank == 1)
+            route.save()
+            logger.info(f"유저 FINISHED 결과 저장: route_id={route.id}, rank={rank}, is_win={route.is_win}, duration={route.duration}")
 
             # participant_finished SSE 이벤트 발행
             SSEPublisher.publish_participant_finished(
@@ -594,21 +600,56 @@ class RouteStatusUpdateView(APIView):
 
         # CANCELED인 경우 같은 경주의 봇 Route도 취소 처리 및 봇 상태 정리
         if new_status == Route.Status.CANCELED:
+            # 유저 Route에 duration 계산
+            duration_delta = now - route.start_time
+            route.duration = int(duration_delta.total_seconds())
+
             # 같은 경주의 봇 Route 조회 (같은 route_itinerary, 같은 start_time)
-            bot_routes = Route.objects.filter(
+            bot_routes = list(Route.objects.filter(
                 route_itinerary=route.route_itinerary,
                 start_time=route.start_time,
                 participant_type=Route.ParticipantType.BOT,
                 status=Route.Status.RUNNING,
                 deleted_at__isnull=True
-            )
+            ))
 
+            # 모든 참가자의 progress 수집 (rank 계산용)
+            progress_list = []
+
+            # 유저 progress (요청에서 받음)
+            user_progress = serializer.validated_data.get('progress_percent', 0)
+            progress_list.append({
+                'route': route,
+                'progress': user_progress,
+                'type': 'USER'
+            })
+
+            # 봇들의 progress (Redis BotState에서 조회)
             for bot_route in bot_routes:
-                # 봇 Route 상태 변경
-                bot_route.status = Route.Status.CANCELED
-                bot_route.end_time = now
-                bot_route.save()
+                bot_state = BotStateManager.get(bot_route.id)
+                bot_progress = bot_state.get('progress_percent', 0) if bot_state else 0
+                progress_list.append({
+                    'route': bot_route,
+                    'progress': bot_progress,
+                    'type': 'BOT'
+                })
 
+            # progress 내림차순 정렬 → rank 부여 (가장 멀리 간 사람이 1등)
+            progress_list.sort(key=lambda x: x['progress'], reverse=True)
+
+            for rank, item in enumerate(progress_list, start=1):
+                r = item['route']
+                r.status = Route.Status.CANCELED
+                r.end_time = now
+                r.duration = int((now - r.start_time).total_seconds())
+                r.rank = rank
+                r.is_win = (rank == 1)
+                r.save()
+
+                logger.info(f"경주 취소 - 참가자 결과 저장: route_id={r.id}, type={item['type']}, progress={item['progress']}%, rank={rank}, is_win={r.is_win}")
+
+            # 봇 Celery Task 취소 및 Redis 정리
+            for bot_route in bot_routes:
                 # Celery Task 즉시 취소 (revoke)
                 task_id = redis_client.get_task_id(bot_route.id)
                 if task_id:
@@ -691,24 +732,25 @@ class RouteResultView(APIView):
             deleted_at__isnull=True
         )
 
-        # 순위 계산 (duration 기준 오름차순, None은 마지막)
+        # 순위 계산 (rank 기준 오름차순, None은 마지막)
         finished_participants = []
         unfinished_participants = []
 
         for p in all_participants:
-            if p.status == Route.Status.FINISHED and p.duration is not None:
+            # FINISHED 또는 CANCELED 상태에서 rank와 duration이 있으면 결과에 포함
+            if p.rank is not None and p.duration is not None:
                 finished_participants.append(p)
             else:
                 unfinished_participants.append(p)
 
-        # duration 기준 정렬
-        finished_participants.sort(key=lambda x: x.duration)
+        # rank 기준 정렬 (CANCELED의 경우 progress 기준으로 rank가 이미 계산됨)
+        finished_participants.sort(key=lambda x: x.rank)
 
-        # 순위 부여 및 rankings 생성
+        # rankings 생성 (DB에 저장된 rank 사용)
         rankings = []
-        for rank, p in enumerate(finished_participants, start=1):
+        for p in finished_participants:
             ranking_data = {
-                "rank": rank,
+                "rank": p.rank,
                 "route_id": p.id,
                 "type": p.participant_type,
                 "duration": p.duration,

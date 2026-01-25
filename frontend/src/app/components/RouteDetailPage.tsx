@@ -1300,19 +1300,34 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const handleCancelRoute = useCallback(async () => {
     const routeId = userRouteId || 1;
 
-    try {
-      // 유저 경주 상태를 CANCELED로 변경 (백엔드에서 봇들도 자동으로 CANCELED 처리)
-      await updateRouteStatus(routeId, { status: 'CANCELED' });
-      console.log('경주 상태 변경 완료: CANCELED (유저 + 봇 모두)');
+    // 현재 유저 진행률 계산 (0~1 → 0~100)
+    const userProgress = playerProgress.get('user') || 0;
+    const progressPercent = Math.round(userProgress * 100);
 
-      // 이전 페이지로 이동
-      onBack?.();
+    // 결과 팝업 표시 및 로딩 시작
+    setShowResultPopup(true);
+    setIsLoadingResult(true);
+
+    try {
+      // 유저 경주 상태를 CANCELED로 변경 (진행률 포함)
+      await updateRouteStatus(routeId, {
+        status: 'CANCELED',
+        progress_percent: progressPercent
+      });
+      console.log(`경주 상태 변경 완료: CANCELED (진행률: ${progressPercent}%)`);
+
+      // 경주 결과 조회
+      const result = await getRouteResult(routeId);
+      setRouteResult(result);
     } catch (error) {
       console.error('경주 취소 실패:', error);
-      // 실패해도 이전 페이지로 이동
-      onBack?.();
+      // 에러 시에도 시뮬레이션 결과 기반으로 표시
+      const result = generateResultFromSimulation();
+      setRouteResult(result);
+    } finally {
+      setIsLoadingResult(false);
     }
-  }, [userRouteId, onBack]);
+  }, [userRouteId, playerProgress, generateResultFromSimulation]);
 
   // 결과 팝업 열기 (GPS/시뮬레이션으로 자동 도착 시 사용)
   const openResultPopup = useCallback(async () => {
@@ -2495,7 +2510,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         {/* 결과 팝업 */}
         <ResultPopup
           isOpen={showResultPopup}
-          onClose={() => setShowResultPopup(false)}
+          onClose={() => {
+            setShowResultPopup(false);
+            onNavigate?.('search'); // 팝업 닫을 때 search 페이지로 이동
+          }}
           onNavigate={onNavigate}
           onOpenDashboard={onOpenDashboard}
           result={routeResult}
@@ -2891,7 +2909,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {/* 결과 팝업 */}
       <ResultPopup
         isOpen={showResultPopup}
-        onClose={() => setShowResultPopup(false)}
+        onClose={() => {
+          setShowResultPopup(false);
+          onNavigate?.('search'); // 팝업 닫을 때 search 페이지로 이동
+        }}
         onNavigate={onNavigate}
         onOpenDashboard={onOpenDashboard}
         result={routeResult}

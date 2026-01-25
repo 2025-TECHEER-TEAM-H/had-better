@@ -229,9 +229,11 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         {/* 순위 표시 */}
         {!isLoading && result && (
           <div className="absolute left-[61.01px] top-[116.83px] w-[255.999px] h-[170.974px] flex gap-[16px] items-end justify-center">
-            {/* 순위를 2위-1위-3위 순서로 배치 */}
-            {[1, 0, 2].map((displayIndex) => {
-              const ranking = result.rankings[displayIndex];
+            {/* rank 기준으로 정렬 후 2위-1위-3위 순서로 배치 */}
+            {(() => {
+              const sortedRankings = [...result.rankings].sort((a, b) => (a.rank || 99) - (b.rank || 99));
+              return [1, 0, 2].map((displayIndex) => {
+              const ranking = sortedRankings[displayIndex];
               if (!ranking) return null;
 
               const rank = ranking.rank || displayIndex + 1;
@@ -268,7 +270,8 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                   <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-[4px]">{duration}</p>
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
         )}
 
