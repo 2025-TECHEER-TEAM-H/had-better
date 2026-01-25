@@ -14,6 +14,7 @@ interface FavoritePlace {
   distance: string;
   icon: string;
   isFavorited: boolean;
+  category?: string | null;
   coordinates?: {
     lon: number;
     lat: number;
@@ -37,14 +38,29 @@ const getSubjectParticle = (word: string): "이" | "가" => {
   return jong === 0 ? "가" : "이";
 };
 
-// 카테고리별 아이콘 매핑
+// 카테고리별 아이콘 매핑 (SearchResultsPage와 동일 로직)
 const getCategoryIcon = (category: string | null): string => {
-  const iconMap: Record<string, string> = {
-    home: "🏠",
-    work: "💼",
-    school: "🏫",
-  };
-  return iconMap[category || ""] || "📍";
+  const c = (category || "").toLowerCase();
+  const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+
+  // NOTE: 백엔드 category는 TMap mlClass 기반이라 포맷이 제각각일 수 있음.
+  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
+  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
+  if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
+  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
+  if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
+  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
+  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
+  if (hasAny(["은행", "bank", "atm"])) return "🏦";
+  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
+  if (hasAny(["주차", "parking"])) return "🅿️";
+  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+  if (hasAny(["버스", "bus"])) return "🚌";
+  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
+  if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
+  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+
+  return "📍";
 };
 
 export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, onOpenSubway }: FavoritesPlacesProps) {
@@ -100,16 +116,32 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           (savedPlace) => savedPlace.category === null
         );
         
-        const favoritePlaces: FavoritePlace[] = generalFavorites.map((savedPlace) => ({
-          id: savedPlace.poi_place.poi_place_id,
-          savedPlaceId: savedPlace.saved_place_id,
-          name: savedPlace.poi_place.name,
-          address: savedPlace.poi_place.address,
-          distance: "", // GPS 거리는 렌더링 시 계산
-          icon: getCategoryIcon(savedPlace.category),
-          isFavorited: true,
-          coordinates: savedPlace.poi_place.coordinates,
-        }));
+        const detailResults = await Promise.allSettled(
+          generalFavorites.map((savedPlace) => placeService.getPlaceDetail(savedPlace.poi_place.poi_place_id))
+        );
+        const categoryMap = new Map<number, string | null>();
+        detailResults.forEach((result, index) => {
+          const poiPlaceId = generalFavorites[index].poi_place.poi_place_id;
+          if (result.status === "fulfilled" && result.value.status === "success" && result.value.data) {
+            categoryMap.set(poiPlaceId, result.value.data.category || null);
+          }
+        });
+
+        const favoritePlaces: FavoritePlace[] = generalFavorites.map((savedPlace) => {
+          const poiPlaceId = savedPlace.poi_place.poi_place_id;
+          const category = categoryMap.get(poiPlaceId) ?? savedPlace.category;
+          return {
+            id: poiPlaceId,
+            savedPlaceId: savedPlace.saved_place_id,
+            name: savedPlace.poi_place.name,
+            address: savedPlace.poi_place.address,
+            distance: "", // GPS 거리는 렌더링 시 계산
+            icon: getCategoryIcon(category),
+            isFavorited: true,
+            category,
+            coordinates: savedPlace.poi_place.coordinates,
+          };
+        });
         setFavorites(favoritePlaces);
         
         // 초기 상태 저장 (모두 true)
@@ -436,7 +468,126 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
   if (!isOpen && !toastMessage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 hb-favorites-popup">
+      <style>
+        {`
+          @font-face {
+            font-family: 'FreesentationVF';
+            src: url('/fonts/FreesentationVF.ttf') format('truetype');
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: 'DNFBitBitv2';
+            src:
+              url('/fonts/DNFBitBitv2.otf') format('opentype'),
+              url('/fonts/DNFBitBitv2.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+
+          .hb-favorites-popup .hb-favorites-shell {
+            position: relative;
+          }
+
+          .hb-favorites-popup .hb-favorites-glass {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.28) 100%);
+            border: 1px solid rgba(255,255,255,0.68);
+            box-shadow: 0 16px 32px rgba(90,120,130,0.16), inset 0 1px 0 rgba(255,255,255,0.5);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+          }
+
+          .hb-favorites-popup .hb-favorites-shell.hb-favorites-glass {
+            background: #d4ebf7;
+          }
+
+          .hb-favorites-popup .hb-favorites-glass-fun::before {
+            content: "";
+            position: absolute;
+            inset: -30% -40%;
+            pointer-events: none;
+            background: linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0) 60%);
+            opacity: 0;
+            animation: hb-favorites-sheen 12.5s ease-in-out infinite;
+          }
+
+          @keyframes hb-favorites-sheen {
+            0% { transform: translateX(-40%) translateY(-10%) rotate(12deg); opacity: 0; }
+            12% { opacity: 0.55; }
+            50% { opacity: 0.35; }
+            100% { transform: translateX(140%) translateY(10%) rotate(12deg); opacity: 0; }
+          }
+
+          .hb-favorites-popup .hb-favorites-title {
+            font-family: 'DNFBitBitv2', 'Press Start 2P', sans-serif;
+            letter-spacing: 0.6px;
+          }
+
+          .hb-favorites-popup .hb-favorites-chip {
+            background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.42) 100%);
+            border: 1px solid rgba(255,255,255,0.72);
+            box-shadow: 0 10px 20px rgba(90,120,130,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+            backdrop-filter: blur(16px) saturate(155%);
+            -webkit-backdrop-filter: blur(16px) saturate(155%);
+          }
+
+          .hb-favorites-popup .hb-favorites-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.4) 100%);
+            border: 1px solid rgba(255,255,255,0.7);
+            box-shadow: 0 14px 28px rgba(90,120,130,0.16), inset 0 1px 0 rgba(255,255,255,0.46);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+          }
+
+          .hb-favorites-popup .hb-favorites-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.22);
+            pointer-events: none;
+          }
+
+          .hb-favorites-popup .hb-favorites-pressable {
+            transition: transform 140ms ease-out, filter 140ms ease-out;
+            will-change: transform, filter;
+          }
+
+          .hb-favorites-popup .hb-favorites-pressable:active {
+            transform: translateY(1px) scale(0.985);
+            filter: brightness(1.04);
+          }
+
+          .hb-favorites-popup .hb-favorites-scroll::-webkit-scrollbar {
+            width: 8px;
+          }
+          .hb-favorites-popup .hb-favorites-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .hb-favorites-popup .hb-favorites-scroll::-webkit-scrollbar-thumb {
+            background: rgba(107, 144, 128, 0.28);
+            border-radius: 12px;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .hb-favorites-popup .hb-favorites-glass-fun::before {
+              animation: none !important;
+            }
+            .hb-favorites-popup .hb-favorites-pressable {
+              transition: none !important;
+            }
+            .hb-favorites-popup .hb-favorites-pressable:active {
+              transform: none !important;
+              filter: none !important;
+            }
+          }
+        `}
+      </style>
       {toastMessage && (
         <div className="fixed left-1/2 top-1/2 z-[100] -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-normal break-keep max-w-[420px] text-center leading-tight">
           {toastMessage}
@@ -444,36 +595,36 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
       )}
       {isOpen && (
         <div
-          className="bg-gradient-to-b from-[#daf4ff] to-white w-full max-w-[388px] h-[838px] max-h-[90vh] rounded-[40px] overflow-hidden relative shadow-xl"
+          className="hb-favorites-shell w-full max-w-[400px] h-[90vh] max-h-[840px] rounded-[22px] overflow-hidden relative hb-favorites-glass hb-favorites-glass-fun"
           onClick={(e) => e.stopPropagation()}
         >
         {/* 헤더 */}
-        <div className="relative px-8 pt-[18px] pb-4">
-          {/* 타이틀 배경 */}
-          <div className="bg-white border-2 border-black rounded-[16px] h-[42px] flex items-center justify-center mb-6">
-            <p className="font-['Wittgenstein:Bold_Italic','Noto_Sans_KR:Bold',sans-serif] font-bold italic text-[20px] text-black">
+        <div className="relative px-6 pt-5 pb-4">
+          {/* 타이틀 */}
+          <div className="hb-favorites-glass rounded-[16px] h-[44px] flex items-center justify-center mb-4">
+            <p className="hb-favorites-title text-[16px] text-black">
               즐겨찾기
             </p>
           </div>
 
-          {/* 뒤로가기 버튼 */}
+          {/* 닫기 버튼 - 타이틀과 같은 높이에 위치 */}
           <button
             onClick={handleClose}
-            className="absolute top-[18px] right-8 bg-white rounded-[14px] size-[40px] flex items-center justify-center border-[2.693px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-50 active:shadow-[0px_2px_0px_0px_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all"
+            className="absolute top-5 right-6 hb-favorites-chip hb-favorites-pressable rounded-[14px] size-[44px] flex items-center justify-center text-black"
           >
-            <p className="font-['Press_Start_2P:Regular',sans-serif] text-[16px] text-black">←</p>
+            <span className="font-['Press_Start_2P:Regular',sans-serif] text-[14px]">✕</span>
           </button>
         </div>
 
         {/* 리스트 영역 */}
-        <div className="px-5 pb-6 overflow-y-auto h-[calc(100%-90px)]">
+        <div className="hb-favorites-scroll px-5 pb-6 overflow-y-auto h-[calc(100%-92px)]">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-8 h-8 border-4 border-[#4a9960] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : favorites.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px]">
+              <p className="text-gray-700 font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[13px]">
                 즐겨찾기한 장소가 없습니다.
               </p>
             </div>
@@ -484,25 +635,25 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
               <div
                 key={place.id}
                 onClick={() => handlePlaceClick(place)}
-                className="bg-white rounded-[12px] border-[3.366px] border-black shadow-[4px_4px_0px_0px_black] p-5 relative hover:shadow-[6px_6px_0px_0px_black] hover:translate-x-[-2px] hover:translate-y-[-2px] active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer"
+                className="hb-favorites-card hb-favorites-pressable rounded-[18px] p-4 relative cursor-pointer"
               >
                 {/* 아이콘과 정보 */}
                 <div className="flex gap-4 items-start">
                   {/* 아이콘 */}
-                  <div className="bg-gradient-to-b from-[#ffd93d] to-[#ffed4e] rounded-[10px] size-[56px] flex items-center justify-center border-[1.346px] border-black shrink-0">
-                    <p className="text-[28px] leading-[42px]">{place.icon}</p>
+                  <div className="hb-favorites-chip rounded-[14px] size-[56px] flex items-center justify-center shrink-0">
+                    <p className="text-[26px] leading-[36px]">{place.icon}</p>
                   </div>
 
                   {/* 장소 정보 */}
                   <div className="flex-1 pt-2">
-                    <p className="font-['Wittgenstein:Bold_Italic','Noto_Sans_KR:Bold',sans-serif] font-bold italic text-[20px] text-black leading-[14px] mb-2">
+                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[16px] text-[#111827] leading-[18px] mb-1">
                       {place.name}
                     </p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[10px] text-[#6b9080] leading-[11px] mb-2">
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[11px] text-[#375a4e] leading-[14px] mb-2">
                       {place.address}
                     </p>
-                    <div className="bg-[rgba(0,217,255,0.2)] border-[1.346px] border-[#00d9ff] rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
-                      <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[6px] text-[#00d9ff] leading-[9px]">
+                    <div className="hb-favorites-chip rounded-[999px] inline-flex items-center px-3 py-1.5">
+                      <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[8px] text-[#2d5f3f] leading-[10px]">
                         {place.coordinates
                           ? formatDistance(getDistanceTo(place.coordinates.lon, place.coordinates.lat))
                           : place.distance || "-"}
@@ -513,12 +664,13 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
                   {/* 즐겨찾기 버튼 */}
                   <button
                     onClick={(e) => toggleFavorite(place.id, e)}
-                    className="bg-white rounded-[14px] size-[48px] flex items-center justify-center border-[2.693px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-gray-50 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all shrink-0"
+                    className="hb-favorites-chip hb-favorites-pressable rounded-[14px] size-[48px] flex items-center justify-center shrink-0"
+                    style={{ background: "#ffffff" }}
                   >
                     <img
                       src={place.isFavorited ? favoriteStarFilled : favoriteStarEmpty}
                       alt={place.isFavorited ? "즐겨찾기됨" : "즐겨찾기 안됨"}
-                      className="size-[36px] object-contain pointer-events-none"
+                      className="size-[30px] object-contain pointer-events-none"
                     />
                   </button>
                 </div>
