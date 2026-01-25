@@ -352,11 +352,15 @@ def _handle_walking(
     # 업데이트된 봇 상태 조회 (current_position 포함)
     updated_bot_state = BotStateManager.get(route_id) or bot_state
 
+    # 첫 업데이트 여부 (elapsed < 10초 = 방금 시작)
+    is_first_update = elapsed < 10
+    next_interval = 5 if is_first_update else 30
+
     # SSE 발행
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**updated_bot_state, "progress_percent": progress_percent},
-        next_update_in=30,
+        next_update_in=next_interval,
     )
 
     # 도보 구간 완료
@@ -376,7 +380,7 @@ def _handle_walking(
         else:
             BotStateManager.transition_to_walking(route_id, next_leg_index)
 
-    return 30
+    return next_interval
 
 
 def _handle_waiting_bus_fallback(
@@ -1651,19 +1655,22 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
         route.end_time = timezone.now()
 
         if route.start_time:
-            route.duration = (route.end_time - route.start_time).total_seconds()
+            route.duration = int((route.end_time - route.start_time).total_seconds())
         else:
             route.duration = 0
 
-        route.status = "FINISHED"
+        route.status = Route.Status.FINISHED
         route.save()
 
-        # 순위 계산
+        # 순위 계산: 같은 경주(route_itinerary + start_time)에서 자신보다 먼저 도착한 참가자 수 + 1
         rank = (
             Route.objects.filter(
                 route_itinerary_id=route_itinerary_id,
+                start_time=route.start_time,
                 end_time__isnull=False,
+                duration__isnull=False,
                 duration__lt=route.duration,
+                deleted_at__isnull=True,
             ).count()
             + 1
         )
@@ -1678,15 +1685,19 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
             rank=rank,
             duration=int(route.duration),
         )
+        logger.info(f"봇 도착 SSE 발행: route_id={route_id}, bot_id={bot_state['bot_id']}, rank={rank}, duration={route.duration}")
 
-        # 모든 참가자 완주 여부 확인
+        # 모든 참가자 완주 여부 확인 (같은 경주만)
         unfinished = Route.objects.filter(
             route_itinerary_id=route_itinerary_id,
+            start_time=route.start_time,
             end_time__isnull=True,
+            deleted_at__isnull=True,
         ).count()
 
         if unfinished == 0:
             SSEPublisher.publish_route_ended(route_itinerary_id)
+            logger.info(f"경주 종료 SSE 발행: route_itinerary_id={route_itinerary_id}")
 
     except Route.DoesNotExist:
         logger.error(f"경주를 찾을 수 없음: route_id={route_id}")
