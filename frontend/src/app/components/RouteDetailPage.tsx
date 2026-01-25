@@ -4,7 +4,7 @@ import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType, type RouteSegment, type LegStep } from "@/types/route";
+import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType, type RouteSegment, type LegStep, type BotStatus } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import * as turf from "@turf/turf";
 import { useRouteSSE } from "@/hooks/useRouteSSE";
@@ -268,6 +268,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [userProgress, setUserProgress] = useState(0);
   const userAutoMoveRef = useRef<number | null>(null);
   const raceStartTime = useRef<number | null>(null);
+
+  // 사용자 현재 이동 모드 (WALK, BUS, SUBWAY 등)
+  const [userCurrentMode, setUserCurrentMode] = useState<string>('WALK');
 
   // 도착 판정 기준 (미터)
   const ARRIVAL_THRESHOLD = 20;
@@ -798,6 +801,26 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return timings.find(t => elapsed >= t.startTime && elapsed < t.endTime) || timings[timings.length - 1] || null;
   }, []);
 
+  // 사용자 현재 상태 계산 (mode → BotStatus 변환)
+  const getUserStatus = useCallback((): BotStatus => {
+    // 도착 완료 시 FINISHED
+    if (isUserArrived) return 'FINISHED';
+
+    // 현재 이동 모드에 따른 상태
+    switch (userCurrentMode) {
+      case 'WALK':
+        return 'WALKING';
+      case 'BUS':
+      case 'EXPRESSBUS':
+        return 'RIDING_BUS';
+      case 'SUBWAY':
+      case 'TRAIN':
+        return 'RIDING_SUBWAY';
+      default:
+        return 'WALKING';
+    }
+  }, [isUserArrived, userCurrentMode]);
+
   // 사용자 자동 이동 시작 (legs[].sectionTime + passShape 기반)
   const startUserAutoMove = useCallback(() => {
     if (isUserAutoMoving || isGpsTracking || isGpsTestMode) return;
@@ -895,10 +918,11 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         const legDistance = currentLeg.endDistance - currentLeg.startDistance;
         currentDistance = currentLeg.startDistance + (legDistance * legProgress);
 
-        // 디버그: leg 전환 시 로그
+        // leg 전환 시 mode 업데이트 및 로그
         if (currentLeg.legIndex !== lastLegIndex) {
           console.log(`🚶 leg[${currentLeg.legIndex}] 시작: ${currentLeg.mode}, 소요시간=${legDuration}초, 거리=${legDistance}m`);
           lastLegIndex = currentLeg.legIndex;
+          setUserCurrentMode(currentLeg.mode); // 현재 이동 모드 업데이트
         }
 
         // 디버그: 30초마다 상세 로그
@@ -1834,7 +1858,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           color={USER_COLOR}
           botId={0}
           currentPosition={userPosition}
-          status="WALKING"
+          status={getUserStatus()}
           skipInterpolation={true}  // 부모에서 이미 애니메이션 처리하므로 보간 건너뛰기
           size={64}
           animationSpeed={150}
