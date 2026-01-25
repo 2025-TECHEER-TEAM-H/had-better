@@ -8,7 +8,7 @@ import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import { createRoute, getRouteLegDetail, searchRoutes } from "@/services/routeService";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
-import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
+import { PLAYER_LABELS, useRouteStore, type Player, type PlayMode } from "@/stores/routeStore";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
@@ -56,6 +56,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     legDetails,
     isLoading,
     error,
+    playMode,
     setSearchResponse,
     setDepartureArrival,
     setLegDetail,
@@ -68,6 +69,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     areAllAssigned,
     setLoading,
     setError,
+    setPlayMode,
   } = useRouteStore();
 
   // 바텀시트 드래그 상태
@@ -1481,6 +1483,19 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
             </button>
+
+            {/* 플레이 모드 토글 버튼 */}
+            <button
+              onClick={() => setPlayMode(playMode === 'gps' ? 'simulation' : 'gps')}
+              className={`backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border shadow-lg transition-all active:scale-95 ${
+                playMode === 'simulation'
+                  ? 'bg-purple-500/70 border-purple-400/50 ring-2 ring-purple-300/50'
+                  : 'bg-white/20 border-white/30 hover:bg-white/30'
+              }`}
+              title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
+            >
+              <span className="text-[18px]">🤖</span>
+            </button>
           </div>
 
           {/* 버스 번호 입력 모달 */}
@@ -1783,6 +1798,19 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
             <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
             <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
           </svg>
+        </button>
+
+        {/* 플레이 모드 토글 버튼 */}
+        <button
+          onClick={() => setPlayMode(playMode === 'gps' ? 'simulation' : 'gps')}
+          className={`backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border shadow-lg transition-all active:scale-95 pointer-events-auto ${
+            playMode === 'simulation'
+              ? 'bg-purple-500/70 border-purple-400/50 ring-2 ring-purple-300/50'
+              : 'bg-white/20 border-white/30 hover:bg-white/30'
+          }`}
+          title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
+        >
+          <span className="text-[18px]">🤖</span>
         </button>
       </div>
 
