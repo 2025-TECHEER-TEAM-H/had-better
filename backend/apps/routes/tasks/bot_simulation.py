@@ -1662,7 +1662,7 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
         route.status = Route.Status.FINISHED
         route.save()
 
-        # 순위 계산: 같은 경주(route_itinerary + start_time)에서 자신보다 먼저 도착한 참가자 수 + 1
+        # 순위 계산: 같은 경주(route_itinerary + start_time)에서 자신보다 먼저 도착한 참가자 수 + 1 (duration 기준)
         rank = (
             Route.objects.filter(
                 route_itinerary_id=route_itinerary_id,
@@ -1674,6 +1674,12 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
             ).count()
             + 1
         )
+
+        # rank와 is_win DB에 저장
+        route.rank = rank
+        route.is_win = (rank == 1)
+        route.save()
+        logger.info(f"봇 FINISHED 결과 저장: route_id={route_id}, rank={rank}, is_win={route.is_win}, duration={route.duration}")
 
         SSEPublisher.publish_participant_finished(
             route_itinerary_id=route_itinerary_id,

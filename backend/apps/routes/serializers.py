@@ -135,13 +135,21 @@ class RouteStatusUpdateSerializer(serializers.Serializer):
 
     Request:
     {
-        "status": "FINISHED"  # 또는 "CANCELED"
+        "status": "FINISHED",  # 또는 "CANCELED"
+        "progress_percent": 50  # CANCELED 시 유저의 현재 진행률 (선택)
     }
     """
 
     status = serializers.ChoiceField(
         choices=[Route.Status.FINISHED, Route.Status.CANCELED],
         help_text="변경할 상태 (FINISHED 또는 CANCELED)"
+    )
+    progress_percent = serializers.IntegerField(
+        required=False,
+        default=0,
+        min_value=0,
+        max_value=100,
+        help_text="CANCELED 시 유저의 현재 진행률 (0~100)"
     )
 
 
