@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
-import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
+import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS, type PlayMode } from "@/stores/routeStore";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
 import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType, type RouteSegment, type LegStep, type BotStatus } from "@/types/route";
@@ -117,6 +117,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     setLegDetail,
     userRouteId,
     createRouteResponse,
+    playMode,
+    setPlayMode,
   } = useRouteStore();
 
   const [sheetHeight, setSheetHeight] = useState(50);
@@ -274,7 +276,30 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 도착 판정 기준 (미터)
   const ARRIVAL_THRESHOLD = 20;
-  const OFF_ROUTE_THRESHOLD = 20;
+  const OFF_ROUTE_THRESHOLD = 20;        // 경고 시작
+  const OFF_ROUTE_POPUP_THRESHOLD = 100; // 팝업 표시
+  const OFF_ROUTE_AUTO_SWITCH = 500;     // 자동 시뮬레이션 전환
+
+  // 경로 이탈 레벨 타입
+  type OffRouteLevel = 'none' | 'warning' | 'popup' | 'auto';
+  const [offRouteLevel, setOffRouteLevel] = useState<OffRouteLevel>('none');
+  const [showModeSelectPopup, setShowModeSelectPopup] = useState(false);
+  const [hasShownModePopup, setHasShownModePopup] = useState(false);
+
+  // 토스트 알림 상태
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
+
+  // 토스트 표시 함수
+  const showToast = useCallback((message: string, duration = 4000) => {
+    setToastMessage(message);
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+    }, duration);
+  }, []);
 
   // 버스 정류장 진입/이탈 상태 (버스 도착 정보 표시 제어용)
   const [hasEnteredBusStop, setHasEnteredBusStop] = useState(false);
@@ -531,13 +556,42 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       }
     }
 
-    // 경로 이탈 감지
+    // 경로 이탈 감지 및 레벨 판정
     const userRouteLine = getRouteLineString('user');
     if (userRouteLine) {
       const userPoint = turf.point(currentLocation);
       const distFromRoute = turf.pointToLineDistance(userPoint, userRouteLine, { units: 'meters' });
       setDistanceFromRoute(Math.round(distFromRoute));
-      setIsOffRoute(distFromRoute > OFF_ROUTE_THRESHOLD);
+
+      // 이탈 레벨 판정
+      if (distFromRoute <= OFF_ROUTE_THRESHOLD) {
+        // 정상 범위
+        setOffRouteLevel('none');
+        setIsOffRoute(false);
+      } else if (distFromRoute <= OFF_ROUTE_POPUP_THRESHOLD) {
+        // 20m ~ 100m: 경고만 표시
+        setOffRouteLevel('warning');
+        setIsOffRoute(true);
+      } else if (distFromRoute <= OFF_ROUTE_AUTO_SWITCH) {
+        // 100m ~ 500m: 팝업 표시 (한 번만)
+        setOffRouteLevel('popup');
+        setIsOffRoute(true);
+        if (!hasShownModePopup && !showModeSelectPopup) {
+          setShowModeSelectPopup(true);
+          setHasShownModePopup(true);
+        }
+      } else {
+        // 500m 이상: 자동 시뮬레이션 전환
+        setOffRouteLevel('auto');
+        setIsOffRoute(true);
+        if (playMode === 'gps') {
+          console.log('🚨 경로에서 500m 이상 벗어남 - 자동 시뮬레이션 전환');
+          setPlayMode('simulation');
+          stopGpsTracking();
+          startUserAutoMove();
+          showToast('경로에서 멀리 벗어나 시뮬레이션 모드로 전환되었습니다. 🤖');
+        }
+      }
     }
 
     // 유저의 진행률 계산 (출발지 기준)
@@ -990,9 +1044,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     }
   }, []);
 
-  // 경로 상세 정보 로드 완료 시 사용자 자동 이동 시작
+  // 경로 상세 정보 로드 완료 시 플레이 모드에 따라 시작
   useEffect(() => {
-    // 경로 상세 정보가 로드되고, 사용자 경로가 할당되어 있으면 자동 이동 시작
+    // 경로 상세 정보가 로드되고, 사용자 경로가 할당되어 있으면 시작
     const userRouteLegId = assignments.get('user');
     if (
       userRouteLegId &&
@@ -1005,11 +1059,19 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     ) {
       // 약간의 지연 후 시작 (UI 렌더링 완료 후)
       const timer = setTimeout(() => {
-        startUserAutoMove();
+        if (playMode === 'simulation') {
+          // 시뮬레이션 모드: 봇 자동 이동 시작
+          console.log('🤖 시뮬레이션 모드로 시작');
+          startUserAutoMove();
+        } else {
+          // GPS 모드: GPS 추적 시작
+          console.log('📍 GPS 모드로 시작');
+          startGpsTracking();
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [assignments, legDetails, isLoadingDetails, isUserAutoMoving, isGpsTracking, isGpsTestMode, isUserArrived, startUserAutoMove]);
+  }, [assignments, legDetails, isLoadingDetails, isUserAutoMoving, isGpsTracking, isGpsTestMode, isUserArrived, playMode, startUserAutoMove, startGpsTracking]);
 
   // 컴포넌트 언마운트 시 사용자 자동 이동 정리
   useEffect(() => {
@@ -1938,14 +2000,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         </div>
       )}
 
-      {/* GPS 상태 및 남은 거리 */}
+      {/* 플레이 모드 및 남은 거리 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${
-            isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+            playMode === 'gps' ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'
           }`} />
           <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
-            {isGpsTestMode ? '🧪 테스트 모드' : isGpsTracking ? 'GPS 추적 중' : 'GPS 꺼짐'}
+            {playMode === 'gps' ? '📍 GPS 모드' : '🤖 시뮬레이션'}
           </p>
         </div>
         {distanceToDestination !== null && (
@@ -1957,44 +2019,6 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         )}
       </div>
 
-      {/* GPS 컨트롤 버튼들 */}
-      <div className="flex gap-2 mt-2">
-        {/* 실제 GPS 버튼 */}
-        <button
-          onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
-          disabled={isGpsTestMode}
-          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-            isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
-          }`}
-        >
-          <span className="text-[12px]">{isGpsTracking ? '📍' : '🛰️'}</span>
-          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
-            {isGpsTracking ? '중지' : '실제 GPS'}
-          </span>
-        </button>
-
-        {/* 테스트 모드 버튼 */}
-        <button
-          onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
-          disabled={isGpsTracking}
-          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-            isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
-          }`}
-        >
-          <span className="text-[12px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
-          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
-            {isGpsTestMode ? '중지' : '테스트'}
-          </span>
-        </button>
-
-        {/* 리셋 버튼 */}
-        <button
-          onClick={resetGpsTestMode}
-          className="w-[32px] h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
-        >
-          <span className="text-[12px]">🔄</span>
-        </button>
-      </div>
     </div>
   );
 
@@ -2499,6 +2523,40 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         </p>
       </button>
 
+      {/* 경로 이탈 경고 배너 */}
+      {isOffRoute && offRouteLevel !== 'none' && playMode === 'gps' && (
+        <div className={`absolute top-[60px] left-4 right-4 z-40 rounded-[12px] px-4 py-3 backdrop-blur-md border ${
+          offRouteLevel === 'warning'
+            ? 'bg-yellow-500/80 border-yellow-400'
+            : 'bg-red-500/80 border-red-400'
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="text-[20px]">
+              {offRouteLevel === 'warning' ? '⚠️' : '🚨'}
+            </span>
+            <div className="flex-1">
+              <p className="text-white font-semibold text-sm">
+                {offRouteLevel === 'warning'
+                  ? '경로에서 벗어났습니다'
+                  : '경로에서 많이 벗어났습니다'
+                }
+              </p>
+              <p className="text-white/80 text-xs">
+                경로까지 {distanceFromRoute}m
+              </p>
+            </div>
+            {offRouteLevel !== 'warning' && (
+              <button
+                onClick={() => setShowModeSelectPopup(true)}
+                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-white text-xs font-medium"
+              >
+                모드 변경
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 오른쪽 세로 버튼 컨테이너 (레이어, 현재 위치) */}
       <div className="absolute top-[20px] right-5 flex flex-col gap-3 z-10 pointer-events-none">
         {/* 레이어 버튼 */}
@@ -2687,61 +2745,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           ) : (
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
-                isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                playMode === 'gps' ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'
               }`} />
               <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
-                {isGpsTestMode
+                {playMode === 'gps'
                   ? distanceToDestination !== null
-                    ? `🧪 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                    : '🧪 테스트 중'
-                  : isGpsTracking
-                    ? distanceToDestination !== null
-                      ? `🏁 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                      : 'GPS 추적 중'
-                    : 'GPS 꺼짐'}
+                    ? `📍 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                    : '📍 GPS 모드'
+                  : distanceToDestination !== null
+                    ? `🤖 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                    : '🤖 시뮬레이션'}
               </p>
             </div>
           )}
         </div>
 
-        {/* GPS 버튼들 */}
-        <div className="flex gap-1 mt-2">
-          {/* 실제 GPS 버튼 */}
-          <button
-            onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
-            disabled={isGpsTestMode}
-            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-              isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
-            }`}
-          >
-            <span className="text-[10px]">{isGpsTracking ? '📍' : '🛰️'}</span>
-            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
-              {isGpsTracking ? '중지' : 'GPS'}
-            </span>
-          </button>
-
-          {/* 테스트 모드 버튼 */}
-          <button
-            onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
-            disabled={isGpsTracking}
-            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-              isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
-            }`}
-          >
-            <span className="text-[10px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
-            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
-              {isGpsTestMode ? '중지' : '테스트'}
-            </span>
-          </button>
-
-          {/* 리셋 버튼 */}
-          <button
-            onClick={resetGpsTestMode}
-            className="w-[28px] h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
-          >
-            <span className="text-[10px]">🔄</span>
-          </button>
-        </div>
       </div>
 
       {/* 실시간 순위 카드 - 슬라이드업 위 */}
@@ -2879,6 +2897,74 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         result={routeResult}
         isLoading={isLoadingResult}
       />
+
+      {/* 경로 이탈 모드 선택 팝업 */}
+      {showModeSelectPopup && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/95 backdrop-blur-lg rounded-[20px] shadow-2xl border border-white/50 p-6 mx-4 max-w-[360px] w-full">
+            {/* 아이콘 */}
+            <div className="flex justify-center mb-4">
+              <div className="bg-orange-100 rounded-full p-4">
+                <span className="text-[40px]">📍</span>
+              </div>
+            </div>
+
+            {/* 제목 */}
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+              경로에서 멀리 떨어져 있습니다
+            </h3>
+
+            {/* 설명 */}
+            <p className="text-sm text-gray-600 text-center mb-6">
+              현재 위치가 경로에서 {distanceFromRoute}m 떨어져 있습니다.
+              <br />
+              어떻게 진행하시겠습니까?
+            </p>
+
+            {/* 버튼들 */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowModeSelectPopup(false);
+                  setPlayMode('simulation');
+                  stopGpsTracking();
+                  startUserAutoMove();
+                  showToast('시뮬레이션 모드로 전환되었습니다. 🤖');
+                }}
+                className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-[12px] transition-all flex items-center justify-center gap-2"
+              >
+                <span>🤖</span>
+                <span>시뮬레이션으로 진행</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowModeSelectPopup(false);
+                  // GPS 모드 유지
+                }}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-[12px] transition-all flex items-center justify-center gap-2"
+              >
+                <span>📍</span>
+                <span>GPS 계속 사용</span>
+              </button>
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="text-xs text-gray-400 text-center mt-4">
+              500m 이상 벗어나면 자동으로 시뮬레이션으로 전환됩니다
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 토스트 알림 */}
+      {toastMessage && (
+        <div className="absolute bottom-[200px] left-4 right-4 z-50 flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-gray-900/90 backdrop-blur-md text-white px-5 py-3 rounded-[14px] shadow-lg border border-white/10 max-w-[320px]">
+            <p className="text-sm font-medium text-center">{toastMessage}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

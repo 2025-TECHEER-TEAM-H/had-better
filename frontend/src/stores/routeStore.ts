@@ -15,6 +15,9 @@ import type {
 // 플레이어 타입 (유저 + 봇들)
 export type Player = 'user' | 'bot1' | 'bot2';
 
+// 플레이 모드 타입 (GPS 직접 이동 / 시뮬레이션 봇 이동)
+export type PlayMode = 'gps' | 'simulation';
+
 // 경로 할당 정보
 export interface RouteAssignment {
   player: Player;
@@ -44,6 +47,9 @@ interface RouteState {
   isLoading: boolean;
   error: string | null;
 
+  // 플레이 모드 (gps: GPS 직접 이동, simulation: 봇 시뮬레이션)
+  playMode: PlayMode;
+
   // 액션
   setSearchResponse: (response: RouteSearchResponse) => void;
   setDepartureArrival: (
@@ -56,6 +62,7 @@ interface RouteState {
   setCreateRouteResponse: (response: CreateRouteResponse, userRouteId: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setPlayMode: (mode: PlayMode) => void;
   resetRoute: () => void;
 
   // 계산된 값 (getters)
@@ -76,6 +83,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   userRouteId: null,
   isLoading: false,
   error: null,
+  playMode: 'gps', // 기본값: GPS 모드
 
   setSearchResponse: (response) => {
     set({ searchResponse: response, error: null });
@@ -128,6 +136,10 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     set({ error });
   },
 
+  setPlayMode: (mode) => {
+    set({ playMode: mode });
+  },
+
   resetRoute: () => {
     set({
       searchResponse: null,
@@ -139,6 +151,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       userRouteId: null,
       isLoading: false,
       error: null,
+      playMode: 'gps', // 초기화 시 GPS 모드로
     });
   },
 
