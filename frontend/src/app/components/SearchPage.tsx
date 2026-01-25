@@ -114,6 +114,55 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
   const [routeSearchHistories, setRouteSearchHistories] = useState<RouteSearchHistory[]>([]);
   const [isLoadingRouteHistories, setIsLoadingRouteHistories] = useState(false);
 
+  // 사용자 통계 상태 추가
+  const [userStats, setUserStats] = useState({
+    total_games: 0,
+    wins: 0,
+    win_rate: 0,
+  });
+
+  // 통계 데이터 가져오기
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await userService.getStats();
+        setUserStats(data);
+      } catch (error) {
+        console.error("[SearchPage] 통계 로드 실패:", error);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  // 미션 문구 계산 로직
+  const getMissionText = () => {
+    const { total_games } = userStats;
+    if (total_games <= 5) {
+      return {
+        text: `Lv.2 프로 환승러까지 ${6 - total_games}번의 모험이 더 필요해요! 🏃`,
+        color: "#3498db"
+      };
+    }
+    if (total_games <= 15) {
+      return {
+        text: `Lv.3 마스터까지 ${16 - total_games}번의 모험이 더 필요해요! 🚌`,
+        color: "#9b59b6"
+      };
+    }
+    if (total_games <= 30) {
+      return {
+        text: `전설의 모험가까지 ${31 - total_games}번의 모험이 더 필요해요! 👑`,
+        color: "#f1c40f"
+      };
+    }
+    return {
+      text: "당신은 이미 하드베터의 전설입니다! ✨",
+      color: "#f1c40f"
+    };
+  };
+
+  const mission = getMissionText();
+
   // 웹/앱 화면 감지
   useEffect(() => {
     const checkViewport = () => {
@@ -136,27 +185,27 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     // 뷰포트 크기 (대략적인 값, 실제로는 노선도 컨테이너 크기)
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight - 100; // 헤더 높이 제외 (줄임)
-    
+
     // 확대된 이미지의 실제 크기
     const imageWidth = viewportWidth * zoom;
     const imageHeight = viewportHeight * zoom;
-    
+
     // 이미지가 뷰포트보다 작으면 중앙 고정
     if (imageWidth <= viewportWidth && imageHeight <= viewportHeight) {
       return { x: 0, y: 0 };
     }
-    
+
     // 드래그 제한 범위 계산
     // 이미지의 가장자리가 뷰포트 가장자리를 넘지 않도록
     const maxX = (imageWidth - viewportWidth) / 2;
     const maxY = (imageHeight - viewportHeight) / 2;
-    
+
     // 줌 레벨에 따라 위쪽 드래그 제한을 동적으로 조정
     // 줌이 작을 때(1.0): 위쪽 드래그 거의 없음 (5%)
     // 줌이 클 때(3.0): 위쪽 드래그 충분히 허용 (85%)
     const zoomFactor = Math.min(1, Math.max(0, (zoom - 1.0) / 2.0)); // 0 ~ 1 사이 값
     const topDragRatio = 0.05 + (zoomFactor * 0.80); // 5% ~ 85%
-    
+
     return {
       x: Math.max(-maxX, Math.min(maxX, x)),
       y: Math.max(-maxY, Math.min(maxY * topDragRatio, y)), // 줌에 따라 위쪽 드래그 허용
@@ -531,8 +580,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       case "evening":
         return {
           cx: 270,
-          cy: 280, // 지평선 근처
-          r: 60,
+          cy: 300, // 산 뒤에 위치하도록 지평선 근처로
+          r: 70, // 산 뒤에서도 잘 보이도록 조금 더 크게
           glowColor: "#FF6347",
           gradient: {
             inner: "#FF4500",
@@ -546,11 +595,11 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
           cx: 120,
           cy: 150, // 높은 위치
           r: 45,
-          glowColor: "#FFD700",
+          glowColor: "#E8E8E8",
           gradient: {
-            inner: "#FFD700",
-            middle: "#FFE44D",
-            outer: "#FFF8DC",
+            inner: "#F5F5F5",
+            middle: "#E8E8E8",
+            outer: "#D3D3D3",
           },
           opacity: 0.95,
         };
@@ -713,6 +762,29 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             50% { transform: translateY(-8px); }
           }
 
+          @keyframes hb-search-bird-fly {
+            0% { transform: translateX(-50px) translateY(0); }
+            50% { transform: translateX(0) translateY(-5px); }
+            100% { transform: translateX(50px) translateY(0); }
+          }
+
+          @keyframes hb-search-airplane-fly {
+            0% { transform: translateX(-60px) translateY(2px); }
+            100% { transform: translateX(450px) translateY(-2px); }
+          }
+
+          @keyframes hb-search-smoke-rise {
+            0% { transform: translateY(0) scale(0.8); opacity: 0.6; }
+            50% { transform: translateY(-15px) scale(1); opacity: 0.4; }
+            100% { transform: translateY(-30px) scale(1.2); opacity: 0; }
+          }
+
+          @keyframes hb-search-mist-drift {
+            0% { transform: translateX(-20px) translateY(0); opacity: 0.3; }
+            50% { transform: translateX(0) translateY(-3px); opacity: 0.4; }
+            100% { transform: translateX(20px) translateY(0); opacity: 0.3; }
+          }
+
           .hb-search-page .hb-search-glass-card {
             position: relative;
             overflow: hidden;
@@ -782,6 +854,30 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             animation: hb-search-cloud-bob 7.2s ease-in-out infinite;
           }
 
+          .hb-search-page .hb-search-bird-fly {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: hb-search-bird-fly 8s ease-in-out infinite;
+          }
+
+          .hb-search-page .hb-search-airplane-fly {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: hb-search-airplane-fly 25s linear infinite;
+          }
+
+          .hb-search-page .hb-search-smoke-rise {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: hb-search-smoke-rise 6s ease-out infinite;
+          }
+
+          .hb-search-page .hb-search-mist-drift {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: hb-search-mist-drift 15s ease-in-out infinite;
+          }
+
           /* Header overrides (SearchPage only) */
           .hb-search-page .hb-search-header button[data-name="Container"],
           .hb-search-page .hb-search-header button[data-name="Button"] {
@@ -845,7 +941,11 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             .hb-search-page .hb-search-sparkle-dot,
             .hb-search-page .hb-search-sparkle-dot-slow,
             .hb-search-page .hb-search-sparkle-dot-fast,
-            .hb-search-page .hb-search-glass-fun::before {
+            .hb-search-page .hb-search-glass-fun::before,
+            .hb-search-page .hb-search-bird-fly,
+            .hb-search-page .hb-search-airplane-fly,
+            .hb-search-page .hb-search-smoke-rise,
+            .hb-search-page .hb-search-mist-drift {
               animation: none !important;
             }
             .hb-search-page .hb-search-pressable {
@@ -917,7 +1017,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               cy={sunMoonProps.cy}
               r={sunMoonProps.r}
               fill={sunMoonProps.glowColor}
-              opacity={timeOfDay === "night" ? "0.35" : timeOfDay === "evening" ? "0.45" : "0.25"}
+              opacity={timeOfDay === "night" ? "0.35" : timeOfDay === "evening" ? "0.5" : "0.25"}
             />
             <circle
               cx={sunMoonProps.cx}
@@ -926,6 +1026,22 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               fill="url(#sunMoonGradient)"
               opacity={sunMoonProps.opacity}
             />
+            {/* 저녁 태양 빛줄기 효과 - 부드럽고 자연스럽게 */}
+            {timeOfDay === "evening" && (
+              <g opacity="0.25">
+                <defs>
+                  <linearGradient id="sunRays" x1="50%" y1="0%" x2="50%" y2="100%">
+                    <stop offset="0%" stopColor="#FFD700" stopOpacity="0.5" />
+                    <stop offset="40%" stopColor="#FFA500" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#FF6347" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* 태양에서 뻗어나오는 빛줄기들 - 3개만, 더 얇고 부드럽게 */}
+                <line x1={sunMoonProps.cx} y1={sunMoonProps.cy - sunMoonProps.r} x2={sunMoonProps.cx} y2={sunMoonProps.cy - sunMoonProps.r - 35} stroke="url(#sunRays)" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1={sunMoonProps.cx + sunMoonProps.r * 0.6} y1={sunMoonProps.cy - sunMoonProps.r * 0.6} x2={sunMoonProps.cx + (sunMoonProps.r + 30) * 0.6} y2={sunMoonProps.cy - (sunMoonProps.r + 30) * 0.6} stroke="url(#sunRays)" strokeWidth="1.2" strokeLinecap="round" />
+                <line x1={sunMoonProps.cx - sunMoonProps.r * 0.6} y1={sunMoonProps.cy - sunMoonProps.r * 0.6} x2={sunMoonProps.cx - (sunMoonProps.r + 30) * 0.6} y2={sunMoonProps.cy - (sunMoonProps.r + 30) * 0.6} stroke="url(#sunRays)" strokeWidth="1.2" strokeLinecap="round" />
+              </g>
+            )}
             {/* 밤에는 별 추가 - 더 밝고 선명하게 */}
             {timeOfDay === "night" && (
               <>
@@ -938,6 +1054,18 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 <circle cx="100" cy="130" r="1.5" fill="#FFF8DC" opacity="0.85" />
                 <circle cx="280" cy="105" r="1.8" fill="#FFE44D" opacity="0.9" />
                 <circle cx="340" cy="75" r="2" fill="#FFD700" opacity="0.95" />
+              </>
+            )}
+            {/* 저녁에는 초저녁 별 추가 - 밤보다 덜 밝고 적은 수 */}
+            {timeOfDay === "evening" && (
+              <>
+                <circle cx="90" cy="110" r="1.8" fill="#FFE44D" opacity="0.6" />
+                <circle cx="160" cy="90" r="1.5" fill="#FFD700" opacity="0.55" />
+                <circle cx="220" cy="130" r="1.8" fill="#FFE44D" opacity="0.6" />
+                <circle cx="290" cy="85" r="1.3" fill="#FFF8DC" opacity="0.5" />
+                <circle cx="350" cy="105" r="1.5" fill="#FFD700" opacity="0.55" />
+                <circle cx="110" cy="140" r="1.2" fill="#FFF8DC" opacity="0.45" />
+                <circle cx="270" cy="115" r="1.3" fill="#FFE44D" opacity="0.5" />
               </>
             )}
           </g>
@@ -971,6 +1099,43 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                 </g>
               </g>
             </g>
+
+            {/* 저녁 버전 추가 구름 - 노을에 물든 구름들 */}
+            {timeOfDay === "evening" && (
+              <>
+                {/* 중앙 구름 클러스터 */}
+                <g className="hb-search-cloud-drift" opacity="0.75">
+                  <g transform="translate(0 0) scale(1.15)">
+                    <g className="hb-search-cloud-bob-slow">
+                      <circle cx="180" cy="100" r="24" fill={cloudColor} />
+                      <circle cx="205" cy="96" r="18" fill={cloudColor} />
+                      <circle cx="225" cy="104" r="20" fill={cloudColor} />
+                      <circle cx="200" cy="110" r="19" fill={cloudColor} />
+                    </g>
+                  </g>
+                </g>
+                {/* 태양 근처 구름 - 노을 효과 강조 */}
+                <g className="hb-search-cloud-drift-slow" opacity="0.7">
+                  <g transform="translate(0 0) scale(1.1)">
+                    <g className="hb-search-cloud-bob">
+                      <circle cx="250" cy="250" r="22" fill={cloudColor} />
+                      <circle cx="270" cy="245" r="17" fill={cloudColor} />
+                      <circle cx="285" cy="252" r="19" fill={cloudColor} />
+                    </g>
+                  </g>
+                </g>
+                {/* 왼쪽 상단 작은 구름 */}
+                <g className="hb-search-cloud-drift" opacity="0.65">
+                  <g transform="translate(0 0) scale(0.9)">
+                    <g className="hb-search-cloud-bob-slow">
+                      <circle cx="40" cy="70" r="16" fill={cloudColor} />
+                      <circle cx="55" cy="68" r="14" fill={cloudColor} />
+                      <circle cx="70" cy="72" r="15" fill={cloudColor} />
+                    </g>
+                  </g>
+                </g>
+              </>
+            )}
           </g>
 
           {/* mountains (layered) */}
@@ -989,6 +1154,29 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               fill="url(#m1)"
               opacity="0.95"
             />
+            {/* 저녁에는 산 너머 도시 불빛 효과 - 미묘하고 자연스럽게 */}
+            {timeOfDay === "evening" && (
+              <g opacity="0.5">
+                <defs>
+                  <radialGradient id="cityGlow" cx="50%" cy="100%">
+                    <stop offset="0%" stopColor="#FFD700" stopOpacity="0.6" />
+                    <stop offset="40%" stopColor="#FFA500" stopOpacity="0.4" />
+                    <stop offset="70%" stopColor="#FF8C00" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#FF6347" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                {/* 산 사이로 보이는 도시 불빛들 - 2개만, 더 자연스러운 위치 */}
+                <ellipse cx="150" cy="475" rx="20" ry="12" fill="url(#cityGlow)" />
+                <ellipse cx="280" cy="470" rx="22" ry="14" fill="url(#cityGlow)" />
+                {/* 작은 불빛들 (도시 조명) - 더 적게, 더 미묘하게 */}
+                <circle cx="145" cy="478" r="1" fill="#FFD700" opacity="0.7" />
+                <circle cx="155" cy="480" r="0.8" fill="#FFA500" opacity="0.6" />
+                <circle cx="150" cy="482" r="1" fill="#FFD700" opacity="0.7" />
+                <circle cx="275" cy="473" r="1" fill="#FFD700" opacity="0.7" />
+                <circle cx="285" cy="475" r="0.8" fill="#FFA500" opacity="0.6" />
+                <circle cx="280" cy="477" r="1" fill="#FFD700" opacity="0.7" />
+              </g>
+            )}
           </g>
 
           {/* wave border at bottom - 물결 모양 경계선 */}
@@ -1353,6 +1541,35 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                   </div>
                 </div>
               </div>
+
+              {/* 미션 카드 섹션 - 로딩 중이거나 길찾기 버튼 위에 위치 */}
+              {isSearchingRoute && (
+                <div
+                  className="mt-4 rounded-[18px] hb-search-glass-card hb-search-glass-fun p-3.5 flex items-center gap-3 animate-in fade-in zoom-in-95 duration-500 shadow-xl"
+                  style={{
+                    ...cardStyle,
+                    background: "rgba(255, 255, 255, 0.65)",
+                    backdropFilter: "blur(20px) saturate(180%)",
+                    WebkitBackdropFilter: "blur(20px) saturate(180%)",
+                    border: `2px solid ${mission.color}`,
+                  }}
+                >
+                  <div
+                    className="size-10 rounded-xl flex items-center justify-center text-xl shadow-sm animate-bounce"
+                    style={{ backgroundColor: `${mission.color}20`, border: `1px solid ${mission.color}40` }}
+                  >
+                    🏁
+                  </div>
+                  <div className="flex-1">
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-bold text-[13px] leading-tight" style={{ color: mission.color }}>
+                      SEARCHING MISSION...
+                    </p>
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-medium text-[12px] text-black/80 mt-0.5">
+                      {mission.text}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4">
                 <div className="h-[56px] rounded-[18px] bg-white border border-black/10 shadow-[0px_12px_26px_rgba(0,0,0,0.16)] px-4 flex items-center gap-3">

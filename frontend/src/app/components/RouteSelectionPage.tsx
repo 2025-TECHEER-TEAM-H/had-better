@@ -11,8 +11,8 @@ import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
+import imgBot1Character from "/assets/Double/hud_player_purple.png"; // 보라색 (봇1)
 import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
-import imgBot1Character from "/assets/playerB/hud_player_pink.png"; // 분홍색 (봇1)
 import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
 
 // 지도 스타일 타입
@@ -48,7 +48,7 @@ interface RouteSelectionPageProps {
   isSubwayMode?: boolean;
 }
 
-export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSelectionPageProps) {
+export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPageProps) {
   // 경로 상태 스토어
   const {
     searchResponse,
@@ -59,7 +59,6 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
     isLoading,
     error,
     setSearchResponse,
-    setDepartureArrival,
     setLegDetail,
     setCreateRouteResponse,
     assignRoute,
@@ -92,11 +91,12 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
   // SSE 관련 상태
-  const [activeRouteId, setActiveRouteId] = useState<number | null>(null);
+  const activeRouteId = null; // RouteSelectionPage에서는 아직 활성 경로 ID가 없으므로 null 유지
   const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
+  const [prediction, setPrediction] = useState<Player | null>(null); // 승부 예측 상태 추가
 
   // SSE 연결
-  const { status, botStates, connect, disconnect } = useRouteSSE(
+  const { botStates } = useRouteSSE(
     activeRouteId,
     {
       onConnected: (data) => {
@@ -347,41 +347,110 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const routeLines = useMemo((): RouteLineInfo[] => {
     if (!searchResponse) return [];
 
+    // 가장 빠른 시간 찾기
+    const minTime = Math.min(...searchResponse.legs.map(l => l.totalTime));
+
     return searchResponse.legs.map((leg, index) => {
       const colorScheme = ROUTE_COLORS[index % ROUTE_COLORS.length];
       const detail = legDetails.get(leg.route_leg_id);
 
-      // 경로 상세가 있으면 실제 경로 좌표 사용
+      // 누군가에게 할당되었거나, 가장 빠른 경로인 경우만 정보 표시
+      const isAssignedToAnyone = isRouteAssigned(leg.route_leg_id);
+      const isFastest = leg.totalTime === minTime;
+      const shouldShowInfo = isAssignedToAnyone || isFastest;
+
+      const summary = shouldShowInfo ? {
+        time: secondsToMinutes(leg.totalTime),
+        distance: metersToKilometers(leg.totalDistance),
+      } : undefined;
+
+      // 경로 상세가 있으면 실제 경로 좌표 추출 (선택 페이지에서는 환승 지점 수집 제외)
       if (detail?.legs) {
         const coordinates: [number, number][] = [];
 
-        detail.legs.forEach((legStep) => {
+        detail.legs.forEach((legStep, legIndex) => {
+          // 이전 legStep과의 연결을 보장하기 위해 시작 좌표를 먼저 추가
+          // 첫 번째 legStep이 아니고, 이전 좌표와 다르면 시작 좌표 추가
+          if (legIndex > 0 && coordinates.length > 0) {
+            const lastCoord = coordinates[coordinates.length - 1];
+            const startCoord: [number, number] = [legStep.start.lon, legStep.start.lat];
+
+            // 이전 좌표와 시작 좌표가 다르면 연결 좌표 추가
+            if (Math.abs(lastCoord[0] - startCoord[0]) > 0.0001 ||
+                Math.abs(lastCoord[1] - startCoord[1]) > 0.0001) {
+              coordinates.push(startCoord);
+            }
+          } else if (legIndex === 0) {
+            // 첫 번째 legStep의 시작 좌표 추가
+            coordinates.push([legStep.start.lon, legStep.start.lat]);
+          }
+
           // passShape가 있으면 파싱 (BUS/SUBWAY 구간)
           if (legStep.passShape?.linestring) {
             const points = legStep.passShape.linestring.split(' ');
+            let isFirstPoint = true;
             points.forEach((point) => {
               const [lon, lat] = point.split(',').map(Number);
               if (!isNaN(lon) && !isNaN(lat)) {
+                // 첫 번째 점은 이미 start 좌표로 추가했으므로 스킵 (중복 방지)
+                if (isFirstPoint && coordinates.length > 0) {
+                  const lastCoord = coordinates[coordinates.length - 1];
+                  const dist = Math.sqrt(
+                    Math.pow(lastCoord[0] - lon, 2) + Math.pow(lastCoord[1] - lat, 2)
+                  );
+                  // 거리가 매우 가까우면(0.0001도 이내) 스킵
+                  if (dist < 0.0001) {
+                    isFirstPoint = false;
+                    return;
+                  }
+                }
                 coordinates.push([lon, lat]);
+                isFirstPoint = false;
               }
             });
           } else if (legStep.steps && legStep.steps.length > 0) {
             // WALK 구간: steps[].linestring 사용 (실제 도보 경로)
-            legStep.steps.forEach((step) => {
+            legStep.steps.forEach((step, stepIndex) => {
               if (step.linestring) {
                 const points = step.linestring.split(' ');
+                let isFirstPointInStep = stepIndex === 0;
                 points.forEach((point) => {
                   const [lon, lat] = point.split(',').map(Number);
                   if (!isNaN(lon) && !isNaN(lat)) {
+                    // 첫 번째 step의 첫 번째 점은 이미 start 좌표로 추가했으므로 스킵
+                    if (isFirstPointInStep && coordinates.length > 0) {
+                      const lastCoord = coordinates[coordinates.length - 1];
+                      const dist = Math.sqrt(
+                        Math.pow(lastCoord[0] - lon, 2) + Math.pow(lastCoord[1] - lat, 2)
+                      );
+                      // 거리가 매우 가까우면(0.0001도 이내) 스킵
+                      if (dist < 0.0001) {
+                        isFirstPointInStep = false;
+                        return;
+                      }
+                    }
                     coordinates.push([lon, lat]);
+                    isFirstPointInStep = false;
                   }
                 });
               }
             });
           } else {
             // passShape도 steps도 없으면 start/end 좌표 사용 (fallback)
-            coordinates.push([legStep.start.lon, legStep.start.lat]);
+            // start는 이미 추가했으므로 end만 추가
             coordinates.push([legStep.end.lon, legStep.end.lat]);
+          }
+
+          // 마지막 legStep의 경우 end 좌표도 명시적으로 추가 (연결 보장)
+          if (legIndex === detail.legs.length - 1) {
+            const lastCoord = coordinates[coordinates.length - 1];
+            const endCoord: [number, number] = [legStep.end.lon, legStep.end.lat];
+
+            // 마지막 좌표와 end 좌표가 다르면 추가
+            if (Math.abs(lastCoord[0] - endCoord[0]) > 0.0001 ||
+                Math.abs(lastCoord[1] - endCoord[1]) > 0.0001) {
+              coordinates.push(endCoord);
+            }
           }
         });
 
@@ -391,6 +460,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
           color: colorScheme.line,
           width: 8,
           opacity: 0.7,
+          summary,
         };
       }
 
@@ -399,6 +469,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
         id: `route-${leg.route_leg_id}`,
         coordinates: [],
         color: colorScheme.line,
+        summary,
       };
     }).filter((route) => route.coordinates.length > 0);
   }, [searchResponse, legDetails, departure, arrival]);
@@ -679,67 +750,112 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       {/* 경로 카드들 */}
       {searchResponse && (
         <div className="flex flex-col gap-4">
-          {searchResponse.legs.map((leg, index) => {
-            const colorScheme = ROUTE_COLORS[index % ROUTE_COLORS.length];
-            const routeNumber = index + 1;
-            const timeMinutes = secondsToMinutes(leg.totalTime);
-            const distanceStr = metersToKilometers(leg.totalDistance);
-            const pathTypeName = PATH_TYPE_NAMES[leg.pathType] || "대중교통";
+          {(() => {
+            // 가장 빠른 경로 찾기 (최단 시간)
+            const minTime = Math.min(...searchResponse.legs.map(l => l.totalTime));
 
-            // 이 경로에 할당된 플레이어 찾기
-            const assignedPlayer = getPlayerForRoute(leg.route_leg_id);
-            const assignedPlayerImage = assignedPlayer
-              ? assignedPlayer === 'user' ? imgUserCharacter :
-                assignedPlayer === 'bot1' ? imgBot1Character :
-                imgBot2Character
-              : null;
+            return searchResponse.legs.map((leg, index) => {
+              const colorScheme = ROUTE_COLORS[index % ROUTE_COLORS.length];
+              const routeNumber = index + 1;
+              const timeMinutes = secondsToMinutes(leg.totalTime);
+              const distanceStr = metersToKilometers(leg.totalDistance);
+              const pathTypeName = PATH_TYPE_NAMES[leg.pathType] || "대중교통";
 
-            return (
-              <div
-                key={leg.route_leg_id}
-                className="rounded-[10px] border border-black/20 backdrop-blur-lg shadow-lg p-4 md:p-5"
-                style={{
-                  backgroundColor: colorScheme.bg,
-                }}
-              >
-                <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-                  {/* 경로 번호 아이콘 */}
-                  <div className="flex items-center gap-3 md:flex-col md:items-start">
-                    <div className="bg-white size-[56px] md:size-[48px] border-[3px] border-black flex items-center justify-center shrink-0 rounded-lg shadow-md">
-                      <p className="text-[28px] md:text-[24px]">
-                        {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
-                      </p>
-                    </div>
+              // 태그 조건들
+              const isFastest = leg.totalTime === minTime;
+              const isTransferHell = leg.transferCount >= 2;
+              const isBusPath = leg.pathType === 2 || leg.pathType === 3; // 버스 포함
+              const isWalkingHeavy = leg.totalWalkDistance > 1000;
 
-                    {/* 경로 이름 - 모바일에서 아이콘 옆에 표시 */}
-                    <div className="flex gap-2 items-center md:hidden">
-                      <div
-                        className="h-[3px] w-[16px] border-[0.673px] border-black rounded-full"
-                        style={{ backgroundColor: colorScheme.line }}
-                      />
-                      <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold">
-                        경로 {routeNumber} ({pathTypeName})
-                      </p>
-                    </div>
-                  </div>
+              // 이 경로에 할당된 플레이어 찾기
+              const assignedPlayer = getPlayerForRoute(leg.route_leg_id);
+              const assignedPlayerImage = assignedPlayer
+                ? assignedPlayer === 'user' ? imgUserCharacter :
+                  assignedPlayer === 'bot1' ? imgBot1Character :
+                  imgBot2Character
+                : null;
 
-                  {/* 경로 정보 */}
-                  <div className="flex-1 flex flex-col gap-3 md:gap-2">
-                    <div className="flex items-start gap-3 md:gap-4">
-                      {/* 왼쪽: 경로 정보 */}
-                      <div className="flex-1 flex flex-col gap-3 md:gap-2">
-                        {/* 경로 이름 - 데스크톱에서만 표시 */}
-                        <div className="hidden md:flex gap-2 items-center">
+              return (
+                <div
+                  key={leg.route_leg_id}
+                  className="rounded-[10px] border border-black/20 backdrop-blur-lg shadow-lg p-4 md:p-5"
+                  style={{
+                    backgroundColor: colorScheme.bg,
+                  }}
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:gap-4">
+                    {/* 경로 번호 아이콘 */}
+                    <div className="flex items-center gap-3 md:flex-col md:items-start">
+                      <div className="bg-white size-[56px] md:size-[48px] border-[3px] border-black flex items-center justify-center shrink-0 rounded-lg shadow-md">
+                        <p className="text-[28px] md:text-[24px]">
+                          {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
+                        </p>
+                      </div>
+
+                      {/* 경로 이름 - 모바일에서 아이콘 옆에 표시 */}
+                      <div className="flex flex-col md:hidden">
+                        <div className="flex gap-2 items-center">
                           <div
-                            className="h-[2px] w-[12px] border-[0.673px] border-black"
+                            className="h-[3px] w-[16px] border-[0.673px] border-black rounded-full"
                             style={{ backgroundColor: colorScheme.line }}
                           />
-                          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
+                          <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold">
                             경로 {routeNumber} ({pathTypeName})
                           </p>
                         </div>
 
-                        {/* 시간/거리/환승 */}
+                        {/* 모바일 태그 영역 */}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {isFastest && (
+                            <span className="bg-blue-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">⚡ 최단시간</span>
+                          )}
+                          {isTransferHell && (
+                            <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">👣 환승지옥</span>
+                          )}
+                          {isBusPath && (
+                            <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">🚌 도로정체주의</span>
+                          )}
+                          {isWalkingHeavy && (
+                            <span className="bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">👟 유산소코스</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 경로 정보 */}
+                    <div className="flex-1 flex flex-col gap-3 md:gap-2">
+                      <div className="flex items-start gap-3 md:gap-4">
+                        {/* 왼쪽: 경로 정보 */}
+                        <div className="flex-1 flex flex-col gap-3 md:gap-2">
+                          {/* 경로 이름 - 데스크톱에서만 표시 */}
+                          <div className="hidden md:flex flex-col gap-1">
+                            <div className="flex gap-2 items-center">
+                              <div
+                                className="h-[2px] w-[12px] border-[0.673px] border-black"
+                                style={{ backgroundColor: colorScheme.line }}
+                              />
+                              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
+                                경로 {routeNumber} ({pathTypeName})
+                              </p>
+                            </div>
+                            {/* 데스크탑 태그 영역 */}
+                            <div className="flex flex-wrap gap-1">
+                              {isFastest && (
+                                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">⚡ 최단시간</span>
+                              )}
+                              {isTransferHell && (
+                                <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">👣 환승지옥</span>
+                              )}
+                              {isBusPath && (
+                                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">🚌 도로정체주의</span>
+                              )}
+                              {isWalkingHeavy && (
+                                <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">👟 유산소코스</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 시간/거리/환승 */}
                         <div className="flex gap-2 flex-wrap">
                           <div
                             className="bg-[#ffd93d] h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md"
@@ -806,7 +922,8 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 </div>
               </div>
             );
-          })}
+          });
+        })()}
         </div>
       )}
 
@@ -833,7 +950,7 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
             // 플레이어별 색상 테마
             const playerColor =
               player === 'user' ? 'green' :
-              player === 'bot1' ? 'pink' :
+              player === 'bot1' ? 'purple' :
               'yellow';
 
             const colorClasses = {
@@ -843,11 +960,11 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 badge: 'bg-green-500',
                 text: 'text-green-700',
               },
-              pink: {
-                bg: 'bg-pink-50',
-                border: 'border-pink-200',
-                badge: 'bg-pink-500',
-                text: 'text-pink-700',
+              purple: {
+                bg: 'bg-purple-50',
+                border: 'border-purple-200',
+                badge: 'bg-purple-500',
+                text: 'text-purple-700',
               },
               yellow: {
                 bg: 'bg-yellow-50',
@@ -1065,26 +1182,33 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
             data: "/junggu_buildings.geojson",
           });
         }
-        // 건물 레이어 추가
+        // 건물 레이어 추가 (스타일별 가변 색상 및 수직 그라데이션 적용)
         mapInstance.addLayer({
           id: "3d-buildings",
           source: "junggu-buildings",
           type: "fill-extrusion",
           minzoom: 13,
           paint: {
-            "fill-extrusion-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "height"],
-              0, "#d4e6d7",
-              10, "#a8d4ae",
-              20, "#7bc47f",
-              50, "#4a9960",
-              100, "#2d5f3f",
-            ],
+            "fill-extrusion-color": style === "dark"
+              ? [ // 야간 모드: 사이버펑크 네온 스타일
+                  "interpolate", ["linear"], ["get", "height"],
+                  0, "#1a1a2e",
+                  20, "#16213e",
+                  50, "#0f3460",
+                  100, "#e94560"
+                ]
+              : [ // 기본 모드: 깔끔한 파스텔 녹색 스타일
+                  "interpolate", ["linear"], ["get", "height"],
+                  0, "#d4e6d7",
+                  10, "#a8d4ae",
+                  20, "#7bc47f",
+                  50, "#4a9960",
+                  100, "#2d5f3f",
+                ],
             "fill-extrusion-height": ["get", "height"],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.75,
+            "fill-extrusion-opacity": style === "dark" ? 0.85 : 0.75,
+            "fill-extrusion-vertical-gradient": true, // 입체감을 위한 수직 그라데이션 활성화
           },
         });
       }
@@ -1110,29 +1234,36 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
       });
     }
 
-    // 건물 레이어 추가
+    // 건물 레이어 추가 (스타일별 가변 색상 및 수직 그라데이션 적용)
     mapInstance.addLayer({
       id: "3d-buildings",
       source: "junggu-buildings",
       type: "fill-extrusion",
       minzoom: 13,
       paint: {
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["get", "height"],
-          0, "#d4e6d7",
-          10, "#a8d4ae",
-          20, "#7bc47f",
-          50, "#4a9960",
-          100, "#2d5f3f",
-        ],
+        "fill-extrusion-color": mapStyle === "dark"
+          ? [ // 야간 모드: 사이버펑크 네온 스타일
+              "interpolate", ["linear"], ["get", "height"],
+              0, "#1a1a2e",
+              20, "#16213e",
+              50, "#0f3460",
+              100, "#e94560"
+            ]
+          : [ // 기본 모드: 깔끔한 파스텔 녹색 스타일
+              "interpolate", ["linear"], ["get", "height"],
+              0, "#d4e6d7",
+              10, "#a8d4ae",
+              20, "#7bc47f",
+              50, "#4a9960",
+              100, "#2d5f3f",
+            ],
         "fill-extrusion-height": ["get", "height"],
         "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 0.75,
+        "fill-extrusion-opacity": mapStyle === "dark" ? 0.85 : 0.75,
+        "fill-extrusion-vertical-gradient": true, // 입체감을 위한 수직 그라데이션 활성화
       },
     });
-  }, []);
+  }, [mapStyle]);
 
   // 3D 건물 레이어 제거 함수
   const remove3DBuildingsLayer = useCallback(() => {
@@ -1157,17 +1288,21 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
     if (newState) {
       add3DBuildingsLayer();
-      // 3D 효과를 위해 pitch 추가
+
+      // 시네마틱 카메라 연출: 눕히면서(pitch) 도착지 방향으로 살짝 회전(bearing)
       mapInstance.easeTo({
-        pitch: 45,
-        duration: 500,
+        pitch: 60,
+        bearing: -20,
+        duration: 1000,
+        easing: (t) => t * (2 - t), // smooth out
       });
     } else {
       remove3DBuildingsLayer();
-      // pitch 초기화
+      // 카메라 초기화
       mapInstance.easeTo({
         pitch: 0,
-        duration: 500,
+        bearing: 0,
+        duration: 800,
       });
     }
   }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
@@ -1244,6 +1379,40 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
           {/* 하단 고정 버튼 */}
           <div className="p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg border-t border-white/30">
+            {/* 승부 예측 섹션 */}
+            {areAllAssigned() && (
+              <div className="mb-4 p-4 bg-white/40 backdrop-blur-md rounded-xl border border-white/50 shadow-inner">
+                <p className="font-['Wittgenstein',sans-serif] text-[13px] font-bold text-black mb-3 text-center">
+                  🏁 누가 1등으로 도착할까요?
+                </p>
+                <div className="flex justify-between gap-2">
+                  {players.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPrediction(p)}
+                      className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
+                        prediction === p
+                          ? "border-green-500 bg-green-50/50 scale-105 shadow-md"
+                          : "border-transparent bg-white/30 opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={p === 'user' ? imgUserCharacter : p === 'bot1' ? imgBot1Character : imgBot2Character}
+                        className="size-8 object-contain"
+                        alt={PLAYER_LABELS[p]}
+                      />
+                      <span className="text-[10px] font-bold text-black">{PLAYER_LABELS[p]}</span>
+                    </button>
+                  ))}
+                </div>
+                {prediction && (
+                  <p className="text-[10px] text-blue-700 mt-3 text-center font-medium animate-bounce">
+                    {prediction === 'user' ? "💪 당신의 승리를 믿어요! 화이팅!" : `🤖 ${PLAYER_LABELS[prediction]}의 실력이 만만치 않겠군요!`}
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
               onClick={handleStartNavigation}
               disabled={!canStartNavigation}
@@ -1538,6 +1707,35 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
 
         {/* 하단 고정 버튼 */}
         <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
+          {/* 모바일 승부 예측 섹션 */}
+          {areAllAssigned() && (
+            <div className="mb-3 p-3 bg-white/40 backdrop-blur-md rounded-xl border border-white/50 shadow-sm">
+              <p className="font-['Wittgenstein',sans-serif] text-[11px] font-bold text-black mb-2 text-center">
+                🏁 승리 예측: 누가 가장 빠를까요?
+              </p>
+              <div className="flex justify-between gap-2">
+                {players.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPrediction(p)}
+                    className={`flex-1 flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${
+                      prediction === p
+                        ? "border-green-500 bg-green-50/50 scale-105 shadow-md"
+                        : "border-transparent bg-white/30 opacity-60"
+                    }`}
+                  >
+                    <img
+                      src={p === 'user' ? imgUserCharacter : p === 'bot1' ? imgBot1Character : imgBot2Character}
+                      className="size-6 object-contain"
+                      alt={PLAYER_LABELS[p]}
+                    />
+                    <span className="text-[9px] font-bold text-black">{PLAYER_LABELS[p]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleStartNavigation}
             disabled={!canStartNavigation}

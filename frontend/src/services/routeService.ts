@@ -271,6 +271,23 @@ export async function deleteRouteSearchHistory(historyId: number): Promise<void>
   }
 }
 
+/**
+ * 내가 참가한 경주 목록 조회 API
+ * @param status 필터링할 상태 (RUNNING, FINISHED, CANCELED)
+ * @returns 경주 목록
+ */
+export async function getUserRoutes(status?: string): Promise<any[]> {
+  const response = await api.get<ApiResponse<any[]>>('/routes', {
+    params: { status },
+  });
+
+  if (response.data.status === 'error') {
+    throw new Error(response.data.error?.message || '경주 목록 조회에 실패했습니다.');
+  }
+
+  return response.data.data || [];
+}
+
 // 기본 내보내기
 const routeService = {
   searchRoutes,
@@ -285,6 +302,7 @@ const routeService = {
   getRouteSearchHistories,
   clearRouteSearchHistories,
   deleteRouteSearchHistory,
+  getUserRoutes,
 };
 
 export default routeService;

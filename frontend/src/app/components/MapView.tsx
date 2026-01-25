@@ -41,6 +41,15 @@ interface MarkerInfo {
   address?: string;
 }
 
+// 정류장/역 마커 정보 타입
+export interface StationMarker {
+  id: string;
+  coordinates: [number, number]; // [경도, 위도]
+  name: string;
+  stationID?: string;
+  mode: 'BUS' | 'SUBWAY';
+}
+
 // 경로 라인 정보 타입
 export interface RouteLineInfo {
   id: string;
@@ -48,6 +57,28 @@ export interface RouteLineInfo {
   color: string;
   width?: number;
   opacity?: number;
+  summary?: {
+    time: number;
+    distance: string;
+  };
+  transferPoints?: Array<{
+    coordinates: [number, number];
+    fromMode: string; // 이전 교통수단: 'BUS', 'SUBWAY', 'WALK'
+    toMode: string; // 다음 교통수단: 'BUS', 'SUBWAY', 'WALK'
+    name: string;
+  }>;
+  boardingAlightingPoints?: Array<{
+    coordinates: [number, number];
+    name: string;
+    type: 'boarding' | 'alighting';
+  }>;
+  isSelected?: boolean; // 선택된 경로인지 여부
+  walkSegments?: Array<{
+    coordinates: [number, number][]; // 도보 구간 좌표
+  }>; // 도보 구간 좌표 (점선으로 표시)
+  rank?: number; // 순위
+  remainingMinutes?: number; // 남은 시간 (분)
+  playerName?: string; // 플레이어 이름
 }
 
 // 출발지/도착지 마커 타입
@@ -109,6 +140,14 @@ interface MapViewProps {
    * - false일 경우 레이어, 내 위치 등 모든 버튼 숨김
    */
   showControls?: boolean;
+  /**
+   * 정류장/역 마커 목록 (선택)
+   */
+  stationMarkers?: StationMarker[];
+  /**
+   * 플레이어 현재 위치 (순위/남은 시간 마커 추적용)
+   */
+  playerPositions?: Map<string, { lon: number; lat: number }>; // player id -> position
 }
 
 // Mapbox Access Token 설정
@@ -130,6 +169,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   playerMarkers = [],
   showSubwayLines = false,
   showControls = true,
+  stationMarkers = [],
+  playerPositions: _playerPositions,
 }, ref) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -137,6 +178,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const placeMarkers = useRef<mapboxgl.Marker[]>([]); // 검색 결과 마커들
   const endpointMarkers = useRef<mapboxgl.Marker[]>([]); // 출발지/도착지 마커
+  const transferMarkers = useRef<mapboxgl.Marker[]>([]); // 환승 지점 마커
+  const stationMarkersRef = useRef<mapboxgl.Marker[]>([]); // 정류장/역 마커
+  const rankMarkers = useRef<mapboxgl.Marker[]>([]); // 순위 마커 (경로선 시작점)
+  const remainingTimeMarkers = useRef<mapboxgl.Marker[]>([]); // 남은 시간 마커 (경로선 중간)
   const playerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map()); // 플레이어 마커들
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
   // SVG <defs> id 충돌 방지: MapView 인스턴스별 고유 prefix (SVG id는 document 전역 namespace)
@@ -240,6 +285,19 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       }
       // 지도 로드 완료 상태 설정
       setIsMapLoaded(true);
+
+      // 하늘 및 대기권 레이어 추가 (3D 뷰 대비)
+      if (mapInstance && !mapInstance.getLayer('sky')) {
+        mapInstance.addLayer({
+          'id': 'sky',
+          'type': 'sky',
+          'paint': {
+            'sky-type': 'atmosphere',
+            'sky-atmosphere-sun': [0.0, 0.0],
+            'sky-atmosphere-sun-intensity': 15
+          }
+        });
+      }
     });
 
     // 지도 이동/줌 완료 시 상태 저장 (moveend 이벤트)
@@ -488,72 +546,155 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   // 경로 라인 표시 (지도 로드 완료 후에만)
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
-    if (routeLines.length === 0) return;
 
     const mapInstance = map.current;
 
-    // 경로 라인 추가 함수
+    // 경로 라인 추가/업데이트 함수
     const addRouteLinesToMap = () => {
       try {
         // 기존 경로 레이어 및 소스 제거 (최대 10개까지, 화살표 레이어 포함)
-        for (let i = 0; i < 10; i++) {
-          const layerId = `route-line-${i}`;
-          const arrowLayerId = `route-arrow-${i}`;
-          const sourceId = `route-source-${i}`;
+        // 단, routeLines가 비어있지 않으면 기존 레이어를 유지하고 소스만 업데이트
+        if (routeLines.length === 0) {
+          // 경로선이 없으면 모든 레이어 제거
+          for (let i = 0; i < 10; i++) {
+            const layerId = `route-line-${i}`;
+            const arrowLayerId = `route-arrow-${i}`;
+            const sourceId = `route-source-${i}`;
 
-          if (mapInstance.getLayer(arrowLayerId)) {
-            mapInstance.removeLayer(arrowLayerId);
+            if (mapInstance.getLayer(arrowLayerId)) {
+              mapInstance.removeLayer(arrowLayerId);
+            }
+            if (mapInstance.getLayer(layerId)) {
+              mapInstance.removeLayer(layerId);
+            }
+            if (mapInstance.getSource(sourceId)) {
+              mapInstance.removeSource(sourceId);
+            }
           }
-          if (mapInstance.getLayer(layerId)) {
-            mapInstance.removeLayer(layerId);
-          }
-          if (mapInstance.getSource(sourceId)) {
-            mapInstance.removeSource(sourceId);
-          }
+          return;
         }
 
-        // 새 경로 라인 추가
-        routeLines.forEach((route, index) => {
+        // 새 경로 라인 추가 - 선택되지 않은 경로를 먼저 추가 (아래 레이어)
+        const unselectedRoutes = routeLines.filter(r => !r.isSelected);
+        const selectedRoutes = routeLines.filter(r => r.isSelected);
+        const orderedRoutes = [...unselectedRoutes, ...selectedRoutes]; // 선택된 경로를 마지막에
+
+        orderedRoutes.forEach((route, index) => {
           const sourceId = `route-source-${index}`;
           const layerId = `route-line-${index}`;
 
-          // GeoJSON 소스 추가
-          mapInstance.addSource(sourceId, {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: route.coordinates,
-              },
+          // GeoJSON 데이터 생성
+          const geoJsonData = {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: route.coordinates,
             },
-          });
+          };
 
-          // 라인 레이어 추가 (두께 8px)
-          mapInstance.addLayer({
-            id: layerId,
-            type: 'line',
-            source: sourceId,
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round',
-            },
-            paint: {
-              'line-color': route.color,
-              'line-width': route.width || 8,
-              'line-opacity': route.opacity || 0.8,
-            },
-          });
+          // 소스가 이미 존재하면 업데이트, 없으면 추가
+          if (mapInstance.getSource(sourceId)) {
+            (mapInstance.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geoJsonData as any);
+          } else {
+            mapInstance.addSource(sourceId, {
+              type: 'geojson',
+              data: geoJsonData as any,
+            });
+          }
+
+          // 도보 구간 점선 레이어 추가 (먼저 추가하여 메인 선 아래에 배치)
+          if (route.walkSegments && route.walkSegments.length > 0) {
+            route.walkSegments.forEach((walkSegment, walkIndex) => {
+              const walkSourceId = `walk-source-${index}-${walkIndex}`;
+              const walkLayerId = `walk-line-${index}-${walkIndex}`;
+
+              try {
+                // 도보 구간 GeoJSON 데이터 생성
+                const walkGeoJsonData = {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: walkSegment.coordinates,
+                  },
+                };
+
+                // 소스가 이미 존재하면 업데이트, 없으면 추가
+                if (mapInstance.getSource(walkSourceId)) {
+                  (mapInstance.getSource(walkSourceId) as mapboxgl.GeoJSONSource).setData(walkGeoJsonData as any);
+                } else {
+                  mapInstance.addSource(walkSourceId, {
+                    type: 'geojson',
+                    data: walkGeoJsonData as any,
+                  });
+                }
+
+                // 도보 구간 점선 레이어 추가
+                if (!mapInstance.getLayer(walkLayerId)) {
+                  mapInstance.addLayer({
+                    id: walkLayerId,
+                    type: 'line',
+                    source: walkSourceId,
+                    layout: {
+                      'line-join': 'round',
+                      'line-cap': 'round',
+                    },
+                    paint: {
+                      'line-color': route.color,
+                      'line-width': (route.width || (route.isSelected ? 10 : 6)) + 1, // 메인 선보다 1px 두껍게 (위에 표시)
+                      'line-opacity': route.opacity !== undefined ? route.opacity : 1.0,
+                      'line-dasharray': [5, 3], // 점선 패턴: 5px 선, 3px 공백
+                    },
+                  }, layerId); // 메인 선 레이어 위에 배치
+                } else {
+                  // 레이어가 이미 있으면 paint 속성만 업데이트
+                  mapInstance.setPaintProperty(walkLayerId, 'line-color', route.color);
+                  mapInstance.setPaintProperty(walkLayerId, 'line-width', (route.width || (route.isSelected ? 10 : 6)) + 1);
+                  mapInstance.setPaintProperty(walkLayerId, 'line-opacity', route.opacity !== undefined ? route.opacity : 1.0);
+                }
+              } catch (e) {
+                // 에러 무시
+              }
+            });
+          }
+
+          // 메인 경로선 레이어 추가 (실선) - 버스/지하철 구간만
+          try {
+            if (!mapInstance.getLayer(layerId)) {
+              // 레이어가 없으면 추가
+              mapInstance.addLayer({
+                id: layerId,
+                type: 'line',
+                source: sourceId,
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round',
+                },
+                paint: {
+                  'line-color': route.color,
+                  'line-width': route.width || (route.isSelected ? 10 : 6),
+                  'line-opacity': route.opacity !== undefined ? route.opacity : 1.0, // 모든 경로 불투명
+                },
+              });
+            } else {
+              // 레이어가 이미 있으면 paint 속성만 업데이트
+              mapInstance.setPaintProperty(layerId, 'line-color', route.color);
+              mapInstance.setPaintProperty(layerId, 'line-width', route.width || (route.isSelected ? 10 : 6));
+              mapInstance.setPaintProperty(layerId, 'line-opacity', route.opacity !== undefined ? route.opacity : 1.0);
+            }
+          } catch (e) {
+            // 에러 무시
+          }
 
           // 화살표 패턴을 위한 심볼 레이어 추가
           const arrowLayerId = `route-arrow-${index}`;
           const arrowImageId = `arrow-${index}`;
 
-          // 경로 색상에 맞는 화살표 SVG 생성
+          // 경로 색상에 맞는 화살표 SVG 생성 (흰색 배경 원 제거)
           const arrowSvg = `
           <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 2 12 L 18 12 M 12 6 L 18 12 L 12 18" stroke="${route.color}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 2 12 L 18 12 M 12 6 L 18 12 L 12 18" stroke="${route.color}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         `;
 
@@ -572,16 +713,16 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
                 source: sourceId,
                 layout: {
                   'symbol-placement': 'line',
-                  'symbol-spacing': 80, // 화살표 간격 (픽셀)
+                  'symbol-spacing': 50, // 화살표 간격 축소 (80px -> 50px)
                   'icon-image': arrowImageId,
-                  'icon-size': 1.0,
+                  'icon-size': 1.2, // 화살표 크기 증가
                   'icon-allow-overlap': true,
                   'icon-ignore-placement': true,
                   'icon-rotation-alignment': 'map',
                   'icon-keep-upright': false,
                 },
                 paint: {
-                  'icon-opacity': route.opacity || 0.8,
+                  'icon-opacity': route.opacity !== undefined ? route.opacity : 1.0, // 모든 화살표 불투명
                 },
               });
             }
@@ -616,10 +757,25 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       try {
         if (!mapInstance || !mapInstance.isStyleLoaded()) return;
 
-        routeLines.forEach((_, index) => {
+        routeLines.forEach((route, index) => {
           const layerId = `route-line-${index}`;
           const arrowLayerId = `route-arrow-${index}`;
           const sourceId = `route-source-${index}`;
+
+          // 도보 구간 레이어 제거
+          if (route.walkSegments && route.walkSegments.length > 0) {
+            route.walkSegments.forEach((_, walkIndex) => {
+              const walkLayerId = `walk-line-${index}-${walkIndex}`;
+              const walkSourceId = `walk-source-${index}-${walkIndex}`;
+
+              if (mapInstance.getLayer(walkLayerId)) {
+                mapInstance.removeLayer(walkLayerId);
+              }
+              if (mapInstance.getSource(walkSourceId)) {
+                mapInstance.removeSource(walkSourceId);
+              }
+            });
+          }
 
           if (mapInstance.getLayer(arrowLayerId)) {
             mapInstance.removeLayer(arrowLayerId);
@@ -637,6 +793,164 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeLines, routeLines.length, isMapLoaded]);
+
+  // 환승 지점 표시
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 환승 마커 제거
+    transferMarkers.current.forEach(m => m.remove());
+    transferMarkers.current = [];
+
+    // 환승 지점 마커 추가 (모든 경로)
+    routeLines.forEach((route) => {
+      if (!route.transferPoints) return;
+
+      route.transferPoints.forEach((tp) => {
+        // 환승 방향에 따른 이모지 선택
+        const getTransferEmoji = (toMode: string) => {
+          // 다음 교통수단에 따라 이모지 표시
+          if (toMode === 'BUS') return '🚌';
+          if (toMode === 'SUBWAY') return '🚇';
+          if (toMode === 'WALK') return '🚶';
+          return '🔄'; // 기본값
+        };
+
+        const emoji = getTransferEmoji(tp.toMode);
+
+        const el = document.createElement("div");
+        el.className = "transfer-marker";
+        el.innerHTML = `
+          <div style="
+            width: 28px;
+            height: 28px;
+            background: ${route.color};
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+          ">${emoji}</div>
+        `;
+        el.style.cursor = 'pointer';
+
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(tp.coordinates)
+          .addTo(map.current!);
+        transferMarkers.current.push(marker);
+      });
+    });
+
+    return () => {
+      transferMarkers.current.forEach(m => m.remove());
+      transferMarkers.current = [];
+    };
+  }, [routeLines, isMapLoaded]);
+
+  // 경로선 시작점에 순위 표시 및 중간에 남은 시간 표시
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 마커 제거
+    rankMarkers.current.forEach(m => m.remove());
+    rankMarkers.current = [];
+    remainingTimeMarkers.current.forEach(m => m.remove());
+    remainingTimeMarkers.current = [];
+
+    routeLines.forEach((route) => {
+      if (route.coordinates.length === 0) return;
+
+      // 1. 경로선 시작점에 순위 표시
+      if (route.rank !== undefined) {
+        const startCoord = route.coordinates[0];
+        const el = document.createElement("div");
+        el.className = "rank-marker";
+
+        const rankBgColor = route.rank === 1 ? '#FFD700' : route.rank === 2 ? '#C0C0C0' : '#CD7F32'; // 금, 은, 동
+        const rankTextColor = route.rank === 1 ? '#000' : '#fff';
+
+        el.innerHTML = `
+          <div style="
+            background: ${rankBgColor};
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 18px;
+            color: ${rankTextColor};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            font-family: 'Wittgenstein', sans-serif;
+          ">${route.rank}</div>
+        `;
+        el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(startCoord)
+          .addTo(map.current!);
+        rankMarkers.current.push(marker);
+      }
+
+      // 2. 경로선 중간에 남은 시간 표시
+      if (route.remainingMinutes !== undefined && route.remainingMinutes > 0) {
+        // 경로선의 중간 지점 계산 (50% 지점)
+        const midIndex = Math.floor(route.coordinates.length / 2);
+        const midCoord = route.coordinates[midIndex];
+
+        const el = document.createElement("div");
+        el.className = "remaining-time-marker";
+
+        el.innerHTML = `
+          <div style="
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            border: 2px solid ${route.color};
+            border-radius: 12px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            white-space: nowrap;
+          ">
+            <span style="
+              font-size: 14px;
+              font-weight: 900;
+              color: ${route.color};
+              font-family: 'Wittgenstein', sans-serif;
+              text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            ">⏱️</span>
+            <span style="
+              font-size: 13px;
+              font-weight: 900;
+              color: white;
+              font-family: 'Wittgenstein', sans-serif;
+              text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            ">${route.remainingMinutes}분</span>
+          </div>
+        `;
+
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(midCoord)
+          .addTo(map.current!);
+        remainingTimeMarkers.current.push(marker);
+      }
+    });
+
+    return () => {
+      rankMarkers.current.forEach(m => m.remove());
+      rankMarkers.current = [];
+      remainingTimeMarkers.current.forEach(m => m.remove());
+      remainingTimeMarkers.current = [];
+    };
+  }, [routeLines, isMapLoaded]);
 
   // 출발지/도착지 마커 표시
   useEffect(() => {
@@ -709,6 +1023,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       endpointMarkers.current = [];
     };
   }, [endpoints, isMapLoaded]);
+
+  // 정류장/역 마커 표시 - 비활성화 (경로선만 표시)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 마커 제거
+    stationMarkersRef.current.forEach((marker) => marker.remove());
+    stationMarkersRef.current = [];
+
+    // 정류장/역 마커 표시 비활성화 - 경로선만 표시
+    // 모든 정보 제거
+
+    return () => {
+      try {
+        stationMarkersRef.current.forEach((marker) => marker.remove());
+      } catch {
+        // 지도가 제거된 경우 무시
+      }
+      stationMarkersRef.current = [];
+    };
+  }, [stationMarkers, isMapLoaded]);
 
   // 플레이어 마커 표시 (유저/봇 위치)
   useEffect(() => {

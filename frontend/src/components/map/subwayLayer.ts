@@ -1001,58 +1001,80 @@ function showStationPopup(
  * 지하철 노선도 레이어 제거
  */
 export function removeSubwayLayers(map: mapboxgl.Map) {
+  // 지도가 없거나 스타일이 로드되지 않았으면 리턴
+  if (!map || !map.isStyleLoaded()) {
+    return;
+  }
+
   // 역 레이어/소스 제거
-  if (map.getLayer(STATION_LABEL_LAYER)) {
-    map.removeLayer(STATION_LABEL_LAYER);
-  }
-  if (map.getLayer(STATION_NUMBER_LAYER)) {
-    map.removeLayer(STATION_NUMBER_LAYER);
-  }
-  if (map.getLayer(STATION_LAYER)) {
-    map.removeLayer(STATION_LAYER);
-  }
-  if (map.getSource(STATION_SOURCE)) {
-    map.removeSource(STATION_SOURCE);
+  try {
+    if (map.getLayer(STATION_LABEL_LAYER)) {
+      map.removeLayer(STATION_LABEL_LAYER);
+    }
+    if (map.getLayer(STATION_NUMBER_LAYER)) {
+      map.removeLayer(STATION_NUMBER_LAYER);
+    }
+    if (map.getLayer(STATION_LAYER)) {
+      map.removeLayer(STATION_LAYER);
+    }
+    if (map.getSource(STATION_SOURCE)) {
+      map.removeSource(STATION_SOURCE);
+    }
+  } catch (error) {
+    // 레이어가 이미 제거되었거나 지도가 유효하지 않은 경우 무시
+    console.warn('Failed to remove subway layers:', error);
   }
 
   // 역 막대 레이어/소스 제거
-  if (map.getLayer(STATION_BAR_LAYER)) {
-    map.removeLayer(STATION_BAR_LAYER);
-  }
-  if (map.getLayer(STATION_BAR_OUTLINE_LAYER)) {
-    map.removeLayer(STATION_BAR_OUTLINE_LAYER);
-  }
-  if (map.getSource(STATION_BAR_SOURCE)) {
-    map.removeSource(STATION_BAR_SOURCE);
+  try {
+    if (map.getLayer(STATION_BAR_LAYER)) {
+      map.removeLayer(STATION_BAR_LAYER);
+    }
+    if (map.getLayer(STATION_BAR_OUTLINE_LAYER)) {
+      map.removeLayer(STATION_BAR_OUTLINE_LAYER);
+    }
+    if (map.getSource(STATION_BAR_SOURCE)) {
+      map.removeSource(STATION_BAR_SOURCE);
+    }
+  } catch (error) {
+    console.warn('Failed to remove station bar layers:', error);
   }
 
   // OSM 노선 레이어/소스 제거
-  if (map.getLayer(OSM_LINE_LAYER)) {
-    map.removeLayer(OSM_LINE_LAYER);
-  }
-  if (map.getLayer(OSM_LINE_OUTLINE_LAYER)) {
-    map.removeLayer(OSM_LINE_OUTLINE_LAYER);
-  }
-  if (map.getSource(OSM_LINE_SOURCE)) {
-    map.removeSource(OSM_LINE_SOURCE);
+  try {
+    if (map.getLayer(OSM_LINE_LAYER)) {
+      map.removeLayer(OSM_LINE_LAYER);
+    }
+    if (map.getLayer(OSM_LINE_OUTLINE_LAYER)) {
+      map.removeLayer(OSM_LINE_OUTLINE_LAYER);
+    }
+    if (map.getSource(OSM_LINE_SOURCE)) {
+      map.removeSource(OSM_LINE_SOURCE);
+    }
+  } catch (error) {
+    console.warn('Failed to remove OSM line layers:', error);
   }
 
   // 폴백 노선 레이어/소스 제거
-  data.DATA.forEach((line) => {
-    const sourceId = `${SOURCE_PREFIX}${line.line}`;
-    const layerId = `${LAYER_PREFIX}${line.line}`;
-    const outlineId = `${OUTLINE_PREFIX}${line.line}`;
+  try {
+    data.DATA.forEach((line) => {
+      const sourceId = `${SOURCE_PREFIX}${line.line}`;
+      const layerId = `${LAYER_PREFIX}${line.line}`;
+      const outlineId = `${OUTLINE_PREFIX}${line.line}`;
 
-    if (map.getLayer(layerId)) {
-      map.removeLayer(layerId);
-    }
-    if (map.getLayer(outlineId)) {
-      map.removeLayer(outlineId);
-    }
-    if (map.getSource(sourceId)) {
-      map.removeSource(sourceId);
-    }
-  });
+      if (map.getLayer(layerId)) {
+        map.removeLayer(layerId);
+      }
+      if (map.getLayer(outlineId)) {
+        map.removeLayer(outlineId);
+      }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+    });
+  } catch (error) {
+    console.warn('Failed to remove fallback line layers:', error);
+  }
 }
 
 /**
