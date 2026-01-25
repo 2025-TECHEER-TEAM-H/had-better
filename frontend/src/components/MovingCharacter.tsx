@@ -123,7 +123,6 @@ export function MovingCharacter({
       const coordinates = mergeSegmentCoordinates(routeSegments);
       if (coordinates.length >= 2) {
         routeLineRef.current = createRouteLine(coordinates);
-        console.log(`📍 봇 ${botId} 경로 생성: ${coordinates.length}개 좌표`);
       }
     }
   }, [routeSegments, botId]);
@@ -131,7 +130,6 @@ export function MovingCharacter({
   // 처음 위치를 받으면 바로 displayPosition 설정
   useEffect(() => {
     if (currentPosition && !displayPosition) {
-      console.log(`🎯 봇 ${botId} 초기 위치 설정:`, currentPosition);
       setDisplayPosition([currentPosition.lon, currentPosition.lat]);
     }
   }, [currentPosition, botId]); // displayPosition은 의존성에서 제외

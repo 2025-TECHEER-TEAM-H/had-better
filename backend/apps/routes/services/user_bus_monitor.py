@@ -28,6 +28,8 @@ class UserBusMonitor:
         self.station_id = None
         self.station_ord = None
         self.start_station_name = None
+        self.station_lon = None  # 정류장 경도
+        self.station_lat = None  # 정류장 위도
         
         # 시간 제어 관련
         self.arrival_eta = None       # 정류장 도착 예정 시각
@@ -63,7 +65,10 @@ class UserBusMonitor:
         # 2. 버스 정보 파싱
         tmap_bus_name_raw = target_bus_leg.get('route', 'Unknown')
         self.bus_name = tmap_bus_name_raw.split(":")[-1] if ":" in tmap_bus_name_raw else tmap_bus_name_raw
-        self.start_station_name = target_bus_leg.get('start', {}).get('name')
+        start_info = target_bus_leg.get('start', {})
+        self.start_station_name = start_info.get('name')
+        self.station_lon = start_info.get('lon')
+        self.station_lat = start_info.get('lat')
         
         # 3. ETA 계산 (시작 시간 + 버스 전까지의 소요 시간)
         self.arrival_eta = route.start_time + timedelta(seconds=accumulated_seconds)
@@ -120,17 +125,21 @@ class UserBusMonitor:
             return {
                 "bus_name": self.bus_name,
                 "station_name": self.start_station_name,
+                "station_lon": self.station_lon,
+                "station_lat": self.station_lat,
                 "status": "WAITING_FOR_WINDOW",
                 "arrival_message": f"정류장 이동 중... (조회 시작까지 {int((start_window - now).total_seconds())}초 남음)",
                 "remaining_time": -1,
                 "vehicle_id": None
             }
-        
+
         if now > end_window:
             # 이미 버스 시간이 지남
             return {
                 "bus_name": self.bus_name,
                 "station_name": self.start_station_name,
+                "station_lon": self.station_lon,
+                "station_lat": self.station_lat,
                 "status": "WINDOW_CLOSED",
                 "arrival_message": "조회 가능 시간이 종료되었습니다.",
                 "remaining_time": -1,
@@ -158,6 +167,8 @@ class UserBusMonitor:
         return {
             "bus_name": self.bus_name,
             "station_name": self.start_station_name,
+            "station_lon": self.station_lon,
+            "station_lat": self.station_lat,
             "arrival_message": arrival_info.get('arrmsg1', '정보 없음'),
             "remaining_time": arrival_info.get('traTime1', '0'),
             "vehicle_id": arrival_info.get('vehId1', 'Unknown'),

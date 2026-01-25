@@ -459,6 +459,18 @@ export interface ErrorEvent extends SSEEventBase {
   message: string;
 }
 
+// user_bus_arrival 이벤트 (유저 버스 도착 정보)
+export interface UserBusArrivalEvent extends SSEEventBase {
+  bus_name: string;
+  station_name: string;
+  station_lon: number;  // 정류장 경도
+  station_lat: number;  // 정류장 위도
+  arrival_message: string;
+  remaining_time: number;
+  vehicle_id: string;
+  status: 'ACTIVE' | 'WAITING_FOR_WINDOW' | 'WINDOW_CLOSED';
+}
+
 // 모든 SSE 이벤트 유니온 타입
 export type SSEEvent =
   | { event: 'connected'; data: ConnectedEvent }
@@ -467,6 +479,7 @@ export type SSEEvent =
   | { event: 'bot_alighting'; data: BotAlightingEvent }
   | { event: 'participant_finished'; data: ParticipantFinishedEvent }
   | { event: 'route_ended'; data: RouteEndedEvent }
+  | { event: 'user_bus_arrival'; data: UserBusArrivalEvent }
   | { event: 'heartbeat'; data: HeartbeatEvent }
   | { event: 'error'; data: ErrorEvent };
 
