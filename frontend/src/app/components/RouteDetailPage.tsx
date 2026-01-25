@@ -2000,14 +2000,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         </div>
       )}
 
-      {/* GPS 상태 및 남은 거리 */}
+      {/* 플레이 모드 및 남은 거리 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${
-            isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+            playMode === 'gps' ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'
           }`} />
           <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
-            {isGpsTestMode ? '🧪 테스트 모드' : isGpsTracking ? 'GPS 추적 중' : 'GPS 꺼짐'}
+            {playMode === 'gps' ? '📍 GPS 모드' : '🤖 시뮬레이션'}
           </p>
         </div>
         {distanceToDestination !== null && (
@@ -2019,44 +2019,6 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         )}
       </div>
 
-      {/* GPS 컨트롤 버튼들 */}
-      <div className="flex gap-2 mt-2">
-        {/* 실제 GPS 버튼 */}
-        <button
-          onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
-          disabled={isGpsTestMode}
-          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-            isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
-          }`}
-        >
-          <span className="text-[12px]">{isGpsTracking ? '📍' : '🛰️'}</span>
-          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
-            {isGpsTracking ? '중지' : '실제 GPS'}
-          </span>
-        </button>
-
-        {/* 테스트 모드 버튼 */}
-        <button
-          onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
-          disabled={isGpsTracking}
-          className={`flex-1 h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-            isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
-          }`}
-        >
-          <span className="text-[12px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
-          <span className="font-['Wittgenstein',sans-serif] text-[10px] text-black">
-            {isGpsTestMode ? '중지' : '테스트'}
-          </span>
-        </button>
-
-        {/* 리셋 버튼 */}
-        <button
-          onClick={resetGpsTestMode}
-          className="w-[32px] h-[32px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all hover:scale-[1.02] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
-        >
-          <span className="text-[12px]">🔄</span>
-        </button>
-      </div>
     </div>
   );
 
@@ -2783,61 +2745,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           ) : (
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
-                isGpsTestMode ? 'bg-purple-500 animate-pulse' : isGpsTracking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                playMode === 'gps' ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'
               }`} />
               <p className="font-['Wittgenstein',sans-serif] text-[11px] text-black">
-                {isGpsTestMode
+                {playMode === 'gps'
                   ? distanceToDestination !== null
-                    ? `🧪 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                    : '🧪 테스트 중'
-                  : isGpsTracking
-                    ? distanceToDestination !== null
-                      ? `🏁 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                      : 'GPS 추적 중'
-                    : 'GPS 꺼짐'}
+                    ? `📍 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                    : '📍 GPS 모드'
+                  : distanceToDestination !== null
+                    ? `🤖 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
+                    : '🤖 시뮬레이션'}
               </p>
             </div>
           )}
         </div>
 
-        {/* GPS 버튼들 */}
-        <div className="flex gap-1 mt-2">
-          {/* 실제 GPS 버튼 */}
-          <button
-            onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
-            disabled={isGpsTestMode}
-            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-              isGpsTestMode ? 'bg-gray-300 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]' : 'bg-[#4ecdc4]'
-            }`}
-          >
-            <span className="text-[10px]">{isGpsTracking ? '📍' : '🛰️'}</span>
-            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
-              {isGpsTracking ? '중지' : 'GPS'}
-            </span>
-          </button>
-
-          {/* 테스트 모드 버튼 */}
-          <button
-            onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
-            disabled={isGpsTracking}
-            className={`flex-1 h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] flex items-center justify-center gap-1 transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-              isGpsTracking ? 'bg-gray-300 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]' : 'bg-[#a78bfa]'
-            }`}
-          >
-            <span className="text-[10px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
-            <span className="font-['Wittgenstein',sans-serif] text-[9px] text-black">
-              {isGpsTestMode ? '중지' : '테스트'}
-            </span>
-          </button>
-
-          {/* 리셋 버튼 */}
-          <button
-            onClick={resetGpsTestMode}
-            className="w-[28px] h-[28px] rounded-[8px] border-[2px] border-black shadow-[2px_2px_0px_0px_black] bg-white flex items-center justify-center transition-all active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
-          >
-            <span className="text-[10px]">🔄</span>
-          </button>
-        </div>
       </div>
 
       {/* 실시간 순위 카드 - 슬라이드업 위 */}
