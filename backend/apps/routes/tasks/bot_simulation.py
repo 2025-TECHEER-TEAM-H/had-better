@@ -1416,9 +1416,63 @@ def _handle_riding_subway(
         )
 
     if should_alight:
-        return _alight_from_subway(
-            route_id, route_itinerary_id, bot_state, end_station, legs
+        # pending_alight 플래그 확인: 이미 설정되어 있으면 실제 하차 처리
+        if bot_state.get("pending_alight"):
+            logger.info(f"지하철 하차 실행 (pending_alight=True): route_id={route_id}")
+            return _alight_from_subway(
+                route_id, route_itinerary_id, bot_state, end_station, legs
+            )
+
+        # pending_alight 플래그가 없으면: 좌표만 업데이트하고 다음 업데이트에서 하차
+        logger.info(
+            f"지하철 하차 대기 (pending_alight 설정): route_id={route_id}, "
+            f"end_station={end_station}"
         )
+
+        # 하차역 좌표 찾기 및 위치 업데이트
+        pass_stop_list = current_leg.get("passStopList", {})
+        stations = pass_stop_list.get("stations", [])
+        end_station_coord = None
+        for station in stations:
+            if _stations_match(station.get("stationName", ""), end_station):
+                station_lon = station.get("lon")
+                station_lat = station.get("lat")
+                if station_lon and station_lat:
+                    end_station_coord = (float(station_lon), float(station_lat))
+                    break
+
+        if end_station_coord:
+            BotStateManager.update_position(
+                route_id=route_id,
+                lon=end_station_coord[0],
+                lat=end_station_coord[1]
+            )
+            logger.info(
+                f"지하철 하차역 좌표 설정 (대기): route_id={route_id}, "
+                f"end_station={end_station}, coord={end_station_coord}"
+            )
+
+        # pending_alight 플래그 설정
+        BotStateManager.update(route_id, pending_alight=True)
+
+        # RIDING_SUBWAY 상태 유지하며 SSE 발행 (프론트엔드가 하차역으로 보간 이동)
+        updated_bot_state = BotStateManager.get(route_id) or bot_state
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            vehicle_info={
+                "type": "SUBWAY",
+                "route": subway_line,
+                "trainNo": train_no,
+                "current_station": end_station,  # 하차역으로 표시
+                "current_station_index": end_idx if end_idx >= 0 else len(pass_stops) - 1,
+                "total_stations": len(pass_stops),
+                "train_status": train_status,
+                "pass_shape": public_leg.get("pass_shape"),
+            },
+            next_update_in=30,
+        )
+        return 30
 
     # 역 기반 진행률을 전체 경로에 반영
     if current_idx >= 0 and len(pass_stops) > 1:
@@ -1561,6 +1615,9 @@ def _alight_from_subway(
         BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
     elif next_leg["mode"] == "SUBWAY":
         BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+
+    # pending_alight 플래그 제거
+    BotStateManager.update(route_id, pending_alight=False)
 
     # 🚇 상태 전환 후 즉시 bot_status_update 발행 (프론트엔드에서 새 좌표 적용)
     updated_bot_state = BotStateManager.get(route_id)
