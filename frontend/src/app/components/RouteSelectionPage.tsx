@@ -89,6 +89,9 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
   const layerButtonRef = useRef<HTMLButtonElement>(null); // 레이어 버튼 ref
   const popoverRef = useRef<HTMLDivElement>(null); // 팝오버 ref
 
+  // 경로 카드 확장 상태
+  const [expandedRouteId, setExpandedRouteId] = useState<number | null>(null);
+
   // SSE 관련 상태
   const [activeRouteId, setActiveRouteId] = useState<number | null>(null);
   const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
@@ -692,13 +695,18 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                 imgBot2Character
               : null;
 
+            // 확장 상태 확인
+            const isExpanded = expandedRouteId === leg.route_leg_id;
+            const detail = legDetails.get(leg.route_leg_id);
+
             return (
               <div
                 key={leg.route_leg_id}
-                className="rounded-[10px] border border-black/20 backdrop-blur-lg shadow-lg p-4 md:p-5"
+                className="rounded-[10px] border border-black/20 backdrop-blur-lg shadow-lg p-4 md:p-5 cursor-pointer transition-all duration-300"
                 style={{
                   backgroundColor: colorScheme.bg,
                 }}
+                onClick={() => setExpandedRouteId(isExpanded ? null : leg.route_leg_id)}
               >
                 <div className="flex flex-col gap-3 md:flex-row md:gap-4">
                   {/* 경로 번호 아이콘 */}
@@ -766,7 +774,10 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                             <label
                               key={player}
                               className="flex gap-2 md:gap-1 items-center cursor-pointer py-1 md:py-0"
-                              onClick={() => toggleAssignment(player, leg.route_leg_id)}
+                              onClick={(e) => {
+                                e.stopPropagation(); // 카드 확장/축소 방지
+                                toggleAssignment(player, leg.route_leg_id);
+                              }}
                             >
                               <div className="size-[18px] md:size-[12px] border-[2px] md:border-[1.5px] border-black bg-white flex items-center justify-center rounded-sm">
                                 {isAssigned(player, leg.route_leg_id) && (
@@ -800,6 +811,47 @@ export function RouteSelectionPage({ onBack, onNavigate, isSubwayMode }: RouteSe
                         )}
                       </div>
                     </div>
+
+                    {/* 확장 영역: 상세 경로 정보 */}
+                    {isExpanded && detail?.legs && (
+                      <div
+                        className="mt-3 pt-3 border-t border-black/20"
+                        onClick={(e) => e.stopPropagation()} // 클릭 이벤트 버블링 방지
+                      >
+                        <p className="font-['Wittgenstein',sans-serif] text-[12px] md:text-[10px] text-black/70 mb-2 font-semibold">
+                          상세 경로
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {detail.legs.map((step, stepIndex) => {
+                            const modeIcon = step.mode === 'WALK' ? '🚶' :
+                                           step.mode === 'BUS' ? '🚌' :
+                                           step.mode === 'SUBWAY' ? '🚇' :
+                                           step.mode === 'EXPRESSBUS' ? '🚍' :
+                                           step.mode === 'TRAIN' ? '🚆' : '📍';
+                            const modeLabel = step.mode === 'WALK'
+                              ? `도보 이동 (${step.distance}m)`
+                              : `${step.route || step.mode} (${Math.round(step.sectionTime / 60)}분)`;
+
+                            return (
+                              <div
+                                key={stepIndex}
+                                className="flex items-center gap-2 bg-white/50 rounded-md px-3 py-2"
+                              >
+                                <span className="text-[16px] md:text-[14px]">{modeIcon}</span>
+                                <span className="font-['Wittgenstein',sans-serif] text-[13px] md:text-[11px] text-black">
+                                  {modeLabel}
+                                </span>
+                                {step.mode !== 'WALK' && step.start?.name && (
+                                  <span className="font-['Wittgenstein',sans-serif] text-[11px] md:text-[9px] text-black/60 ml-auto">
+                                    {step.start.name} → {step.end?.name}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
