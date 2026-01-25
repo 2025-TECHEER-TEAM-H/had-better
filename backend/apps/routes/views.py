@@ -391,12 +391,10 @@ class RouteListCreateView(APIView):
                     next_update_in=5,  # 첫 번째 업데이트까지 5초
                 )
 
-                # 첫 번째 Task 5초 후 실행 (초기 SSE 발행 후 빠른 첫 업데이트)
-                # countdown=0은 큐 지연으로 실제 즉시 실행이 안 됨
-                # 5초 후 첫 업데이트로 빠른 피드백 제공
+                # 첫 번째 Task 즉시 실행 (경주 시작 직후 빠른 업데이트)
                 result = update_bot_position.apply_async(
                     args=[bot_route.id],
-                    countdown=5,
+                    countdown=0,
                 )
                 # Task ID 저장 (즉시 취소용)
                 redis_client.set_task_id(bot_route.id, result.id)
@@ -553,6 +551,46 @@ class RouteStatusUpdateView(APIView):
             route.duration = int(duration_delta.total_seconds())
 
         route.save()
+
+        # FINISHED인 경우 SSE 이벤트 발행 (순위 계산 포함)
+        if new_status == Route.Status.FINISHED:
+            # 순위 계산: 자신보다 먼저 도착한 참가자 수 + 1
+            rank = (
+                Route.objects.filter(
+                    route_itinerary=route.route_itinerary,
+                    start_time=route.start_time,
+                    end_time__isnull=False,
+                    duration__isnull=False,
+                    duration__lt=route.duration,
+                    deleted_at__isnull=True,
+                ).count()
+                + 1
+            )
+
+            # participant_finished SSE 이벤트 발행
+            SSEPublisher.publish_participant_finished(
+                route_itinerary_id=route.route_itinerary_id,
+                participant={
+                    "route_id": route.id,
+                    "type": "USER",
+                    "user_id": request.user.id,
+                },
+                rank=rank,
+                duration=route.duration,
+            )
+            logger.info(f"유저 도착 SSE 발행: route_id={route.id}, rank={rank}, duration={route.duration}")
+
+            # 모든 참가자 완주 여부 확인
+            unfinished = Route.objects.filter(
+                route_itinerary=route.route_itinerary,
+                start_time=route.start_time,
+                end_time__isnull=True,
+                deleted_at__isnull=True,
+            ).count()
+
+            if unfinished == 0:
+                SSEPublisher.publish_route_ended(route.route_itinerary_id)
+                logger.info(f"경주 종료 SSE 발행: route_itinerary_id={route.route_itinerary_id}")
 
         # CANCELED인 경우 같은 경주의 봇 Route도 취소 처리 및 봇 상태 정리
         if new_status == Route.Status.CANCELED:

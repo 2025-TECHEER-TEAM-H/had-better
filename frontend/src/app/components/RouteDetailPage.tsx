@@ -4,7 +4,7 @@ import { ResultPopup } from "@/app/components/ResultPopup";
 import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS } from "@/stores/routeStore";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType } from "@/types/route";
+import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType, type RouteSegment, type LegStep } from "@/types/route";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import * as turf from "@turf/turf";
 import { useRouteSSE } from "@/hooks/useRouteSSE";
@@ -48,6 +48,62 @@ interface RouteDetailPageProps {
   onBack?: () => void;
   onNavigate?: (page: PageType) => void;
   onOpenDashboard?: () => void;
+}
+
+/**
+ * LegStep[] → RouteSegment[] 변환
+ * passShape.linestring 또는 steps[].linestring에서 좌표 추출
+ */
+function convertLegsToSegments(legs: LegStep[]): RouteSegment[] {
+  return legs.map((leg, index) => {
+    const pathCoordinates: [number, number][] = [];
+
+    // passShape가 있으면 사용 (BUS/SUBWAY 구간)
+    if (leg.passShape?.linestring) {
+      const points = leg.passShape.linestring.split(' ');
+      for (const point of points) {
+        const [lon, lat] = point.split(',').map(Number);
+        if (!isNaN(lon) && !isNaN(lat)) {
+          pathCoordinates.push([lon, lat]);
+        }
+      }
+    } else if (leg.steps && leg.steps.length > 0) {
+      // WALK 구간: steps[].linestring 사용
+      for (const step of leg.steps) {
+        if (step.linestring) {
+          const points = step.linestring.split(' ');
+          for (const point of points) {
+            const [lon, lat] = point.split(',').map(Number);
+            if (!isNaN(lon) && !isNaN(lat)) {
+              pathCoordinates.push([lon, lat]);
+            }
+          }
+        }
+      }
+    }
+
+    // 좌표가 없으면 시작점/끝점 사용
+    if (pathCoordinates.length === 0) {
+      pathCoordinates.push([leg.start.lon, leg.start.lat]);
+      pathCoordinates.push([leg.end.lon, leg.end.lat]);
+    }
+
+    return {
+      segment_index: index,
+      mode: leg.mode as RouteSegment['mode'],
+      section_time: leg.sectionTime,
+      distance: leg.distance,
+      start_name: leg.start.name,
+      start_lat: leg.start.lat,
+      start_lon: leg.start.lon,
+      end_name: leg.end.name,
+      end_lat: leg.end.lat,
+      end_lon: leg.end.lon,
+      route_name: leg.route || '',
+      route_color: leg.routeColor || '#888888',
+      path_coordinates: pathCoordinates,
+    };
+  });
 }
 
 export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDetailPageProps) {
@@ -132,7 +188,36 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         console.log(`🚶 봇 ${data.bot_id} 하차:`, data.station_name);
       },
       onParticipantFinished: (data) => {
-        console.log(`🏁 참가자 도착! 순위: ${data.rank}위`);
+        console.log(`🏁 참가자 도착! 순위: ${data.rank}위`, data);
+
+        // 참가자 타입에 따라 player 키 결정
+        let player: Player;
+        if (data.participant.type === 'USER') {
+          player = 'user';
+        } else {
+          // BOT인 경우: bot_id로 bot1/bot2 매핑
+          const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+          const botIndex = botParticipants.findIndex(p => p.bot_id === data.participant.bot_id);
+          player = botIndex === 0 ? 'bot1' : 'bot2';
+        }
+
+        // 진행률 100%로 설정
+        setPlayerProgress((prev) => {
+          const newProgress = new Map(prev);
+          newProgress.set(player, 1);
+          return newProgress;
+        });
+
+        // 도착 시간 기록 (duration 기반 또는 현재 시간)
+        setFinishTimes((prev) => {
+          const newTimes = new Map(prev);
+          // raceStartTime이 있으면 duration 기반으로 계산, 없으면 현재 시간 사용
+          const finishTime = raceStartTime.current
+            ? raceStartTime.current + (data.duration * 1000)
+            : Date.now();
+          newTimes.set(player, finishTime);
+          return newTimes;
+        });
       },
       onRouteEnded: (data) => {
         console.log(`🎉 경주 종료: ${data.reason}`);
@@ -1605,7 +1690,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return (participant?.bot_type as CharacterColor) || 'purple';
   }, [createRouteResponse]);
 
-  // 봇 목록 (SSE 데이터 + 출발지 fallback)
+  // 봇 목록 (SSE 데이터 + 출발지 fallback + 경로 세그먼트)
   const botList = useMemo(() => {
     const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
 
@@ -1618,15 +1703,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       const position = state?.position || (departure ? { lon: departure.lon, lat: departure.lat } : null);
       const botStatus = state?.status || 'WALKING';
 
+      // 봇의 경로 세그먼트 가져오기
+      const routeLegId = participant.leg.route_leg_id;
+      const detail = legDetails.get(routeLegId);
+      const routeSegments = detail?.legs ? convertLegsToSegments(detail.legs) : [];
+
       return {
         botId,
         state: state ? { ...state, position } : { position, status: botStatus } as any,
         player,
         color: getBotColor(botId),
         hasRealPosition: !!state?.position,
+        routeSegments,
       };
     });
-  }, [botPositions, createRouteResponse, getBotColor, departure]);
+  }, [botPositions, createRouteResponse, getBotColor, departure, legDetails]);
 
   // 순위표용 PLAYER_COLORS (레거시 호환)
   const PLAYER_COLORS: Record<Player, CharacterColor> = useMemo(() => {
@@ -1713,8 +1804,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         />
       )}
 
-      {/* Bot 캐릭터들 (SSE 데이터 + 출발지 fallback) */}
-      {botList.map(({ botId, state, color }) => (
+      {/* Bot 캐릭터들 (SSE 데이터 + 출발지 fallback + 경로 기반 보간) */}
+      {botList.map(({ botId, state, color, routeSegments }) => (
         state.position ? (
           <MovingCharacter
             key={botId}
@@ -1723,7 +1814,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             botId={botId}
             currentPosition={state.position}
             status={state.status}
-            updateInterval={30000}  // SSE 업데이트 주기(30초)에 맞춤
+            routeSegments={routeSegments}
+            updateInterval={(state.next_update_in || 30) * 1000}  // SSE에서 받은 다음 업데이트 시간 사용
             size={64}
             animationSpeed={150}
           />

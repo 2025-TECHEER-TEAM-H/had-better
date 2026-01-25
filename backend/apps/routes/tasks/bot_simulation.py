@@ -352,11 +352,15 @@ def _handle_walking(
     # 업데이트된 봇 상태 조회 (current_position 포함)
     updated_bot_state = BotStateManager.get(route_id) or bot_state
 
+    # 첫 업데이트 여부 (elapsed < 10초 = 방금 시작)
+    is_first_update = elapsed < 10
+    next_interval = 5 if is_first_update else 30
+
     # SSE 발행
     SSEPublisher.publish_bot_status_update(
         route_itinerary_id=route_itinerary_id,
         bot_state={**updated_bot_state, "progress_percent": progress_percent},
-        next_update_in=30,
+        next_update_in=next_interval,
     )
 
     # 도보 구간 완료
@@ -376,7 +380,7 @@ def _handle_walking(
         else:
             BotStateManager.transition_to_walking(route_id, next_leg_index)
 
-    return 30
+    return next_interval
 
 
 def _handle_waiting_bus_fallback(
@@ -1416,9 +1420,63 @@ def _handle_riding_subway(
         )
 
     if should_alight:
-        return _alight_from_subway(
-            route_id, route_itinerary_id, bot_state, end_station, legs
+        # pending_alight 플래그 확인: 이미 설정되어 있으면 실제 하차 처리
+        if bot_state.get("pending_alight"):
+            logger.info(f"지하철 하차 실행 (pending_alight=True): route_id={route_id}")
+            return _alight_from_subway(
+                route_id, route_itinerary_id, bot_state, end_station, legs
+            )
+
+        # pending_alight 플래그가 없으면: 좌표만 업데이트하고 다음 업데이트에서 하차
+        logger.info(
+            f"지하철 하차 대기 (pending_alight 설정): route_id={route_id}, "
+            f"end_station={end_station}"
         )
+
+        # 하차역 좌표 찾기 및 위치 업데이트
+        pass_stop_list = current_leg.get("passStopList", {})
+        stations = pass_stop_list.get("stations", [])
+        end_station_coord = None
+        for station in stations:
+            if _stations_match(station.get("stationName", ""), end_station):
+                station_lon = station.get("lon")
+                station_lat = station.get("lat")
+                if station_lon and station_lat:
+                    end_station_coord = (float(station_lon), float(station_lat))
+                    break
+
+        if end_station_coord:
+            BotStateManager.update_position(
+                route_id=route_id,
+                lon=end_station_coord[0],
+                lat=end_station_coord[1]
+            )
+            logger.info(
+                f"지하철 하차역 좌표 설정 (대기): route_id={route_id}, "
+                f"end_station={end_station}, coord={end_station_coord}"
+            )
+
+        # pending_alight 플래그 설정
+        BotStateManager.update(route_id, pending_alight=True)
+
+        # RIDING_SUBWAY 상태 유지하며 SSE 발행 (프론트엔드가 하차역으로 보간 이동)
+        updated_bot_state = BotStateManager.get(route_id) or bot_state
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            vehicle_info={
+                "type": "SUBWAY",
+                "route": subway_line,
+                "trainNo": train_no,
+                "current_station": end_station,  # 하차역으로 표시
+                "current_station_index": end_idx if end_idx >= 0 else len(pass_stops) - 1,
+                "total_stations": len(pass_stops),
+                "train_status": train_status,
+                "pass_shape": public_leg.get("pass_shape"),
+            },
+            next_update_in=30,
+        )
+        return 30
 
     # 역 기반 진행률을 전체 경로에 반영
     if current_idx >= 0 and len(pass_stops) > 1:
@@ -1430,49 +1488,50 @@ def _handle_riding_subway(
         )
         progress_percent = max(progress_percent, station_based_total)
 
-    # 🚇 지하철 위치 업데이트 (현재 역 좌표 추정)
+    # 🚇 지하철 위치 업데이트 (passStopList.stations에서 역 좌표 직접 사용)
     if current_idx >= 0:
-        raw_pass_shape = public_leg.get("pass_shape")
-        # pass_shape 문자열을 좌표 배열로 파싱
-        parsed_coords = _parse_pass_shape(raw_pass_shape)
+        # TMap API 응답의 passStopList.stations에서 역 좌표 가져오기
+        pass_stop_list = current_leg.get("passStopList", {})
+        stations = pass_stop_list.get("stations", [])
 
-        # 역 인덱스를 좌표 인덱스로 변환
-        # pass_stops: 역 개수 (예: 5개)
-        # parsed_coords: 경로 좌표 개수 (예: 143개)
-        # current_idx가 2/5 지점이면, 좌표는 2/5 * 143 ≈ 57번째
-        total_stations = len(pass_stops) if pass_stops else 1
-        coord_idx = 0
-        if parsed_coords and total_stations > 1:
-            # 역 진행률을 좌표 인덱스로 변환
-            station_progress = current_idx / (total_stations - 1)
-            coord_idx = int(station_progress * (len(parsed_coords) - 1))
-            coord_idx = max(0, min(coord_idx, len(parsed_coords) - 1))
+        station_coord = None
+        # 현재 역 인덱스로 좌표 찾기
+        if stations and current_idx < len(stations):
+            station = stations[current_idx]
+            station_lon = station.get("lon")
+            station_lat = station.get("lat")
+            if station_lon and station_lat:
+                station_coord = (float(station_lon), float(station_lat))
 
-        # 디버깅 로그: pass_shape 데이터 확인
+        # 인덱스로 못 찾으면 역명으로 검색
+        if not station_coord and current_station:
+            for station in stations:
+                if _stations_match(station.get("stationName", ""), current_station):
+                    station_lon = station.get("lon")
+                    station_lat = station.get("lat")
+                    if station_lon and station_lat:
+                        station_coord = (float(station_lon), float(station_lat))
+                        break
+
+        # 디버깅 로그
         logger.info(
-            f"pass_shape 디버깅: route_id={route_id}, "
-            f"raw_type={type(raw_pass_shape).__name__}, "
-            f"parsed_len={len(parsed_coords)}, "
-            f"current_idx(역)={current_idx}, coord_idx(좌표)={coord_idx}, "
-            f"total_stations={total_stations}"
+            f"지하철 역 좌표 조회: route_id={route_id}, "
+            f"current_station={current_station}, current_idx={current_idx}, "
+            f"stations_count={len(stations)}, "
+            f"station_coord={station_coord}"
         )
 
-        if parsed_coords and len(parsed_coords) > coord_idx:
-            coord = parsed_coords[coord_idx]
-            logger.info(
-                f"coord 디버깅: route_id={route_id}, "
-                f"coord={coord}"
-            )
+        if station_coord:
             BotStateManager.update_position(
                 route_id=route_id,
-                lon=coord[0],
-                lat=coord[1]
+                lon=station_coord[0],
+                lat=station_coord[1]
             )
-        elif pass_stops and len(pass_stops) > current_idx:
-            # pass_shape이 없거나 파싱 실패 시 역명만 사용 (좌표 없음)
-            logger.info(
-                f"pass_shape 좌표 없음, 역명만 사용: route_id={route_id}, "
-                f"current_station={pass_stops[current_idx] if current_idx < len(pass_stops) else 'N/A'}"
+        else:
+            # passStopList.stations에서 좌표를 못 찾은 경우 로그
+            logger.warning(
+                f"역 좌표 없음: route_id={route_id}, "
+                f"current_station={current_station}, current_idx={current_idx}"
             )
 
     # 업데이트된 봇 상태 조회 (current_position 포함)
@@ -1505,6 +1564,40 @@ def _alight_from_subway(
     legs: list,
 ) -> int:
     """지하철 하차 처리 공통 함수"""
+    # 🚇 하차역 좌표로 봇 위치 업데이트
+    current_leg_index = bot_state["current_leg_index"]
+    if current_leg_index < len(legs):
+        current_leg = legs[current_leg_index]
+        pass_stop_list = current_leg.get("passStopList", {})
+        stations = pass_stop_list.get("stations", [])
+
+        # 하차역 좌표 찾기
+        end_station_coord = None
+        for station in stations:
+            station_name = station.get("stationName", "")
+            if _stations_match(station_name, end_station):
+                station_lon = station.get("lon")
+                station_lat = station.get("lat")
+                if station_lon and station_lat:
+                    end_station_coord = (float(station_lon), float(station_lat))
+                    break
+
+        if end_station_coord:
+            BotStateManager.update_position(
+                route_id=route_id,
+                lon=end_station_coord[0],
+                lat=end_station_coord[1]
+            )
+            logger.info(
+                f"지하철 하차역 좌표 설정: route_id={route_id}, "
+                f"end_station={end_station}, coord={end_station_coord}"
+            )
+        else:
+            logger.warning(
+                f"지하철 하차역 좌표 없음: route_id={route_id}, "
+                f"end_station={end_station}, stations_count={len(stations)}"
+            )
+
     SSEPublisher.publish_bot_alighting(
         route_itinerary_id=route_itinerary_id,
         route_id=route_id,
@@ -1527,6 +1620,29 @@ def _alight_from_subway(
     elif next_leg["mode"] == "SUBWAY":
         BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
 
+    # pending_alight 플래그 제거
+    BotStateManager.update(route_id, pending_alight=False)
+
+    # 🚇 상태 전환 후 즉시 bot_status_update 발행 (프론트엔드에서 새 좌표 적용)
+    updated_bot_state = BotStateManager.get(route_id)
+    if updated_bot_state:
+        # 현재 leg까지 완료된 진행률 계산
+        completed_time = sum(
+            legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+        )
+        total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+        progress_percent = (completed_time / total_time * 100) if total_time > 0 else 0
+
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            next_update_in=30,
+        )
+        logger.info(
+            f"지하철 하차 후 상태 업데이트 발행: route_id={route_id}, "
+            f"status={updated_bot_state.get('status')}, progress={progress_percent:.1f}%"
+        )
+
     return 30
 
 
@@ -1539,19 +1655,22 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
         route.end_time = timezone.now()
 
         if route.start_time:
-            route.duration = (route.end_time - route.start_time).total_seconds()
+            route.duration = int((route.end_time - route.start_time).total_seconds())
         else:
             route.duration = 0
 
-        route.status = "FINISHED"
+        route.status = Route.Status.FINISHED
         route.save()
 
-        # 순위 계산
+        # 순위 계산: 같은 경주(route_itinerary + start_time)에서 자신보다 먼저 도착한 참가자 수 + 1
         rank = (
             Route.objects.filter(
                 route_itinerary_id=route_itinerary_id,
+                start_time=route.start_time,
                 end_time__isnull=False,
+                duration__isnull=False,
                 duration__lt=route.duration,
+                deleted_at__isnull=True,
             ).count()
             + 1
         )
@@ -1566,15 +1685,19 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
             rank=rank,
             duration=int(route.duration),
         )
+        logger.info(f"봇 도착 SSE 발행: route_id={route_id}, bot_id={bot_state['bot_id']}, rank={rank}, duration={route.duration}")
 
-        # 모든 참가자 완주 여부 확인
+        # 모든 참가자 완주 여부 확인 (같은 경주만)
         unfinished = Route.objects.filter(
             route_itinerary_id=route_itinerary_id,
+            start_time=route.start_time,
             end_time__isnull=True,
+            deleted_at__isnull=True,
         ).count()
 
         if unfinished == 0:
             SSEPublisher.publish_route_ended(route_itinerary_id)
+            logger.info(f"경주 종료 SSE 발행: route_itinerary_id={route_itinerary_id}")
 
     except Route.DoesNotExist:
         logger.error(f"경주를 찾을 수 없음: route_id={route_id}")
