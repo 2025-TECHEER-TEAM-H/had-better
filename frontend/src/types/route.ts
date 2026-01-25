@@ -463,6 +463,8 @@ export interface ErrorEvent extends SSEEventBase {
 export interface UserBusArrivalEvent extends SSEEventBase {
   bus_name: string;
   station_name: string;
+  station_lon: number;  // 정류장 경도
+  station_lat: number;  // 정류장 위도
   arrival_message: string;
   remaining_time: number;
   vehicle_id: string;

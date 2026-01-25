@@ -273,6 +273,11 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const ARRIVAL_THRESHOLD = 20;
   const OFF_ROUTE_THRESHOLD = 20;
 
+  // 버스 정류장 진입/이탈 상태 (버스 도착 정보 표시 제어용)
+  const [hasEnteredBusStop, setHasEnteredBusStop] = useState(false);
+  const [hasLeftBusStop, setHasLeftBusStop] = useState(false);
+  const BUS_STOP_THRESHOLD = 10; // 10m
+
   // 웹/앱 화면 감지
   useEffect(() => {
     const checkViewport = () => {
@@ -596,6 +601,38 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       }
     };
   }, []);
+
+  // 버스 정류장 진입/이탈 감지 (버스 도착 정보 표시 제어)
+  useEffect(() => {
+    // GPS 위치와 버스 정류장 좌표가 모두 있어야 함
+    if (!userLocation || !userBusArrival?.station_lon || !userBusArrival?.station_lat) {
+      return;
+    }
+
+    // 이미 정류장을 떠난 경우 더 이상 체크하지 않음
+    if (hasLeftBusStop) {
+      return;
+    }
+
+    // GPS 위치와 정류장 거리 계산
+    const distance = turf.distance(
+      turf.point(userLocation),
+      turf.point([userBusArrival.station_lon, userBusArrival.station_lat]),
+      { units: 'meters' }
+    );
+
+    // 10m 안에 들어오면 진입 플래그 설정
+    if (distance <= BUS_STOP_THRESHOLD) {
+      if (!hasEnteredBusStop) {
+        setHasEnteredBusStop(true);
+      }
+    }
+
+    // 10m 밖으로 나가면 (이미 들어왔었다면) 이탈 플래그 설정
+    if (hasEnteredBusStop && distance > BUS_STOP_THRESHOLD) {
+      setHasLeftBusStop(true);
+    }
+  }, [userLocation, userBusArrival, hasEnteredBusStop, hasLeftBusStop, BUS_STOP_THRESHOLD]);
 
   // GPS 테스트 모드: 가짜 GPS 위치 업데이트
   const updateTestGpsPosition = useCallback((progress: number) => {
@@ -2077,8 +2114,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                     {leg.mode === "WALK"
                       ? `도보 이동 (${metersToKilometers(leg.distance)})`
                       : `${leg.route || leg.mode} (${secondsToMinutes(leg.sectionTime)}분)`}
-                    {/* 유저 버스 도착 정보 표시 */}
-                    {player === 'user' && leg.mode === "BUS" && userBusArrival && userBusArrival.status === "ACTIVE" &&
+                    {/* 유저 버스 도착 정보 표시 (정류장 이탈 후 숨김) */}
+                    {player === 'user' && leg.mode === "BUS" && !hasLeftBusStop &&
+                     userBusArrival && userBusArrival.status === "ACTIVE" &&
                      userBusArrival.bus_name === (leg.route?.split(':').pop() || leg.route) && (
                       <span className="ml-2 text-[#ffd93d]">
                         · 다음 버스: {userBusArrival.arrival_message}
