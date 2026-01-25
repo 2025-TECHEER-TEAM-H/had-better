@@ -147,7 +147,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // SSE 연결 (createRouteResponse에서 route_itinerary_id 가져옴)
   const activeRouteId = createRouteResponse?.route_itinerary_id || null;
-  const { status, botStates, connect, disconnect } = useRouteSSE(
+  const { status, botStates, userBusArrival, connect, disconnect } = useRouteSSE(
     activeRouteId,
     {
       onConnected: (data) => {
@@ -2077,6 +2077,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                     {leg.mode === "WALK"
                       ? `도보 이동 (${metersToKilometers(leg.distance)})`
                       : `${leg.route || leg.mode} (${secondsToMinutes(leg.sectionTime)}분)`}
+                    {/* 유저 버스 도착 정보 표시 */}
+                    {player === 'user' && leg.mode === "BUS" && userBusArrival && userBusArrival.status === "ACTIVE" &&
+                     userBusArrival.bus_name === (leg.route?.split(':').pop() || leg.route) && (
+                      <span className="ml-2 text-[#ffd93d]">
+                        · 다음 버스: {userBusArrival.arrival_message}
+                      </span>
+                    )}
                   </p>
                   <p className="font-['Wittgenstein',sans-serif] text-[10px] text-white/70 leading-[12px] mt-1">
                     {leg.start.name} → {leg.end.name}

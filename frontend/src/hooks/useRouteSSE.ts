@@ -19,6 +19,7 @@ import type {
   ParticipantFinishedEvent,
   RouteEndedEvent,
   ConnectedEvent,
+  UserBusArrivalEvent,
 } from '@/types/route';
 
 // SSE 연결 상태
@@ -37,6 +38,7 @@ export interface SSEEventHandlers {
   onBotAlighting?: (data: BotAlightingEvent) => void;
   onParticipantFinished?: (data: ParticipantFinishedEvent) => void;
   onRouteEnded?: (data: RouteEndedEvent) => void;
+  onUserBusArrival?: (data: UserBusArrivalEvent) => void;
   onError?: (error: Error) => void;
 }
 
@@ -56,6 +58,8 @@ interface UseRouteSSEReturn {
   status: SSEConnectionStatus;
   // 마지막 봇 상태 업데이트 (봇별로 저장)
   botStates: Map<number, BotStatusUpdateEvent>;
+  // 유저 버스 도착 정보
+  userBusArrival: UserBusArrivalEvent | null;
   // 수동 연결
   connect: () => void;
   // 수동 연결 해제
@@ -89,6 +93,7 @@ export function useRouteSSE(
   const [botStates, setBotStates] = useState<Map<number, BotStatusUpdateEvent>>(
     new Map()
   );
+  const [userBusArrival, setUserBusArrival] = useState<UserBusArrivalEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // refs (핸들러 변경에 따른 재연결 방지)
@@ -148,10 +153,11 @@ export function useRouteSSE(
         h.onRouteEnded?.(event.data);
         break;
 
-      // [추가됨] 유저 버스 도착 정보 (백엔드에서 실시간 전송)
+      // 유저 버스 도착 정보 (백엔드에서 실시간 전송)
       case 'user_bus_arrival':
         console.log('🚍 유저 탑승 버스 정보:', event.data);
-        // 필요한 경우 여기에 상태 업데이트 로직 추가
+        setUserBusArrival(event.data);
+        h.onUserBusArrival?.(event.data);
         break;
 
       case 'heartbeat':
@@ -285,6 +291,7 @@ export function useRouteSSE(
   return {
     status,
     botStates,
+    userBusArrival,
     connect,
     disconnect,
     error,
