@@ -135,6 +135,14 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
       <style>
         {`
           @font-face {
+            font-family: 'Pretendard';
+            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+
+          @font-face {
             font-family: 'DNFBitBitv2';
             src: url('/fonts/DNFBitBitv2.otf') format('opentype');
             font-weight: 400;
@@ -142,16 +150,76 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
             font-display: swap;
           }
 
+          .hb-dashboard-shell {
+            position: relative;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
+          }
+
           .hb-dashboard-glass {
-            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.2) 100%);
-            border: 1px solid rgba(255,255,255,0.5);
-            backdrop-filter: blur(20px) saturate(160%);
-            -webkit-backdrop-filter: blur(20px) saturate(160%);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.28) 100%);
+            border: 1px solid rgba(255,255,255,0.68);
+            box-shadow: 0 16px 32px rgba(90,120,130,0.16), inset 0 1px 0 rgba(255,255,255,0.5);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+          }
+
+          .hb-dashboard-shell.hb-dashboard-glass {
+            background: #d4ebf7;
+          }
+
+          .hb-dashboard-glass-fun::before {
+            content: "";
+            position: absolute;
+            inset: -30% -40%;
+            pointer-events: none;
+            background: linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0) 60%);
+            opacity: 0;
+            animation: hb-dashboard-sheen 12.5s ease-in-out infinite;
+          }
+
+          @keyframes hb-dashboard-sheen {
+            0% { transform: translateX(-40%) translateY(-10%) rotate(12deg); opacity: 0; }
+            12% { opacity: 0.55; }
+            50% { opacity: 0.35; }
+            100% { transform: translateX(140%) translateY(10%) rotate(12deg); opacity: 0; }
+          }
+
+          .hb-dashboard-chip {
+            background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.42) 100%);
+            border: 1px solid rgba(255,255,255,0.72);
+            box-shadow: 0 10px 20px rgba(90,120,130,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+            backdrop-filter: blur(16px) saturate(155%);
+            -webkit-backdrop-filter: blur(16px) saturate(155%);
+          }
+
+          .hb-dashboard-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.4) 100%);
+            border: 1px solid rgba(255,255,255,0.7);
+            box-shadow: 0 14px 28px rgba(90,120,130,0.16), inset 0 1px 0 rgba(255,255,255,0.46);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+          }
+
+          .hb-dashboard-pressable {
+            transition: transform 140ms ease-out, filter 140ms ease-out;
+            will-change: transform, filter;
+          }
+
+          .hb-dashboard-pressable:active {
+            transform: translateY(1px) scale(0.985);
+            filter: brightness(1.04);
           }
 
           .hb-pixel-font {
             font-family: 'DNFBitBitv2', sans-serif;
+          }
+
+          .hb-dashboard-title {
+            font-family: 'DNFBitBitv2', 'Press Start 2P', sans-serif;
+            letter-spacing: 0.6px;
           }
 
           /* 애니메이션 */
@@ -173,32 +241,64 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
             animation: characterBounce 2s ease-in-out infinite;
           }
 
-          /* 스크롤바 숨기기 */
-          .scrollbar-hide::-webkit-scrollbar { display: none; }
-          .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+          /* 스크롤바 */
+          .hb-dashboard-scroll::-webkit-scrollbar {
+            width: 8px;
+          }
+          .hb-dashboard-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .hb-dashboard-scroll::-webkit-scrollbar-thumb {
+            background: rgba(107, 144, 128, 0.28);
+            border-radius: 12px;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .hb-dashboard-glass-fun::before {
+              animation: none !important;
+            }
+            .hb-dashboard-pressable {
+              transition: none !important;
+            }
+            .hb-dashboard-pressable:active {
+              transform: none !important;
+              filter: none !important;
+            }
+          }
         `}
       </style>
       
       {/* 백드롭 */}
-      <div className="fixed inset-0 bg-black/30 z-[60] backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/35 z-[60] backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       {/* 팝업 */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="pointer-events-auto w-full max-w-[420px] h-[85vh] max-h-[800px] rounded-[32px] hb-dashboard-glass overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-300 relative"
+          className="hb-dashboard-shell pointer-events-auto w-full max-w-[400px] h-[90vh] max-h-[840px] rounded-[22px] hb-dashboard-glass hb-dashboard-glass-fun overflow-hidden relative"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 헤더 */}
-          <div className="sticky top-0 z-10 px-6 py-4 flex justify-between items-center backdrop-blur-md bg-white/10">
-            <h1 className="hb-pixel-font text-xl text-[#1a1a2e]">DASHBOARD</h1>
-            <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-              ✕
+          <div className="relative px-6 pt-5 pb-4">
+            {/* 타이틀 */}
+            <div className="hb-dashboard-glass rounded-[16px] h-[44px] flex items-center justify-center mb-4">
+              <p className="hb-dashboard-title text-[16px] text-black">
+                DASHBOARD
+              </p>
+            </div>
+
+            {/* 닫기 버튼 - 타이틀과 같은 높이에 위치 */}
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-6 hb-dashboard-chip hb-dashboard-pressable rounded-[14px] size-[44px] flex items-center justify-center text-black"
+            >
+              <span className="font-['Press_Start_2P:Regular',sans-serif] text-[14px]">✕</span>
             </button>
           </div>
 
-          <div className="p-6 space-y-6">
+          {/* 컨텐츠 영역 */}
+          <div className="hb-dashboard-scroll px-5 pb-6 overflow-y-auto h-[calc(100%-92px)] space-y-6">
             {/* 1. 프로필 섹션 */}
-            <div className="hb-dashboard-glass rounded-[24px] p-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+            <div className="hb-dashboard-card rounded-[24px] p-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               <div className="flex items-center gap-4">
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden bg-white/40"
@@ -251,7 +351,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                 { label: "승리", value: stats.wins, icon: "🏆" },
                 { label: "승률", value: `${stats.win_rate}%`, icon: "📈" },
               ].map((item, idx) => (
-                <div key={idx} className="hb-dashboard-glass rounded-[20px] p-3 flex flex-col items-center justify-center text-center">
+                <div key={idx} className="hb-dashboard-card rounded-[20px] p-3 flex flex-col items-center justify-center text-center">
                   <span className="text-xl mb-1">{item.icon}</span>
                   <span className="text-[10px] text-[#6b9080] mb-1">{item.label}</span>
                   <span className="hb-pixel-font text-base text-[#1a1a2e]">{item.value}</span>
@@ -261,18 +361,18 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
 
             {/* 3. 최근 게임 섹션 */}
             <div className="space-y-3 animate-fade-up" style={{ animationDelay: '0.3s' }}>
-              <h3 className="hb-pixel-font text-[#1a1a2e] flex items-center gap-2">
-                <span>📜</span> 최근 모험
+              <h3 className="hb-pixel-font text-[#1a1a2e]">
+                최근 모험
               </h3>
               {stats.recent_games.length > 0 ? (
                 stats.recent_games.map((game, idx) => (
-                  <div key={idx} className="hb-dashboard-glass rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all">
+                  <div key={idx} className="hb-dashboard-card hb-dashboard-pressable rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all">
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-[#1a1a2e]">{game.route_name}</span>
                       <span className="text-[11px] text-[#6b9080]">{game.duration}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className={`hb-pixel-font text-sm ${game.rank.includes("1") ? "text-[#f1c40f]" : "text-[#1a1a2e]"}`}>
+                      <span className={`hb-pixel-font text-xs ${game.rank.includes("1") ? "text-[#f1c40f]" : "text-[#1a1a2e]"}`}>
                         {game.rank}
                       </span>
                       <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity text-[#6b9080]">상세보기 →</span>
@@ -280,17 +380,17 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-sm text-[#6b9080] hb-dashboard-glass rounded-[18px]">
+                <div className="text-center py-8 text-sm text-[#6b9080] hb-dashboard-card rounded-[18px]">
                   아직 기록이 없습니다.
                 </div>
               )}
             </div>
 
             {/* 2-1. 월별 추세 그래프 섹션 */}
-            <div className="hb-dashboard-glass rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.4s' }}>
+            <div className="hb-dashboard-card rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.4s' }}>
               <div className="flex justify-between items-center">
-                <h3 className="hb-pixel-font text-sm text-[#1a1a2e] flex items-center gap-2">
-                  <span>📊</span> 승리 추세 (최근 6개월)
+                <h3 className="hb-pixel-font text-sm text-[#1a1a2e]">
+                  승리 추세 (최근 6개월)
                 </h3>
               </div>
               <div className="flex items-end justify-between h-24 px-2">
@@ -316,10 +416,10 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
             </div>
 
             {/* 4. 승리 달력 섹션 */}
-            <div className="hb-dashboard-glass rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+            <div className="hb-dashboard-card rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.5s' }}>
               <div className="flex justify-between items-center">
-                <h3 className="hb-pixel-font text-[#1a1a2e] flex items-center gap-2">
-                  <span>🏆</span> 승리의 기록
+                <h3 className="hb-pixel-font text-[#1a1a2e]">
+                  승리의 기록
                 </h3>
                 <span className="text-xs font-bold text-[#6b9080]">{year}.{String(month + 1).padStart(2, '0')}</span>
               </div>
@@ -337,7 +437,6 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                     `}
                   >
                     {d.day}
-                    {d.day && isWinDay(d.day) && <span className="absolute -top-1 -right-1 text-[8px]">👑</span>}
                   </div>
                 ))}
               </div>
@@ -346,7 +445,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
             {/* 5. 로그아웃 버튼 */}
             <button
               onClick={onLogout}
-              className="w-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c] py-4 rounded-[20px] hb-pixel-font hover:bg-[#e74c3c] hover:text-white transition-all shadow-sm hover:shadow-lg animate-fade-up"
+              className="w-full hb-dashboard-pressable bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c] py-4 rounded-[20px] hb-pixel-font hover:bg-[#e74c3c] hover:text-white transition-all shadow-sm hover:shadow-lg animate-fade-up"
               style={{ animationDelay: '0.6s', marginBottom: '40px' }}
             >
               LOG OUT

@@ -46,32 +46,19 @@ const RANK_GLASS_STYLES: Record<number, { background: string; border: string; sh
 export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading, userNickname = '나' }: ResultPopupProps) {
   if (!isOpen) return null;
 
-  // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
-  // 1) 결과 팝업 닫기
-  // 2) 대시보드 팝업 닫기 (있는 경우)
-  // 3) Search 페이지로 이동
-  const handleMainClick = () => {
-    onClose(); // 결과 팝업 닫기
-    onCloseDashboard?.(); // 대시보드 팝업 닫기
-    if (onNavigate) {
-      onNavigate("search"); // Search 페이지로 이동
-    }
-  };
-
-  const handleDashboardClick = () => {
-    onClose(); // 결과 팝업 닫기
-    // 대시보드에서 열린 경우: 팝업만 닫으면 대시보드가 보임
-    // 경주 끝난 후 열린 경우: onOpenDashboard로 대시보드 열기
-    if (onOpenDashboard) {
-      onOpenDashboard();
-    }
-  };
-
   // Portal을 사용하여 body에 직접 렌더링 (다른 팝업 위에 표시되도록)
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 hb-result-popup">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 p-4 hb-result-popup">
       <style>
         {`
+          @font-face {
+            font-family: 'Pretendard';
+            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+
           @font-face {
             font-family: 'FreesentationVF';
             src: url('/fonts/FreesentationVF.ttf') format('truetype');
@@ -93,10 +80,12 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
           .hb-result-popup .hb-result-shell {
             position: relative;
             overflow: hidden;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
           }
 
           .hb-result-popup .hb-result-shell.hb-result-glass {
-            background: linear-gradient(180deg, #d4ebf7 0%, #ffffff 100%);
+            background: #d4ebf7;
           }
 
           .hb-result-popup .hb-result-glass {
@@ -200,23 +189,23 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         `}
       </style>
       {/* 팝업 컨텐츠 */}
-      <div className="relative w-[378px] h-[841px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px]">
+      <div className="relative w-full max-w-[400px] h-[90vh] max-h-[840px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px] overflow-hidden flex flex-col">
 
         {/* 헤더 - 제목, X 버튼 */}
-        <div className="absolute left-[37px] top-[29px] right-[37px]">
+        <div className="relative px-6 pt-5 pb-4">
           {/* 제목 */}
-          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center">
-            <p className="hb-result-title text-[18px] text-black">
-            HAD BETTER
+          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center mb-4">
+            <p className="hb-result-title text-[16px] text-black">
+              HAD BETTER
             </p>
           </div>
 
           {/* X 버튼 */}
           <button
             onClick={onClose}
-            className="absolute hb-result-chip hb-result-pressable right-0 top-0 size-[44px] rounded-[14px] flex items-center justify-center text-black"
+            className="absolute top-5 right-6 hb-result-chip hb-result-pressable size-[44px] rounded-[14px] flex items-center justify-center text-black"
           >
-            <p className="css-4hzbpn font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[16px] text-black">✕</p>
+            <span className="font-['Press_Start_2P:Regular',sans-serif] text-[14px]">✕</span>
           </button>
         </div>
 
@@ -262,7 +251,11 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                     >
                       <p className={`${isFirst ? 'text-[48px] leading-[1]' : 'text-[30px] leading-[1]'} flex items-center justify-center`}>{medal}</p>
                     </div>
-                    {isFirst && <p className="absolute text-[24px] leading-[1] left-1/2 -translate-x-1/2 top-[-14px]">⭐</p>}
+                    <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-3' : 'mt-2'}`}>
+                      {rank}위
+                    </p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-1">{displayName}</p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-1">{duration}</p>
                   </div>
                   <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
                     {rank}위

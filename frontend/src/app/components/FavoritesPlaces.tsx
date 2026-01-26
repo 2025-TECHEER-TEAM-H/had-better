@@ -472,6 +472,14 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
       <style>
         {`
           @font-face {
+            font-family: 'Pretendard';
+            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+
+          @font-face {
             font-family: 'FreesentationVF';
             src: url('/fonts/FreesentationVF.ttf') format('truetype');
             font-weight: 100 900;
@@ -491,6 +499,8 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
 
           .hb-favorites-popup .hb-favorites-shell {
             position: relative;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
           }
 
           .hb-favorites-popup .hb-favorites-glass {
@@ -527,6 +537,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
           .hb-favorites-popup .hb-favorites-title {
             font-family: 'DNFBitBitv2', 'Press Start 2P', sans-serif;
             letter-spacing: 0.6px;
+            font-weight: normal;
           }
 
           .hb-favorites-popup .hb-favorites-chip {
