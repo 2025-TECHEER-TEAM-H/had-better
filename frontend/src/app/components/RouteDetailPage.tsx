@@ -161,6 +161,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const mapViewRef = useRef<MapViewRef>(null);
   const [isWebView, setIsWebView] = useState(false);
   const [showResultPopup, setShowResultPopup] = useState(false);
+  const [isCancelingRoute, setIsCancelingRoute] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isRankingVisible, setIsRankingVisible] = useState(true); // 실시간 순위창 표시 상태
 
@@ -1426,6 +1427,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const handleFinishRoute = useCallback(async () => {
     const routeId = userRouteId || 1;
 
+    setIsCancelingRoute(false);
     setShowResultPopup(true);
     setIsLoadingResult(true);
 
@@ -1456,6 +1458,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     const progressPercent = Math.round(userProgress * 100);
 
     // 결과 팝업 표시 및 로딩 시작
+    setIsCancelingRoute(true);
     setShowResultPopup(true);
     setIsLoadingResult(true);
 
@@ -2742,12 +2745,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           isOpen={showResultPopup}
           onClose={() => {
             setShowResultPopup(false);
+            setIsCancelingRoute(false);
             onNavigate?.('search'); // 팝업 닫을 때 search 페이지로 이동
           }}
           onNavigate={onNavigate}
           onOpenDashboard={onOpenDashboard}
           result={routeResult}
           isLoading={isLoadingResult}
+          isCanceling={isCancelingRoute}
           userNickname={userNickname}
         />
       </div>
@@ -3137,12 +3142,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         isOpen={showResultPopup}
         onClose={() => {
           setShowResultPopup(false);
+          setIsCancelingRoute(false);
           onNavigate?.('search'); // 팝업 닫을 때 search 페이지로 이동
         }}
         onNavigate={onNavigate}
         onOpenDashboard={onOpenDashboard}
         result={routeResult}
         isLoading={isLoadingResult}
+        isCanceling={isCancelingRoute}
         userNickname={userNickname}
       />
 
