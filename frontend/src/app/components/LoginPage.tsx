@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import imgCharacterGreenFront1 from "@/assets/character-green-front.png";
 import imgCharacterYellowFront1 from "@/assets/character-yellow-front.png";
 import imgCharacterPurpleFront1 from "@/assets/character-purple-front.png";
@@ -14,9 +13,6 @@ interface LoginPageProps {
   onLogin?: () => void;
   onSignup?: () => void;
 }
-
-// 개발 환경 여부
-const isDev = import.meta.env.DEV;
 
 export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) {
   const navigate = useNavigate();
@@ -79,27 +75,6 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
     }
   };
 
-  // 개발자용 빠른 로그인 (DEV 환경에서만)
-  const handleDevLogin = () => {
-    // 개발용 더미 토큰으로 로그인 (항상 로그인 유지)
-    setAuth(
-      {
-        id: 1,
-        name: "dev_user",
-        email: "dev@hadbetter.com",
-        nickname: "개발자",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        access: "dev_access_token_for_testing",
-        refresh: "dev_refresh_token_for_testing",
-      },
-      true
-    );
-    navigate("/search");
-  };
-
   const handleSignup = () => {
     if (onSignup) {
       onSignup();
@@ -109,12 +84,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
   };
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 bg-gradient-to-b from-[#c5e7f5] to-white"
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.4, ease: "easeInOut" }}
-    >
+    <div className="fixed inset-0 z-50 bg-gradient-to-b from-[#c5e7f5] to-white">
       <style>
         {`
           @keyframes hb-float {
@@ -501,16 +471,6 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
         </button>
       </div>
 
-      {/* 개발자용 빠른 로그인 버튼 (DEV 환경에서만 표시) */}
-      {isDev && (
-        <button
-          type="button"
-          onClick={handleDevLogin}
-          className="absolute bottom-4 right-4 bg-yellow-400 text-black text-xs font-bold px-3 py-2 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_black] hover:bg-yellow-300 active:translate-y-[1px] transition-all z-50"
-        >
-          🔧 DEV LOGIN
-        </button>
-      )}
-    </motion.div>
+    </div>
   );
 }
