@@ -7,6 +7,23 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
+// [주석처리 - 숫자 이미지 버전]
+// import imgDigit0 from "/assets/Double/hud_character_0.png";
+// import imgDigit1 from "/assets/Double/hud_character_1.png";
+// import imgDigit2 from "/assets/Double/hud_character_2.png";
+// import imgDigit3 from "/assets/Double/hud_character_3.png";
+// import imgDigit4 from "/assets/Double/hud_character_4.png";
+// import imgDigit5 from "/assets/Double/hud_character_5.png";
+// import imgDigit6 from "/assets/Double/hud_character_6.png";
+// import imgDigit7 from "/assets/Double/hud_character_7.png";
+// import imgDigit8 from "/assets/Double/hud_character_8.png";
+// import imgDigit9 from "/assets/Double/hud_character_9.png";
+//
+// const DIGIT_IMAGES = [
+//   imgDigit0, imgDigit1, imgDigit2, imgDigit3, imgDigit4,
+//   imgDigit5, imgDigit6, imgDigit7, imgDigit8, imgDigit9,
+// ];
+
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 // 지도 스타일 정보
@@ -408,12 +425,26 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       // "한 파일(MapView)에서만" 색 규칙 유지:
       // SearchResultsPage의 카드 팔레트(인덱스 기반)와 동일 규칙을 여기서 그대로 사용합니다.
       const cardPalette = ["#7ed321", "#00d9ff", "#ffffff", "#ffc107", "#ff9ff3", "#54a0ff"];
-      const pinBase = cardPalette[index % cardPalette.length];
+
+      // markerInfo.icon이 알파벳(A-Z)이면 해당 알파벳과 색상 사용
+      // 알파벳이 아니면 (이모지 등) 마커 안은 비워둠
+      const isAlphabetIcon = markerInfo.icon && /^[A-Z]$/.test(markerInfo.icon);
+      const alphabetIndex = isAlphabetIcon
+        ? markerInfo.icon.charCodeAt(0) - 65  // A=0, B=1, C=2...
+        : index;
+      const displayLetter = isAlphabetIcon ? markerInfo.icon : "";  // 알파벳 아니면 빈 문자열
+
+      const pinBase = cardPalette[alphabetIndex % cardPalette.length];
       const pinHi = lightenHex(pinBase, 0.22);
       const pinLo = darkenHex(pinBase, 0.12);
       const pinStroke = darkenHex(pinBase, 0.32);
       const innerFill = "white";
-      // 핀 내부(흰 원)에는 아이콘/글자 없이 비워둠
+
+      // [주석처리 - 숫자 이미지 버전]
+      // const displayNumber = index + 1;
+      // const isSingleDigit = displayNumber <= 9;
+      // const tensDigit = Math.floor(displayNumber / 10);
+      // const onesDigit = displayNumber % 10;
 
       // 글씨색은 항상 검정으로 통일
       const labelText = "black";
@@ -510,6 +541,11 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
               <!-- 컬러 링(핀색) + 흰 구멍 -->
               <circle cx="24" cy="20" r="13.2" fill="${pinBase}" filter="url(#${holeShadowId})" />
               <circle cx="24" cy="20" r="11.1" fill="${innerFill}" />
+              <!-- 알파벳 텍스트 -->
+              <text x="24" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="black" font-family="'Pretendard', sans-serif">${displayLetter}</text>
+              <!-- [주석처리 - 숫자 이미지 버전]
+              ${`<image href="..." x="14" y="10" width="20" height="20" />`}
+              -->
               <!-- 링 하이라이트 -->
               <circle cx="21" cy="17" r="6.8" fill="${pinHi}" opacity="0.16" />
               <!-- 구멍 가장자리 얇은 음영(입체감) -->
