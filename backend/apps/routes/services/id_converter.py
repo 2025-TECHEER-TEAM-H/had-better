@@ -110,7 +110,9 @@ class PublicAPIIdConverter:
                 f"검색 결과 개수={len(routes)}"
             )
             if routes:
-                logger.info(f"검색된 노선 목록: {[r.get('busRouteNm') for r in routes]}")
+                logger.info(
+                    f"검색된 노선 목록: {[r.get('busRouteNm') for r in routes]}"
+                )
 
             for route in routes:
                 if route.get("busRouteNm") == bus_number:
@@ -176,9 +178,7 @@ class PublicAPIIdConverter:
                 return None
 
             # 1순위: 정류소명이 정확히 일치하는 것 찾기
-            exact_matches = [
-                s for s in stations if s.get("stNm") == station_name
-            ]
+            exact_matches = [s for s in stations if s.get("stNm") == station_name]
 
             # 노선 검증이 필요한 경우
             if bus_route_id:
@@ -194,8 +194,7 @@ class PublicAPIIdConverter:
                 # 정확 매칭된 것 중 노선에 정차하는 것만 필터링
                 if exact_matches:
                     verified_matches = [
-                        s for s in exact_matches
-                        if s.get("stId") in route_station_ids
+                        s for s in exact_matches if s.get("stId") in route_station_ids
                     ]
 
                     if verified_matches:
@@ -206,7 +205,9 @@ class PublicAPIIdConverter:
                                 f"station_name={station_name}, stId={closest.get('stId')}"
                             )
                         else:
-                            closest = find_closest_station(tmap_lat, tmap_lon, verified_matches)
+                            closest = find_closest_station(
+                                tmap_lat, tmap_lon, verified_matches
+                            )
                             logger.info(
                                 f"정류소명 정확 매칭 + 노선 검증 (거리 선택): "
                                 f"station_name={station_name}, stId={closest.get('stId')}, "
@@ -221,11 +222,12 @@ class PublicAPIIdConverter:
                         )
                         # 전체 검색 결과 중 노선 정류소만 필터링
                         verified_all = [
-                            s for s in stations
-                            if s.get("stId") in route_station_ids
+                            s for s in stations if s.get("stId") in route_station_ids
                         ]
                         if verified_all:
-                            closest = find_closest_station(tmap_lat, tmap_lon, verified_all)
+                            closest = find_closest_station(
+                                tmap_lat, tmap_lon, verified_all
+                            )
                         else:
                             logger.error(
                                 f"노선 정류소 찾기 실패: station_name={station_name}, "
@@ -235,8 +237,7 @@ class PublicAPIIdConverter:
                 else:
                     # 정확 매칭 없음 → 거리 기반으로 노선 정류소에서 선택
                     verified_all = [
-                        s for s in stations
-                        if s.get("stId") in route_station_ids
+                        s for s in stations if s.get("stId") in route_station_ids
                     ]
                     if verified_all:
                         closest = find_closest_station(tmap_lat, tmap_lon, verified_all)
@@ -262,7 +263,9 @@ class PublicAPIIdConverter:
                             f"stId={closest.get('stId')}, 매칭 개수=1"
                         )
                     else:
-                        closest = find_closest_station(tmap_lat, tmap_lon, exact_matches)
+                        closest = find_closest_station(
+                            tmap_lat, tmap_lon, exact_matches
+                        )
                         logger.info(
                             f"정류소명 정확 매칭 (거리 기반 선택): station_name={station_name}, "
                             f"stId={closest.get('stId')}, 매칭 개수={len(exact_matches)}"

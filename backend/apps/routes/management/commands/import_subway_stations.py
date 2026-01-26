@@ -29,10 +29,16 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # CSV 파일 경로
-        csv_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "docs" / "서울교통공사_역명_지하철역_검색.csv"
+        csv_path = (
+            Path(__file__).resolve().parent.parent.parent.parent.parent
+            / "docs"
+            / "서울교통공사_역명_지하철역_검색.csv"
+        )
 
         if not csv_path.exists():
-            self.stderr.write(self.style.ERROR(f"CSV 파일을 찾을 수 없습니다: {csv_path}"))
+            self.stderr.write(
+                self.style.ERROR(f"CSV 파일을 찾을 수 없습니다: {csv_path}")
+            )
             return
 
         # 기존 데이터 삭제 옵션

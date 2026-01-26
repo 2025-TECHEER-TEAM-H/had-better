@@ -13,5 +13,9 @@ from .views_saved import SavedPlaceListCreateView, SavedPlaceDetailView
 
 urlpatterns = [
     # GET/POST /api/v1/saved-places는 config/urls.py에서 직접 정의
-    path("<int:saved_place_id>", SavedPlaceDetailView.as_view(), name="saved-place-detail"),
+    path(
+        "<int:saved_place_id>",
+        SavedPlaceDetailView.as_view(),
+        name="saved-place-detail",
+    ),
 ]

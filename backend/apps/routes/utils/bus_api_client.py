@@ -187,7 +187,9 @@ class SeoulBusAPIClient:
 
             return items
         except requests.RequestException as e:
-            logger.error(f"노선 정류소 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 정류소 API 요청 실패: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
         except (ValueError, KeyError) as e:
             logger.error(
@@ -501,10 +503,14 @@ class SeoulBusAPIClient:
 
             return items
         except requests.RequestException as e:
-            logger.error(f"노선 버스 위치 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 버스 위치 API 요청 실패: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
         except (ValueError, KeyError) as e:
-            logger.error(f"노선 버스 위치 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 버스 위치 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
 
 

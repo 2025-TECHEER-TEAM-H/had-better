@@ -48,9 +48,7 @@ class SubwayStationService:
             return None
 
     @staticmethod
-    def get_direction(
-        start_station: str, end_station: str, line: str
-    ) -> Optional[str]:
+    def get_direction(start_station: str, end_station: str, line: str) -> Optional[str]:
         """
         출발역/도착역으로 상행/하행 판단 (기본 버전)
 

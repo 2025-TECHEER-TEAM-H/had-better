@@ -27,16 +27,14 @@ class RouteCreateSerializer(serializers.Serializer):
     }
     """
 
-    route_itinerary_id = serializers.IntegerField(
-        help_text="경로 탐색 결과 묶음 ID"
-    )
+    route_itinerary_id = serializers.IntegerField(help_text="경로 탐색 결과 묶음 ID")
     user_leg_id = serializers.IntegerField(
         help_text="유저가 선택한 경로 (route_leg) ID"
     )
     bot_leg_ids = serializers.ListField(
         child=serializers.IntegerField(),
         max_length=2,
-        help_text="봇에게 배정할 경로 ID 목록 (최대 2개)"
+        help_text="봇에게 배정할 경로 ID 목록 (최대 2개)",
     )
 
 
@@ -125,8 +123,8 @@ class RouteCreateResponseSerializer(serializers.Serializer):
 
     def get_created_at(self, obj):
         if isinstance(obj, dict):
-            return to_seoul_time(obj.get('created_at'))
-        return to_seoul_time(getattr(obj, 'created_at', None))
+            return to_seoul_time(obj.get("created_at"))
+        return to_seoul_time(getattr(obj, "created_at", None))
 
 
 class RouteStatusUpdateSerializer(serializers.Serializer):
@@ -142,14 +140,14 @@ class RouteStatusUpdateSerializer(serializers.Serializer):
 
     status = serializers.ChoiceField(
         choices=[Route.Status.FINISHED, Route.Status.CANCELED],
-        help_text="변경할 상태 (FINISHED 또는 CANCELED)"
+        help_text="변경할 상태 (FINISHED 또는 CANCELED)",
     )
     progress_percent = serializers.IntegerField(
         required=False,
         default=0,
         min_value=0,
         max_value=100,
-        help_text="CANCELED 시 유저의 현재 진행률 (0~100)"
+        help_text="CANCELED 시 유저의 현재 진행률 (0~100)",
     )
 
 
@@ -164,10 +162,10 @@ class RouteStatusUpdateResponseSerializer(serializers.Serializer):
 
     def get_start_time(self, obj):
         if isinstance(obj, dict):
-            return to_seoul_time(obj.get('start_time'))
-        return to_seoul_time(getattr(obj, 'start_time', None))
+            return to_seoul_time(obj.get("start_time"))
+        return to_seoul_time(getattr(obj, "start_time", None))
 
     def get_end_time(self, obj):
         if isinstance(obj, dict):
-            return to_seoul_time(obj.get('end_time'))
-        return to_seoul_time(getattr(obj, 'end_time', None))
+            return to_seoul_time(obj.get("end_time"))
+        return to_seoul_time(getattr(obj, "end_time", None))

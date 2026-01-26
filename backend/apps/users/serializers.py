@@ -26,6 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
     """
     사용자 정보 Serializer
     """
+
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
 
@@ -265,6 +266,7 @@ class SearchPlaceHistorySerializer(serializers.ModelSerializer):
         "created_at": "2026-01-12T10:00:00+09:00"
     }
     """
+
     created_at = serializers.SerializerMethodField()
 
     class Meta:

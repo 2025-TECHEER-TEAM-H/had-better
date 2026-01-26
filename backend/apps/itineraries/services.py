@@ -72,9 +72,7 @@ class TmapTransitService:
             response.raise_for_status()
             data = response.json()
 
-            logger.info(
-                f"TMAP 경로 탐색 성공: {start_y},{start_x} -> {end_y},{end_x}"
-            )
+            logger.info(f"TMAP 경로 탐색 성공: {start_y},{start_x} -> {end_y},{end_x}")
             return data
 
         except requests.exceptions.Timeout:

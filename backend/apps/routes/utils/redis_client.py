@@ -23,11 +23,13 @@ logger = logging.getLogger(__name__)
 
 class RedisConnectionError(Exception):
     """Redis 연결 오류 커스텀 예외"""
+
     pass
 
 
 class LockAcquisitionError(Exception):
     """락 획득 실패 예외"""
+
     pass
 
 
@@ -106,7 +108,9 @@ class RedisClient:
         result = self._safe_execute(
             f"set_bot_state:{route_id}",
             self._client.setex,
-            key, ttl, json.dumps(state, ensure_ascii=False)
+            key,
+            ttl,
+            json.dumps(state, ensure_ascii=False),
         )
         return result is not None
 
@@ -124,11 +128,7 @@ class RedisClient:
             RedisConnectionError: 연결 오류 시
         """
         key = self._get_bot_state_key(route_id)
-        data = self._safe_execute(
-            f"get_bot_state:{route_id}",
-            self._client.get,
-            key
-        )
+        data = self._safe_execute(f"get_bot_state:{route_id}", self._client.get, key)
         if data is None:
             return None
         try:
@@ -190,9 +190,7 @@ class RedisClient:
             # 락 획득 시도 (SET NX EX)
             end_time = time.time() + blocking_timeout
             while time.time() < end_time:
-                result = self._client.set(
-                    lock_key, lock_value, nx=True, ex=timeout
-                )
+                result = self._client.set(lock_key, lock_value, nx=True, ex=timeout)
                 if result:
                     acquired = True
                     break
@@ -220,7 +218,9 @@ class RedisClient:
                 except redis.RedisError as e:
                     logger.warning(f"락 해제 중 오류: route_id={route_id}, error={e}")
 
-    def update_bot_state(self, route_id: int, ttl: int = 3600, **kwargs) -> Optional[dict]:
+    def update_bot_state(
+        self, route_id: int, ttl: int = 3600, **kwargs
+    ) -> Optional[dict]:
         """
         봇 상태 부분 업데이트
 
@@ -241,7 +241,9 @@ class RedisClient:
             self.set_bot_state(route_id, state, ttl)
         return state
 
-    def update_bot_state_atomic(self, route_id: int, ttl: int = 3600, **kwargs) -> Optional[dict]:
+    def update_bot_state_atomic(
+        self, route_id: int, ttl: int = 3600, **kwargs
+    ) -> Optional[dict]:
         """
         봇 상태 원자적 업데이트 (분산 락 사용)
 
@@ -311,7 +313,9 @@ class RedisClient:
             self._client.setex(key, ttl, json.dumps(data, ensure_ascii=False))
             return True
         except redis.RedisError as e:
-            logger.warning(f"API 호출 캐시 저장 실패: route_id={route_id}, api_type={api_type}, error={e}")
+            logger.warning(
+                f"API 호출 캐시 저장 실패: route_id={route_id}, api_type={api_type}, error={e}"
+            )
             return False
 
     def get_last_api_call(self, route_id: int, api_type: str) -> Optional[dict]:
@@ -332,7 +336,9 @@ class RedisClient:
                 return None
             return json.loads(data)
         except (redis.RedisError, json.JSONDecodeError) as e:
-            logger.warning(f"API 호출 캐시 조회 실패: route_id={route_id}, api_type={api_type}, error={e}")
+            logger.warning(
+                f"API 호출 캐시 조회 실패: route_id={route_id}, api_type={api_type}, error={e}"
+            )
             return None
 
     def delete_api_call_cache(self, route_id: int) -> bool:
@@ -397,7 +403,9 @@ class RedisClient:
         result = self._safe_execute(
             f"set_public_ids:{route_id}",
             self._client.setex,
-            key, ttl, json.dumps(public_ids, ensure_ascii=False)
+            key,
+            ttl,
+            json.dumps(public_ids, ensure_ascii=False),
         )
         return result is not None
 
@@ -415,11 +423,7 @@ class RedisClient:
             RedisConnectionError: 연결 오류 시
         """
         key = self._get_public_ids_key(route_id)
-        data = self._safe_execute(
-            f"get_public_ids:{route_id}",
-            self._client.get,
-            key
-        )
+        data = self._safe_execute(f"get_public_ids:{route_id}", self._client.get, key)
         if data is None:
             return None
         try:

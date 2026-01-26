@@ -28,6 +28,7 @@ def to_seoul_time(dt):
         return None
     return timezone.localtime(dt).isoformat()
 
+
 from drf_spectacular.utils import extend_schema
 
 from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
@@ -72,7 +73,10 @@ def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
                     f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
                     f"segment={i}, reason=bus_route_id_not_found"
                 )
-                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 노선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+                return (
+                    False,
+                    f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 노선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요.",
+                )
 
             # 승차 정류소 검증
             if not leg.get("start_station"):
@@ -80,7 +84,10 @@ def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
                     f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
                     f"segment={i}, reason=start_station_not_found"
                 )
-                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 승차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+                return (
+                    False,
+                    f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 승차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요.",
+                )
 
             # 하차 정류소 검증
             if not leg.get("end_station"):
@@ -88,7 +95,10 @@ def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
                     f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
                     f"segment={i}, reason=end_station_not_found"
                 )
-                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 하차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+                return (
+                    False,
+                    f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(버스)의 하차 정류소를 찾을 수 없습니다. 다른 경로를 선택해주세요.",
+                )
 
         elif mode == "SUBWAY":
             # 호선 ID 검증
@@ -97,7 +107,10 @@ def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
                     f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
                     f"segment={i}, reason=subway_line_id_not_found"
                 )
-                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 호선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요."
+                return (
+                    False,
+                    f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 호선 정보를 찾을 수 없습니다. 다른 경로를 선택해주세요.",
+                )
 
             # 경유역 목록 검증
             pass_stops = leg.get("pass_stops", [])
@@ -106,7 +119,10 @@ def validate_public_ids(public_ids: dict, bot_leg_id: int) -> tuple[bool, str]:
                     f"봇 경로 ID 변환 실패: bot_leg_id={bot_leg_id}, "
                     f"segment={i}, reason=insufficient_pass_stops, count={len(pass_stops)}"
                 )
-                return False, f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 경유역 정보가 부족합니다. 다른 경로를 선택해주세요."
+                return (
+                    False,
+                    f"봇 경로(ID: {bot_leg_id}): {i+1}번째 구간(지하철)의 경유역 정보가 부족합니다. 다른 경로를 선택해주세요.",
+                )
 
     return True, ""
 
@@ -129,7 +145,7 @@ def error_response(code, message, status_code, details=None):
         "error": {
             "code": code,
             "message": message,
-        }
+        },
     }
     if details:
         response["error"]["details"] = details
@@ -181,8 +197,7 @@ class RouteListCreateView(APIView):
         # route_itinerary 확인
         try:
             route_itinerary = RouteItinerary.objects.get(
-                id=route_itinerary_id,
-                deleted_at__isnull=True
+                id=route_itinerary_id, deleted_at__isnull=True
             )
         except RouteItinerary.DoesNotExist:
             return error_response(
@@ -194,9 +209,7 @@ class RouteListCreateView(APIView):
         # user_leg 확인
         try:
             user_leg = RouteLeg.objects.get(
-                id=user_leg_id,
-                route_itinerary=route_itinerary,
-                deleted_at__isnull=True
+                id=user_leg_id, route_itinerary=route_itinerary, deleted_at__isnull=True
             )
         except RouteLeg.DoesNotExist:
             return error_response(
@@ -207,6 +220,7 @@ class RouteListCreateView(APIView):
 
         # user_leg 경로 검증
         from apps.itineraries.views import validate_route_segments
+
         is_valid, error_message = validate_route_segments(user_leg)
         if not is_valid:
             return error_response(
@@ -222,7 +236,7 @@ class RouteListCreateView(APIView):
                 bot_leg = RouteLeg.objects.get(
                     id=bot_leg_id,
                     route_itinerary=route_itinerary,
-                    deleted_at__isnull=True
+                    deleted_at__isnull=True,
                 )
 
                 # bot_leg 경로 검증
@@ -293,7 +307,12 @@ class RouteListCreateView(APIView):
             participants.append(user_route)
 
             # 봇 타입 목록 (색깔)
-            bot_types = [Bot.BotType.PURPLE, Bot.BotType.YELLOW, Bot.BotType.PINK, Bot.BotType.GREEN]
+            bot_types = [
+                Bot.BotType.PURPLE,
+                Bot.BotType.YELLOW,
+                Bot.BotType.PINK,
+                Bot.BotType.GREEN,
+            ]
 
             # 봇 Route 생성 및 시뮬레이션 시작
             bot_routes = []
@@ -341,7 +360,9 @@ class RouteListCreateView(APIView):
                 if legs and len(legs) > 0:
                     first_leg = legs[0]
                     first_mode = first_leg.get("mode", "WALK")
-                    first_public_leg = public_ids["legs"][0] if public_ids.get("legs") else {}
+                    first_public_leg = (
+                        public_ids["legs"][0] if public_ids.get("legs") else {}
+                    )
 
                     if first_mode == "BUS":
                         # 버스 대기: 정류장 위치로 업데이트
@@ -352,7 +373,7 @@ class RouteListCreateView(APIView):
                             BotStateManager.update_position(
                                 bot_route.id,
                                 lon=float(station_lon),
-                                lat=float(station_lat)
+                                lat=float(station_lat),
                             )
                         vehicle_info = {
                             "type": "BUS",
@@ -369,7 +390,7 @@ class RouteListCreateView(APIView):
                             BotStateManager.update_position(
                                 bot_route.id,
                                 lon=float(station_lon),
-                                lat=float(station_lat)
+                                lat=float(station_lat),
                             )
                         vehicle_info = {
                             "type": "SUBWAY",
@@ -378,7 +399,9 @@ class RouteListCreateView(APIView):
                         }
 
                 # 업데이트된 봇 상태 조회 (위치 업데이트 반영)
-                updated_initial_state = BotStateManager.get(bot_route.id) or initial_state
+                updated_initial_state = (
+                    BotStateManager.get(bot_route.id) or initial_state
+                )
 
                 # 초기 SSE 이벤트 즉시 발행 (정확한 상태와 위치 포함)
                 SSEPublisher.publish_bot_status_update(
@@ -399,10 +422,14 @@ class RouteListCreateView(APIView):
                 # Task ID 저장 (즉시 취소용)
                 redis_client.set_task_id(bot_route.id, result.id)
 
-                logger.info(f"봇 시뮬레이션 시작: route_id={bot_route.id}, bot_id={bot.id}, task_id={result.id}")
+                logger.info(
+                    f"봇 시뮬레이션 시작: route_id={bot_route.id}, bot_id={bot.id}, task_id={result.id}"
+                )
 
             except Exception as e:
-                logger.error(f"봇 시뮬레이션 시작 실패: route_id={bot_route.id}, error={e}")
+                logger.error(
+                    f"봇 시뮬레이션 시작 실패: route_id={bot_route.id}, error={e}"
+                )
                 # 시뮬레이션 시작 실패해도 경주 생성은 계속 진행
 
         # 응답 생성
@@ -435,8 +462,8 @@ class RouteListCreateView(APIView):
         routes = Route.objects.filter(
             user=user,
             participant_type=Route.ParticipantType.USER,
-            deleted_at__isnull=True
-        ).select_related('route_itinerary', 'route_leg')
+            deleted_at__isnull=True,
+        ).select_related("route_itinerary", "route_leg")
 
         # 상태 필터
         status_filter = request.query_params.get("status")
@@ -445,15 +472,17 @@ class RouteListCreateView(APIView):
 
         routes_data = []
         for route in routes:
-            routes_data.append({
-                "route_id": route.id,
-                "route_itinerary_id": route.route_itinerary.id,
-                "status": route.status,
-                "is_win": route.is_win,
-                "start_time": to_seoul_time(route.start_time),
-                "end_time": to_seoul_time(route.end_time),
-                "duration": route.duration,
-            })
+            routes_data.append(
+                {
+                    "route_id": route.id,
+                    "route_itinerary_id": route.route_itinerary.id,
+                    "status": route.status,
+                    "is_win": route.is_win,
+                    "start_time": to_seoul_time(route.start_time),
+                    "end_time": to_seoul_time(route.end_time),
+                    "duration": route.duration,
+                }
+            )
 
         return success_response(data=routes_data)
 
@@ -509,7 +538,7 @@ class RouteStatusUpdateView(APIView):
                 id=route_id,
                 user=request.user,
                 participant_type=Route.ParticipantType.USER,
-                deleted_at__isnull=True
+                deleted_at__isnull=True,
             )
         except Route.DoesNotExist:
             return error_response(
@@ -569,9 +598,11 @@ class RouteStatusUpdateView(APIView):
 
             # rank와 is_win DB에 저장
             route.rank = rank
-            route.is_win = (rank == 1)
+            route.is_win = rank == 1
             route.save()
-            logger.info(f"유저 FINISHED 결과 저장: route_id={route.id}, rank={rank}, is_win={route.is_win}, duration={route.duration}")
+            logger.info(
+                f"유저 FINISHED 결과 저장: route_id={route.id}, rank={rank}, is_win={route.is_win}, duration={route.duration}"
+            )
 
             # participant_finished SSE 이벤트 발행
             SSEPublisher.publish_participant_finished(
@@ -584,7 +615,9 @@ class RouteStatusUpdateView(APIView):
                 rank=rank,
                 duration=route.duration,
             )
-            logger.info(f"유저 도착 SSE 발행: route_id={route.id}, rank={rank}, duration={route.duration}")
+            logger.info(
+                f"유저 도착 SSE 발행: route_id={route.id}, rank={rank}, duration={route.duration}"
+            )
 
             # 모든 참가자 완주 여부 확인
             unfinished = Route.objects.filter(
@@ -596,7 +629,9 @@ class RouteStatusUpdateView(APIView):
 
             if unfinished == 0:
                 SSEPublisher.publish_route_ended(route.route_itinerary_id)
-                logger.info(f"경주 종료 SSE 발행: route_itinerary_id={route.route_itinerary_id}")
+                logger.info(
+                    f"경주 종료 SSE 발행: route_itinerary_id={route.route_itinerary_id}"
+                )
 
         # CANCELED인 경우 같은 경주의 봇 Route도 취소 처리 및 봇 상태 정리
         if new_status == Route.Status.CANCELED:
@@ -605,48 +640,48 @@ class RouteStatusUpdateView(APIView):
             route.duration = int(duration_delta.total_seconds())
 
             # 같은 경주의 봇 Route 조회 (같은 route_itinerary, 같은 start_time)
-            bot_routes = list(Route.objects.filter(
-                route_itinerary=route.route_itinerary,
-                start_time=route.start_time,
-                participant_type=Route.ParticipantType.BOT,
-                status=Route.Status.RUNNING,
-                deleted_at__isnull=True
-            ))
+            bot_routes = list(
+                Route.objects.filter(
+                    route_itinerary=route.route_itinerary,
+                    start_time=route.start_time,
+                    participant_type=Route.ParticipantType.BOT,
+                    status=Route.Status.RUNNING,
+                    deleted_at__isnull=True,
+                )
+            )
 
             # 모든 참가자의 progress 수집 (rank 계산용)
             progress_list = []
 
             # 유저 progress (요청에서 받음)
-            user_progress = serializer.validated_data.get('progress_percent', 0)
-            progress_list.append({
-                'route': route,
-                'progress': user_progress,
-                'type': 'USER'
-            })
+            user_progress = serializer.validated_data.get("progress_percent", 0)
+            progress_list.append(
+                {"route": route, "progress": user_progress, "type": "USER"}
+            )
 
             # 봇들의 progress (Redis BotState에서 조회)
             for bot_route in bot_routes:
                 bot_state = BotStateManager.get(bot_route.id)
-                bot_progress = bot_state.get('progress_percent', 0) if bot_state else 0
-                progress_list.append({
-                    'route': bot_route,
-                    'progress': bot_progress,
-                    'type': 'BOT'
-                })
+                bot_progress = bot_state.get("progress_percent", 0) if bot_state else 0
+                progress_list.append(
+                    {"route": bot_route, "progress": bot_progress, "type": "BOT"}
+                )
 
             # progress 내림차순 정렬 → rank 부여 (가장 멀리 간 사람이 1등)
-            progress_list.sort(key=lambda x: x['progress'], reverse=True)
+            progress_list.sort(key=lambda x: x["progress"], reverse=True)
 
             for rank, item in enumerate(progress_list, start=1):
-                r = item['route']
+                r = item["route"]
                 r.status = Route.Status.CANCELED
                 r.end_time = now
                 r.duration = int((now - r.start_time).total_seconds())
                 r.rank = rank
-                r.is_win = (rank == 1)
+                r.is_win = rank == 1
                 r.save()
 
-                logger.info(f"경주 취소 - 참가자 결과 저장: route_id={r.id}, type={item['type']}, progress={item['progress']}%, rank={rank}, is_win={r.is_win}")
+                logger.info(
+                    f"경주 취소 - 참가자 결과 저장: route_id={r.id}, type={item['type']}, progress={item['progress']}%, rank={rank}, is_win={r.is_win}"
+                )
 
             # 봇 Celery Task 취소 및 Redis 정리
             for bot_route in bot_routes:
@@ -655,7 +690,9 @@ class RouteStatusUpdateView(APIView):
                 if task_id:
                     celery_app.control.revoke(task_id, terminate=True)
                     redis_client.delete_task_id(bot_route.id)
-                    logger.info(f"Celery Task 즉시 취소: route_id={bot_route.id}, task_id={task_id}")
+                    logger.info(
+                        f"Celery Task 즉시 취소: route_id={bot_route.id}, task_id={task_id}"
+                    )
 
                 # 봇 상태 정리 (Redis 캐시 삭제)
                 BotStateManager.delete(bot_route.id)
@@ -707,12 +744,12 @@ class RouteResultView(APIView):
         # 경주 조회 (본인 소유 확인)
         try:
             user_route = Route.objects.select_related(
-                'route_itinerary', 'route_leg', 'user'
+                "route_itinerary", "route_leg", "user"
             ).get(
                 id=route_id,
                 user=request.user,
                 participant_type=Route.ParticipantType.USER,
-                deleted_at__isnull=True
+                deleted_at__isnull=True,
             )
         except Route.DoesNotExist:
             return error_response(
@@ -725,11 +762,11 @@ class RouteResultView(APIView):
 
         # 같은 경주의 모든 참가자 조회
         all_participants = Route.objects.select_related(
-            'user', 'bot', 'route_leg'
+            "user", "bot", "route_leg"
         ).filter(
             route_itinerary=route_itinerary,
             start_time=user_route.start_time,
-            deleted_at__isnull=True
+            deleted_at__isnull=True,
         )
 
         # 순위 계산 (rank 기준 오름차순, None은 마지막)
@@ -792,7 +829,7 @@ class RouteResultView(APIView):
             if r["route_id"] == user_route.id:
                 user_rank = r["rank"]
                 if user_rank is not None:
-                    is_win = (user_rank == 1)
+                    is_win = user_rank == 1
                 break
 
         # 출발지/도착지 이름 조회 (SearchItineraryHistory에서 가져오기)
@@ -815,13 +852,25 @@ class RouteResultView(APIView):
             "route_info": {
                 "departure": {
                     "name": departure_name,
-                    "lat": float(route_itinerary.start_y) if route_itinerary.start_y else None,
-                    "lon": float(route_itinerary.start_x) if route_itinerary.start_x else None,
+                    "lat": (
+                        float(route_itinerary.start_y)
+                        if route_itinerary.start_y
+                        else None
+                    ),
+                    "lon": (
+                        float(route_itinerary.start_x)
+                        if route_itinerary.start_x
+                        else None
+                    ),
                 },
                 "arrival": {
                     "name": arrival_name,
-                    "lat": float(route_itinerary.end_y) if route_itinerary.end_y else None,
-                    "lon": float(route_itinerary.end_x) if route_itinerary.end_x else None,
+                    "lat": (
+                        float(route_itinerary.end_y) if route_itinerary.end_y else None
+                    ),
+                    "lon": (
+                        float(route_itinerary.end_x) if route_itinerary.end_x else None
+                    ),
                 },
             },
             "rankings": rankings,
@@ -883,8 +932,7 @@ eventSource.addEventListener('bot_status_update', (e) => {
         # route_itinerary 확인
         try:
             route_itinerary = RouteItinerary.objects.get(
-                id=route_itinerary_id,
-                deleted_at__isnull=True
+                id=route_itinerary_id, deleted_at__isnull=True
             )
         except RouteItinerary.DoesNotExist:
             return error_response(
@@ -896,18 +944,28 @@ eventSource.addEventListener('bot_status_update', (e) => {
         async def event_stream():
             """SSE 이벤트 스트림 비동기 Generator (ASGI 호환)"""
             # 연결 성공 이벤트 (즉시 전송)
-            logger.info(f"SSE connected 이벤트 전송: route_itinerary_id={route_itinerary_id}")
-            yield _format_sse_event("connected", {
-                "route_itinerary_id": route_itinerary_id,
-                "message": "SSE 연결 성공",
-            })
+            logger.info(
+                f"SSE connected 이벤트 전송: route_itinerary_id={route_itinerary_id}"
+            )
+            yield _format_sse_event(
+                "connected",
+                {
+                    "route_itinerary_id": route_itinerary_id,
+                    "message": "SSE 연결 성공",
+                },
+            )
 
             # 테스트용: 1초 대기 후 heartbeat 전송
             await asyncio.sleep(1)
-            logger.info(f"SSE heartbeat 이벤트 전송: route_itinerary_id={route_itinerary_id}")
-            yield _format_sse_event("heartbeat", {
-                "route_itinerary_id": route_itinerary_id,
-            })
+            logger.info(
+                f"SSE heartbeat 이벤트 전송: route_itinerary_id={route_itinerary_id}"
+            )
+            yield _format_sse_event(
+                "heartbeat",
+                {
+                    "route_itinerary_id": route_itinerary_id,
+                },
+            )
 
             # RabbitMQ 구독 (동기 함수를 별도 스레드에서 실행)
             try:
@@ -932,20 +990,23 @@ eventSource.addEventListener('bot_status_update', (e) => {
 
                 # 유저 버스 모니터 초기화
                 from .services.user_bus_monitor import UserBusMonitor
+
                 user_bus_monitor = None
-                
+
                 # 유저의 Route 찾기
                 user_route = await asyncio.to_thread(
                     lambda: Route.objects.filter(
                         route_itinerary_id=route_itinerary_id,
                         participant_type=Route.ParticipantType.USER,
-                        status=Route.Status.RUNNING
+                        status=Route.Status.RUNNING,
                     ).first()
                 )
 
                 if user_route:
                     user_bus_monitor = UserBusMonitor(user_route.id)
-                    logger.info(f"SSE: UserBusMonitor initialized for route {user_route.id}")
+                    logger.info(
+                        f"SSE: UserBusMonitor initialized for route {user_route.id}"
+                    )
 
                 while True:
                     # 이벤트 수신 (blocking 호출을 스레드에서)
@@ -954,16 +1015,22 @@ eventSource.addEventListener('bot_status_update', (e) => {
 
                     # --- 유저 버스 도착 정보 확인 및 로그 출력 ---
                     if user_bus_monitor:
-                        bus_info = await asyncio.to_thread(user_bus_monitor.check_arrival)
+                        bus_info = await asyncio.to_thread(
+                            user_bus_monitor.check_arrival
+                        )
                         # ACTIVE 상태일 때만 로그 출력 및 이벤트 전송
                         if bus_info and bus_info.get("status") == "ACTIVE":
-                            logger.info("="*50)
-                            logger.info(f"🚍 [User Bus Check] {bus_info['bus_name']} -> {bus_info['station_name']}")
+                            logger.info("=" * 50)
+                            logger.info(
+                                f"🚍 [User Bus Check] {bus_info['bus_name']} -> {bus_info['station_name']}"
+                            )
                             logger.info(f"   Status: {bus_info['arrival_message']}")
-                            logger.info(f"   Time Left: {bus_info['remaining_time']} sec")
+                            logger.info(
+                                f"   Time Left: {bus_info['remaining_time']} sec"
+                            )
                             logger.info(f"   Vehicle ID: {bus_info['vehicle_id']}")
-                            logger.info("="*50)
-                            
+                            logger.info("=" * 50)
+
                             # 프론트엔드로 실시간 이벤트 전송
                             yield _format_sse_event("user_bus_arrival", bus_info)
                     # ---------------------------------------------
@@ -976,17 +1043,25 @@ eventSource.addEventListener('bot_status_update', (e) => {
 
                         if is_ended:
                             # 모든 참가자 종료 → route_ended 이벤트 발행 후 종료
-                            logger.info(f"SSE 경주 종료 감지: route_itinerary_id={route_itinerary_id}")
-                            yield _format_sse_event("route_ended", {
-                                "route_itinerary_id": route_itinerary_id,
-                                "reason": "all_finished",
-                            })
+                            logger.info(
+                                f"SSE 경주 종료 감지: route_itinerary_id={route_itinerary_id}"
+                            )
+                            yield _format_sse_event(
+                                "route_ended",
+                                {
+                                    "route_itinerary_id": route_itinerary_id,
+                                    "reason": "all_finished",
+                                },
+                            )
                             break
                         else:
                             # 진행 중 → heartbeat 전송
-                            yield _format_sse_event("heartbeat", {
-                                "route_itinerary_id": route_itinerary_id,
-                            })
+                            yield _format_sse_event(
+                                "heartbeat",
+                                {
+                                    "route_itinerary_id": route_itinerary_id,
+                                },
+                            )
                     else:
                         event_type = event.get("event", "unknown")
                         data = event.get("data", {})
@@ -999,9 +1074,12 @@ eventSource.addEventListener('bot_status_update', (e) => {
 
             except Exception as e:
                 logger.error(f"SSE 스트림 에러: {e}")
-                yield _format_sse_event("error", {
-                    "message": "SSE 스트림 에러 발생",
-                })
+                yield _format_sse_event(
+                    "error",
+                    {
+                        "message": "SSE 스트림 에러 발생",
+                    },
+                )
 
         response = StreamingHttpResponse(
             event_stream(),

@@ -44,7 +44,7 @@ def error_response(code, message, status_code, details=None):
         "error": {
             "code": code,
             "message": message,
-        }
+        },
     }
     if details:
         response["error"]["details"] = details
@@ -94,16 +94,18 @@ class BusRouteSearchView(APIView):
             # 버스 유형 판별
             route_type = self._get_bus_type(route.get("busRouteNm", ""))
 
-            result.append({
-                "route_id": route.get("busRouteId"),
-                "route_name": route.get("busRouteNm"),
-                "route_type": route_type,
-                "start_station": route.get("stStationNm"),
-                "end_station": route.get("edStationNm"),
-                "first_bus": route.get("firstBusTm"),
-                "last_bus": route.get("lastBusTm"),
-                "term": route.get("term"),  # 배차간격
-            })
+            result.append(
+                {
+                    "route_id": route.get("busRouteId"),
+                    "route_name": route.get("busRouteNm"),
+                    "route_type": route_type,
+                    "start_station": route.get("stStationNm"),
+                    "end_station": route.get("edStationNm"),
+                    "first_bus": route.get("firstBusTm"),
+                    "last_bus": route.get("lastBusTm"),
+                    "term": route.get("term"),  # 배차간격
+                }
+            )
 
         return success_response(result)
 
@@ -181,15 +183,17 @@ class BusRouteStationsView(APIView):
             except (ValueError, TypeError):
                 lon, lat = 0, 0
 
-            result.append({
-                "id": station.get("station") or station.get("stationId"),
-                "name": station.get("stationNm") or station.get("stNm"),
-                "seq": int(station.get("seq", 0)),
-                "ars_id": station.get("arsId"),
-                "coordinates": [lon, lat] if lon and lat else None,
-                "section_speed": station.get("sectSpd"),  # 구간 속도
-                "full_section_dist": station.get("fullSectDist"),  # 전체 구간 거리
-            })
+            result.append(
+                {
+                    "id": station.get("station") or station.get("stationId"),
+                    "name": station.get("stationNm") or station.get("stNm"),
+                    "seq": int(station.get("seq", 0)),
+                    "ars_id": station.get("arsId"),
+                    "coordinates": [lon, lat] if lon and lat else None,
+                    "section_speed": station.get("sectSpd"),  # 구간 속도
+                    "full_section_dist": station.get("fullSectDist"),  # 전체 구간 거리
+                }
+            )
 
         # seq 순서로 정렬
         result.sort(key=lambda x: x["seq"])
@@ -255,7 +259,9 @@ class BusRoutePathView(APIView):
         # 왕복 노선 여부 확인
         start_coord = station_coords[0]
         end_coord = station_coords[-1]
-        dist = ((start_coord[0] - end_coord[0]) ** 2 + (start_coord[1] - end_coord[1]) ** 2) ** 0.5
+        dist = (
+            (start_coord[0] - end_coord[0]) ** 2 + (start_coord[1] - end_coord[1]) ** 2
+        ) ** 0.5
         is_loop = dist < 0.002  # 약 200m
 
         # 2. Mapbox Map Matching API 호출
@@ -266,7 +272,7 @@ class BusRoutePathView(APIView):
                 if is_loop and len(matched_coords) > 2:
                     # 왕복 노선: 중간 지점에서 분리
                     mid_idx = len(matched_coords) // 2
-                    outbound = matched_coords[:mid_idx + 1]
+                    outbound = matched_coords[: mid_idx + 1]
                     inbound = matched_coords[mid_idx:]
 
                     geojson = {
@@ -298,22 +304,31 @@ class BusRoutePathView(APIView):
                     }
 
                 station_list = [
-                    {"name": s.get("stationNm") or s.get("stNm"), "ars_id": s.get("arsId")}
+                    {
+                        "name": s.get("stationNm") or s.get("stNm"),
+                        "ars_id": s.get("arsId"),
+                    }
                     for s in sorted_stations
                 ]
 
-                return success_response({
-                    "geojson": geojson,
-                    "stations": station_list,
-                })
+                return success_response(
+                    {
+                        "geojson": geojson,
+                        "stations": station_list,
+                    }
+                )
 
         except Exception as e:
             logger.warning(f"Mapbox Map Matching 실패, 정류소 좌표로 폴백: {e}")
 
         # 3. Map Matching 실패 시 정류소 좌표 직접 연결
-        return self._fallback_station_path(route_id, sorted_stations, station_coords, is_loop)
+        return self._fallback_station_path(
+            route_id, sorted_stations, station_coords, is_loop
+        )
 
-    def _mapbox_map_matching(self, coordinates: list[list[float]]) -> list[list[float]] | None:
+    def _mapbox_map_matching(
+        self, coordinates: list[list[float]]
+    ) -> list[list[float]] | None:
         """
         Mapbox Map Matching API 호출
 
@@ -336,7 +351,7 @@ class BusRoutePathView(APIView):
         chunk_size = 100
 
         for i in range(0, len(coordinates), chunk_size - 1):  # 1개 겹치게 해서 연결
-            chunk = coordinates[i:i + chunk_size]
+            chunk = coordinates[i : i + chunk_size]
 
             if len(chunk) < 2:
                 continue
@@ -364,7 +379,9 @@ class BusRoutePathView(APIView):
                 data = response.json()
 
                 if data.get("code") != "Ok":
-                    logger.warning(f"Mapbox Map Matching 실패: {data.get('code')}, {data.get('message')}")
+                    logger.warning(
+                        f"Mapbox Map Matching 실패: {data.get('code')}, {data.get('message')}"
+                    )
                     continue
 
                 matchings = data.get("matchings", [])
@@ -382,7 +399,9 @@ class BusRoutePathView(APIView):
                         matched_coords = matched_coords[1:]
                     all_matched.extend(matched_coords)
 
-                logger.info(f"Mapbox Map Matching 성공: 입력={len(chunk)}개, 출력={len(matched_coords)}개")
+                logger.info(
+                    f"Mapbox Map Matching 성공: 입력={len(chunk)}개, 출력={len(matched_coords)}개"
+                )
 
             except requests.RequestException as e:
                 logger.error(f"Mapbox Map Matching API 요청 실패: {e}")
@@ -414,7 +433,7 @@ class BusRoutePathView(APIView):
                     max_dist = d
                     turn_idx = i
 
-            outbound = station_coords[:turn_idx + 1]
+            outbound = station_coords[: turn_idx + 1]
             inbound = station_coords[turn_idx:]
 
             geojson = {
@@ -445,10 +464,12 @@ class BusRoutePathView(APIView):
                 },
             }
 
-        return success_response({
-            "geojson": geojson,
-            "stations": station_list,
-        })
+        return success_response(
+            {
+                "geojson": geojson,
+                "stations": station_list,
+            }
+        )
 
 
 class BusMultipleRoutesView(APIView):
@@ -509,20 +530,25 @@ class BusMultipleRoutesView(APIView):
                     lat = float(station.get("gpsY") or station.get("tmY") or 0)
 
                     if lon and lat:
-                        stops.append({
-                            "id": station.get("station") or station.get("stationId"),
-                            "name": station.get("stationNm") or station.get("stNm"),
-                            "coordinates": [lon, lat],
-                            "ars_id": station.get("arsId"),
-                        })
+                        stops.append(
+                            {
+                                "id": station.get("station")
+                                or station.get("stationId"),
+                                "name": station.get("stationNm") or station.get("stNm"),
+                                "coordinates": [lon, lat],
+                                "ars_id": station.get("arsId"),
+                            }
+                        )
                 except (ValueError, TypeError):
                     continue
 
             if stops:
-                results.append({
-                    "route_id": route_id,
-                    "stops": stops,
-                })
+                results.append(
+                    {
+                        "route_id": route_id,
+                        "stops": stops,
+                    }
+                )
 
         return success_response(results)
 
@@ -547,8 +573,16 @@ class BusAllPositionsView(APIView):
                     "bounds": {
                         "type": "object",
                         "properties": {
-                            "sw": {"type": "array", "items": {"type": "number"}, "description": "[경도, 위도]"},
-                            "ne": {"type": "array", "items": {"type": "number"}, "description": "[경도, 위도]"},
+                            "sw": {
+                                "type": "array",
+                                "items": {"type": "number"},
+                                "description": "[경도, 위도]",
+                            },
+                            "ne": {
+                                "type": "array",
+                                "items": {"type": "number"},
+                                "description": "[경도, 위도]",
+                            },
                         },
                         "description": "남서(sw), 북동(ne) 좌표",
                     },
@@ -587,9 +621,12 @@ class BusAllPositionsView(APIView):
 
                 # bounds 필터링
                 filtered_buses = [
-                    bus for bus in all_buses
-                    if (sw_lng <= bus["coordinates"][0] <= ne_lng and
-                        sw_lat <= bus["coordinates"][1] <= ne_lat)
+                    bus
+                    for bus in all_buses
+                    if (
+                        sw_lng <= bus["coordinates"][0] <= ne_lng
+                        and sw_lat <= bus["coordinates"][1] <= ne_lat
+                    )
                 ]
 
                 meta = {
@@ -606,12 +643,15 @@ class BusAllPositionsView(APIView):
         # 캐시 미스 - Celery가 아직 데이터를 채우지 않음
         # 외부 API 직접 호출하지 않고 빈 배열 반환 (API 제한 보호)
         logger.info("Redis 캐시 미스 - Celery 태스크가 데이터를 채울 때까지 대기")
-        return success_response([], meta={
-            "total_buses": 0,
-            "routes_count": 0,
-            "cache": "miss",
-            "message": "버스 데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.",
-        })
+        return success_response(
+            [],
+            meta={
+                "total_buses": 0,
+                "routes_count": 0,
+                "cache": "miss",
+                "message": "버스 데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.",
+            },
+        )
 
 
 class BusRealtimePositionsView(APIView):
@@ -665,18 +705,20 @@ class BusRealtimePositionsView(APIView):
                     next_seq = str(int(sect_ord) + 1)
                     next_station = station_map.get(next_seq)
 
-                result.append({
-                    "veh_id": bus.get("vehId"),
-                    "plate_no": bus.get("plainNo"),  # 차량 번호판
-                    "coordinates": [lon, lat],
-                    "sect_ord": int(sect_ord) if sect_ord else None,
-                    "stop_flag": bus.get("stopFlag") == "1",  # 정차 여부
-                    "bus_type": "저상" if bus.get("busType") == "1" else "일반",
-                    "is_full": bus.get("isFullFlag") == "1",  # 만차 여부
-                    "congestion": int(bus.get("congetion") or 0),  # 혼잡도 (0~6)
-                    "data_time": bus.get("dataTm"),  # 데이터 수신 시간
-                    "next_station": next_station,  # 다음 정류소 정보
-                })
+                result.append(
+                    {
+                        "veh_id": bus.get("vehId"),
+                        "plate_no": bus.get("plainNo"),  # 차량 번호판
+                        "coordinates": [lon, lat],
+                        "sect_ord": int(sect_ord) if sect_ord else None,
+                        "stop_flag": bus.get("stopFlag") == "1",  # 정차 여부
+                        "bus_type": "저상" if bus.get("busType") == "1" else "일반",
+                        "is_full": bus.get("isFullFlag") == "1",  # 만차 여부
+                        "congestion": int(bus.get("congetion") or 0),  # 혼잡도 (0~6)
+                        "data_time": bus.get("dataTm"),  # 데이터 수신 시간
+                        "next_station": next_station,  # 다음 정류소 정보
+                    }
+                )
             except (ValueError, TypeError) as e:
                 logger.warning(f"버스 위치 파싱 오류: {e}")
                 continue
@@ -710,7 +752,7 @@ class BusTrackPositionsView(APIView):
                     "bus_numbers": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "버스 번호 목록 (예: [\"360\", \"472\", \"151\"])",
+                        "description": '버스 번호 목록 (예: ["360", "472", "151"])',
                         "example": ["360", "472"],
                     },
                 },
@@ -765,11 +807,13 @@ class BusTrackPositionsView(APIView):
             route_id = route.get("busRouteId")
             route_name = route.get("busRouteNm")
 
-            routes_info.append({
-                "bus_number": bus_number,
-                "route_id": route_id,
-                "route_name": route_name,
-            })
+            routes_info.append(
+                {
+                    "bus_number": bus_number,
+                    "route_id": route_id,
+                    "route_name": route_name,
+                }
+            )
 
             # 2. 해당 노선의 버스 위치 조회
             buses = bus_api_client.get_bus_positions_by_route(route_id)
@@ -784,19 +828,21 @@ class BusTrackPositionsView(APIView):
 
                     sect_ord = bus.get("sectOrd")
 
-                    all_buses.append({
-                        "veh_id": bus.get("vehId"),
-                        "route_id": route_id,
-                        "bus_number": route_name,
-                        "plate_no": bus.get("plainNo"),
-                        "coordinates": [lon, lat],
-                        "sect_ord": int(sect_ord) if sect_ord else None,
-                        "stop_flag": bus.get("stopFlag") == "1",
-                        "bus_type": "저상" if bus.get("busType") == "1" else "일반",
-                        "is_full": bus.get("isFullFlag") == "1",
-                        "congestion": int(bus.get("congetion") or 0),
-                        "data_time": bus.get("dataTm"),
-                    })
+                    all_buses.append(
+                        {
+                            "veh_id": bus.get("vehId"),
+                            "route_id": route_id,
+                            "bus_number": route_name,
+                            "plate_no": bus.get("plainNo"),
+                            "coordinates": [lon, lat],
+                            "sect_ord": int(sect_ord) if sect_ord else None,
+                            "stop_flag": bus.get("stopFlag") == "1",
+                            "bus_type": "저상" if bus.get("busType") == "1" else "일반",
+                            "is_full": bus.get("isFullFlag") == "1",
+                            "congestion": int(bus.get("congetion") or 0),
+                            "data_time": bus.get("dataTm"),
+                        }
+                    )
                 except (ValueError, TypeError) as e:
                     logger.warning(f"버스 위치 파싱 오류: {e}")
                     continue

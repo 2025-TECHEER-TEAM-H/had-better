@@ -2,6 +2,6 @@ from django.apps import AppConfig
 
 
 class RoutesConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.routes'
-    verbose_name = '경주 관리'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.routes"
+    verbose_name = "경주 관리"

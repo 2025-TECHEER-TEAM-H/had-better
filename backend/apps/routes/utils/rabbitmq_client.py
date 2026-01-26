@@ -81,9 +81,7 @@ class RabbitMQClient:
     # 이벤트 발행 (Publisher)
     # =========================================================================
 
-    def publish(
-        self, route_itinerary_id: int, event_type: str, data: dict
-    ) -> bool:
+    def publish(self, route_itinerary_id: int, event_type: str, data: dict) -> bool:
         """
         SSE 이벤트 발행 (재시도 로직 포함)
 
@@ -229,7 +227,10 @@ class RabbitMQClient:
 
                 if reconnect_attempts < max_reconnect_attempts:
                     # 재연결 알림 이벤트
-                    yield {"event": "reconnecting", "data": {"attempt": reconnect_attempts}}
+                    yield {
+                        "event": "reconnecting",
+                        "data": {"attempt": reconnect_attempts},
+                    }
                     time.sleep(RETRY_DELAY * reconnect_attempts)  # 지수적 백오프
                 else:
                     # 최대 재연결 시도 초과
@@ -261,7 +262,9 @@ class RabbitMQClient:
                 logger.info(f"Exchange 삭제 완료: {exchange_name}")
                 return True
         except (AMQPConnectionError, AMQPChannelError) as e:
-            logger.warning(f"Exchange 삭제 실패: route_itinerary_id={route_itinerary_id}, error={e}")
+            logger.warning(
+                f"Exchange 삭제 실패: route_itinerary_id={route_itinerary_id}, error={e}"
+            )
             return False
 
     # =========================================================================

@@ -113,7 +113,9 @@ class Route(models.Model):
     # 시간 정보
     start_time = models.DateTimeField(verbose_name="시작 시간")
     end_time = models.DateTimeField(null=True, blank=True, verbose_name="종료 시간")
-    duration = models.PositiveIntegerField(null=True, blank=True, verbose_name="소요 시간 (초)")
+    duration = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="소요 시간 (초)"
+    )
 
     # 결과 정보
     rank = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="순위")
@@ -164,7 +166,9 @@ class SubwayStation(models.Model):
     """
 
     station_code = models.CharField(max_length=20, verbose_name="전철역 코드")
-    station_name = models.CharField(max_length=50, db_index=True, verbose_name="전철역명")
+    station_name = models.CharField(
+        max_length=50, db_index=True, verbose_name="전철역명"
+    )
     line = models.CharField(max_length=20, verbose_name="호선")
     line_num = models.PositiveSmallIntegerField(db_index=True, verbose_name="호선 번호")
     external_code = models.CharField(max_length=20, verbose_name="외부코드")
@@ -227,9 +231,7 @@ class SubwayStation(models.Model):
             return None
 
         # 정확히 일치하는 역 검색
-        station = cls.objects.filter(
-            station_name=name, line_num=line_num
-        ).first()
+        station = cls.objects.filter(station_name=name, line_num=line_num).first()
 
         # 부분 일치 시도
         if not station:

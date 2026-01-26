@@ -122,7 +122,9 @@ class SeoulSubwayAPIClient:
                 ...
             }]
         """
-        url = f"{self.BASE_URL}/{self.api_key}/json/realtimePosition/0/100/{subway_line}"
+        url = (
+            f"{self.BASE_URL}/{self.api_key}/json/realtimePosition/0/100/{subway_line}"
+        )
 
         try:
             response = requests.get(url, timeout=self.timeout)
