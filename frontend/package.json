@@ -7,6 +7,8 @@
     "build": "tsc -b && vite build",
     "dev": "vite",
     "lint": "eslint .",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -82,6 +84,7 @@
     "@vitejs/plugin-react": "4.7.0",
     "eslint": "^9.39.2",
     "globals": "^15.15.0",
+    "prettier": "^3.8.1",
     "tailwindcss": "4.1.12",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.53.1",
