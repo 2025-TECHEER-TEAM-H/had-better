@@ -738,20 +738,20 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           <div className="flex items-center gap-2 md:gap-3">
             <div className="flex items-center gap-2">
               <img alt="출발지" className="size-[24px] md:size-[20px] object-contain" src={imgGemGreen1} />
-              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-bold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-bold leading-tight">
                 {departure.name}
               </p>
             </div>
-            <p className="font-['Pretendard',sans-serif] text-[16px] md:text-[14px]">→</p>
+            <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px]">→</p>
             <div className="flex items-center gap-2">
               <img alt="도착지" className="size-[24px] md:size-[20px] object-contain" src={imgGemRed1} />
-              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-bold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-bold leading-tight">
                 {arrival.name}
               </p>
             </div>
           </div>
         ) : (
-          <h1 className="font-['DNFBitBitv2',sans-serif] text-[18px] md:text-[16px] text-black text-center">
+          <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] md:text-[16px] text-black text-center">
             각 플레이어의 경로를 선택하세요
           </h1>
         )}
@@ -933,7 +933,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                                   <div className="size-[10px] md:size-[6px] bg-black rounded-sm" />
                                 )}
                               </div>
-                              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-medium">
+                              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-medium">
                                 {PLAYER_LABELS[player]}
                               </p>
                             </label>
@@ -1012,7 +1012,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
       {/* 선택 현황 */}
       <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-black/20 shadow-lg p-4 md:p-5 mt-4 mb-8">
-        <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black mb-4 font-medium">
+        <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black mb-4 font-medium">
           선택 현황
         </p>
         <div className="flex flex-col gap-3">
@@ -1082,7 +1082,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
                 {/* 플레이어 이름 */}
                 <div className="flex-1">
-                  <p className={`font-['Pretendard',sans-serif] text-[14px] md:text-[12px] ${colors.text} font-semibold`}>
+                  <p className={`font-['Pretendard',sans-serif] text-[12px] md:text-[12px] ${colors.text} font-semibold`}>
                     {PLAYER_LABELS[player]}
                   </p>
                 </div>
@@ -1454,11 +1454,11 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
             <button
               onClick={onBack}
-              className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
+              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] w-[48px] h-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
             >
               <p className="font-['Pretendard',sans-serif] leading-[24px] text-[12px] text-white text-center drop-shadow-md">←</p>
             </button>
-            <h1 className="font-['DNFBitBitv2',sans-serif] text-xl text-white text-center drop-shadow-md">경로 선택</h1>
+            <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-white text-center drop-shadow-md">경로 선택</h1>
           </div>
 
           {/* 스크롤 가능한 컨텐츠 영역 */}
@@ -1495,15 +1495,15 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
               <button
                 ref={layerButtonRef}
                 onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-                className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all ${
-                  isLayerPopoverOpen ? "bg-white/30" : ""
+                className={`bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all ${
+                  isLayerPopoverOpen ? "bg-white/60" : ""
                 }`}
                 title="레이어"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
 
@@ -1512,7 +1512,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                 <div
                   ref={popoverRef}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+                  className="absolute right-[56px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
                 >
                   <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                     지도 스타일
@@ -1644,25 +1644,25 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             {/* 현재 위치 버튼 */}
             <button
               onClick={handleMyLocation}
-              className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+              className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all"
               title="내 위치로 이동"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
-                <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.7)" strokeWidth="2"/>
+                <path d="M12 2V6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </button>
 
             {/* 플레이 모드 토글 버튼 */}
             <button
               onClick={() => setPlayMode(playMode === 'gps' ? 'simulation' : 'gps')}
-              className={`backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border shadow-lg transition-all active:scale-95 ${
+              className={`backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg transition-all hover:bg-white/50 active:bg-white/60 ${
                 playMode === 'simulation'
                   ? 'bg-purple-500/70 border-purple-400/50 ring-2 ring-purple-300/50'
-                  : 'bg-white/20 border-white/30 hover:bg-white/30'
+                  : 'bg-white/40'
               }`}
               title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
             >
@@ -1786,7 +1786,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           >
             <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[20px] text-white">
               {isCreatingRoute ? "경주 생성 중..." : "이동 시작"}
-            </span>git checkout develop
+            </span>
           </button>
         </div>
       </div>
@@ -1795,7 +1795,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
       <div className="absolute top-5 left-5 z-10">
         <button
           onClick={onBack}
-          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+          className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all"
         >
           <p className="font-['Pretendard',sans-serif] text-[12px] text-black font-bold">←</p>
         </button>
@@ -1808,15 +1808,15 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           <button
             ref={layerButtonRef}
             onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-            className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto ${
-              isLayerPopoverOpen ? "bg-white/30" : ""
+            className={`bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all pointer-events-auto ${
+              isLayerPopoverOpen ? "bg-white/60" : ""
             }`}
             title="레이어"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
 
@@ -1825,7 +1825,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             <div
               ref={popoverRef}
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
+              className="absolute right-[56px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
             >
               <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                 지도 스타일
@@ -1960,25 +1960,25 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
         {/* 현재 위치 버튼 */}
         <button
           onClick={handleMyLocation}
-          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+          className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all pointer-events-auto"
           title="내 위치로 이동"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
-            <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.7)" strokeWidth="2"/>
+            <path d="M12 2V6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M12 18V22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M2 12H6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M18 12H22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
           </svg>
         </button>
 
         {/* 플레이 모드 토글 버튼 */}
         <button
           onClick={() => setPlayMode(playMode === 'gps' ? 'simulation' : 'gps')}
-          className={`backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border shadow-lg transition-all active:scale-95 pointer-events-auto ${
+          className={`backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg transition-all hover:bg-white/50 active:bg-white/60 pointer-events-auto ${
             playMode === 'simulation'
               ? 'bg-purple-500/70 border-purple-400/50 ring-2 ring-purple-300/50'
-              : 'bg-white/20 border-white/30 hover:bg-white/30'
+              : 'bg-white/40'
           }`}
           title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
         >

@@ -1514,10 +1514,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[16px] md:text-[18px] leading-[22px] text-black">
                       {user?.nickname || "사용자"}님,
                     </p>
-                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] leading-[22px] text-black">
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[16px] md:text-[18px] leading-[22px] text-black">
                       어디로 레이싱 할까요?
                     </p>
                   </div>
@@ -1584,10 +1584,10 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     🏁
                   </div>
                   <div className="flex-1">
-                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-bold text-[13px] leading-tight" style={{ color: mission.color }}>
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-bold text-[12px] md:text-[13px] leading-tight" style={{ color: mission.color }}>
                       SEARCHING MISSION...
                     </p>
-                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-medium text-[12px] text-black/80 mt-0.5">
+                    <p className="css-4hzbpn font-['FreesentationVF','Pretendard',sans-serif] font-medium text-[12px] md:text-[12px] text-black/80 mt-0.5">
                       {mission.text}
                     </p>
                   </div>
@@ -1606,7 +1606,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                       }
                     }}
                     placeholder="목적지를 입력하고 대결 시작"
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] text-black w-full placeholder:text-black/35"
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] md:text-[14px] text-black w-full placeholder:text-black/35"
                   />
                   <button
                     type="button"
@@ -1640,7 +1640,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                   value={startLocation}
                   onChange={(e) => setStartLocation(e.target.value)}
                   placeholder="출발지를 입력해주세요"
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] text-black w-full placeholder:text-black/40"
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] md:text-[14px] text-black w-full placeholder:text-black/40"
                   />
                 </div>
 
@@ -1651,7 +1651,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                   value={endLocation}
                   onChange={(e) => setEndLocation(e.target.value)}
                   placeholder="도착지를 입력해주세요"
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] text-black w-full placeholder:text-black/40"
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] bg-transparent outline-none text-[14px] md:text-[14px] text-black w-full placeholder:text-black/40"
                 />
           </div>
 
@@ -1749,7 +1749,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               }}
                   className="mt-4 w-full h-[48px] rounded-[18px] bg-[#4a9960] hover:bg-[#3d7f50] disabled:bg-[#9cba9c] disabled:cursor-not-allowed transition-colors border border-white/35 flex items-center justify-center active:translate-y-[1px]"
             >
-                  <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[14px] text-white">
+                  <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[20px] text-white">
                     {isSearchingRoute ? "검색 중..." : "길 찾기"}
                   </span>
             </button>
@@ -1758,7 +1758,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               {/* Favorites / quick actions */}
               <div className="mt-6">
                 <div className="flex items-center justify-between px-1">
-                  <p className="-mt-1 css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
+                  <p className="-mt-1 css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] md:text-[13px] text-black/80">
                     자주 가는 곳
                   </p>
                 </div>
@@ -1792,7 +1792,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                         style={{ opacity: favoriteLocations.home.length > 0 ? 1 : 0.4 }}
                       />
               </div>
-                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
+                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] md:text-[12px] text-black">
                       집
                     </span>
             </button>
@@ -1825,7 +1825,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                         style={{ opacity: favoriteLocations.school.length > 0 ? 1 : 0.4 }}
                       />
               </div>
-                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
+                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] md:text-[12px] text-black">
                       학교
                     </span>
             </button>
@@ -1853,12 +1853,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                     >
                       <img
                         alt=""
-                        className="size-[34px] object-contain pointer-events-none"
+                        className="size-[28px] object-contain pointer-events-none"
                         src={imgCoinGold2}
-                        style={{ opacity: favoriteLocations.work.length > 0 ? 1 : 0.4 }}
+                        style={{ opacity: favoriteLocations.work.length > 0 ? 1 : 0.4, transform: 'scale(1.2)' }}
                       />
                     </div>
-                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
+                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] md:text-[12px] text-black">
                       회사
                     </span>
             </button>
@@ -1880,9 +1880,9 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                         backgroundColor: '#a78bfa',
                       }}
                     >
-                      <img alt="" className="size-[34px] object-contain pointer-events-none" src={imgStar1} />
+                      <img alt="" className="size-[28px] object-contain pointer-events-none" src={imgStar1} style={{ transform: 'scale(1.2)' }} />
                     </div>
-                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] text-black">
+                    <span className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-semibold text-[12px] md:text-[12px] text-black">
                       즐겨찾기
                     </span>
                   </button>
@@ -1900,14 +1900,14 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               >
                 {/* Header: Title and Delete All button */}
                 <div className="flex items-center justify-between mb-4">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
+                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] md:text-[13px] text-black/80">
                     최근 기록
                   </p>
                   <button
                     type="button"
                     onClick={handleClearHistories}
                     disabled={searchHistories.length === 0 || isLoadingHistories}
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] md:text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     전체 삭제
                   </button>
@@ -1915,12 +1915,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
 
                 {/* Empty state message */}
                 {isLoadingHistories && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  <p className="css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-[rgba(0,0,0,0.35)] font-medium">
                     최근 검색 기록을 불러오는 중...
                   </p>
                 )}
                 {!isLoadingHistories && searchHistories.length === 0 && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  <p className="css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-[rgba(0,0,0,0.35)] font-medium">
                     최근 검색 기록이 없습니다.
                   </p>
                 )}
@@ -1958,7 +1958,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                           onClick={() => handleHistoryClick(history)}
                         >
                           <span
-                            className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                            className="flex-1 css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black truncate font-medium"
                           >
                             {history.keyword}
                           </span>
@@ -1991,14 +1991,14 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               >
                 {/* Header: Title and Delete All button */}
                 <div className="flex items-center justify-between mb-4">
-                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black/80">
+                  <p className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] md:text-[13px] text-black/80">
                     최근 경로 기록
                   </p>
                   <button
                     type="button"
                     onClick={handleClearRouteHistories}
                     disabled={routeSearchHistories.length === 0 || isLoadingRouteHistories}
-                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="css-4hzbpn font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium text-[12px] md:text-[12px] text-black/60 hover:text-[#4a9960] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     전체 삭제
                   </button>
@@ -2006,12 +2006,12 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
 
                 {/* Empty state message */}
                 {isLoadingRouteHistories && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  <p className="css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-[rgba(0,0,0,0.35)] font-medium">
                     최근 경로 기록을 불러오는 중...
                   </p>
                 )}
                 {!isLoadingRouteHistories && routeSearchHistories.length === 0 && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                  <p className="css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-[rgba(0,0,0,0.35)] font-medium">
                     최근 경로 기록이 없습니다.
                   </p>
                 )}
@@ -2046,7 +2046,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
                           onClick={() => handleRouteHistoryClick(history)}
                         >
                           <span
-                            className="flex-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-black truncate"
+                            className="flex-1 css-4hzbpn font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black truncate font-medium"
                           >
                             {history.departure.name} → {history.arrival.name}
                           </span>
