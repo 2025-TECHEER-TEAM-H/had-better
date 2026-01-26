@@ -6,6 +6,24 @@ import imgWindow2 from "@/assets/window.png";
 import placeService from "@/services/placeService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// 카테고리별 아이콘 이미지 import
+import iconCafe from "@/assets/icons/cafe_emoji.png";
+import iconRestaurant from "@/assets/icons/restaurant_emoji.png";
+import iconConvenience from "@/assets/icons/convenience.png";
+import iconHospital from "@/assets/icons/hospital_emoji.png";
+import iconPharmacy from "@/assets/icons/pharmacy_emoji.png";
+import iconPark from "@/assets/icons/park_emoji.png";
+import iconSchool from "@/assets/icons/school_emoji.png";
+import iconBank from "@/assets/icons/bank_emoji.png";
+import iconGas from "@/assets/icons/gas_emoji.png";
+import iconParking from "@/assets/icons/parking_emoji.png";
+import iconSubway from "@/assets/icons/subway_emoji.png";
+import iconBus from "@/assets/icons/bus_emoji.png";
+import iconHotel from "@/assets/icons/hotel_emoji.png";
+import iconMarket from "@/assets/icons/market_emoji.png";
+import iconMall from "@/assets/icons/mall_emoji.png";
+import iconDefault from "@/assets/icons/default_emoji.png";
+
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 interface Place {
@@ -39,28 +57,54 @@ interface PlaceSearchModalProps {
   onOpenDashboard: () => void;
 }
 
+// [기존 이모지 버전 - 주석처리]
 // 카테고리별 아이콘 매핑 (SearchResultsPage와 동일)
+// const getCategoryIcon = (category: string): string => {
+//   const c = (category || "").toLowerCase();
+//   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+//
+//   if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
+//   if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
+//   if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
+//   if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
+//   if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
+//   if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
+//   if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
+//   if (hasAny(["은행", "bank", "atm"])) return "🏦";
+//   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
+//   if (hasAny(["주차", "parking"])) return "🅿️";
+//   if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+//   if (hasAny(["버스", "bus"])) return "🚌";
+//   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
+//   if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
+//   if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+//
+//   return "📍"; // 기본 아이콘
+// };
+
+// [새 버전 - 흑백 아이콘 이미지 사용]
+// 카테고리별 아이콘 매핑 (이미지 경로 반환)
 const getCategoryIcon = (category: string): string => {
   const c = (category || "").toLowerCase();
   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
 
-  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
-  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
-  if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
-  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
-  if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
-  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
-  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
-  if (hasAny(["은행", "bank", "atm"])) return "🏦";
-  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
-  if (hasAny(["주차", "parking"])) return "🅿️";
-  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
-  if (hasAny(["버스", "bus"])) return "🚌";
-  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
-  if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
-  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return iconCafe;
+  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return iconRestaurant;
+  if (hasAny(["편의점", "convenience", "cvs"])) return iconConvenience;
+  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return iconHospital;
+  if (hasAny(["약국", "pharmacy", "drugstore"])) return iconPharmacy;
+  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return iconPark;
+  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return iconSchool;
+  if (hasAny(["은행", "bank", "atm"])) return iconBank;
+  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return iconGas;
+  if (hasAny(["주차", "parking"])) return iconParking;
+  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return iconSubway;
+  if (hasAny(["버스", "bus"])) return iconBus;
+  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return iconHotel;
+  if (hasAny(["마트", "market", "grocery", "supermarket"])) return iconMarket;
+  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return iconMall;
 
-  return "📍"; // 기본 아이콘
+  return iconDefault; // 기본 아이콘
 };
 
 // 카테고리별 배경색 매핑
@@ -691,7 +735,10 @@ export function PlaceSearchModal({
                             WebkitBackdropFilter: "blur(12px) saturate(150%)",
                           }}
                         >
-                          <p className="text-[32px]">{place.icon}</p>
+                          {/* [기존 이모지 버전 - 주석처리] */}
+                          {/* <p className="text-[32px]">{place.icon}</p> */}
+                          {/* [새 버전 - 아이콘 이미지] */}
+                          <img src={place.icon} alt="" className="w-[32px] h-[32px] object-contain" />
                         </div>
 
                         {/* 정보 */}
