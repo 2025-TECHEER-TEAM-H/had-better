@@ -1,0 +1,61 @@
+# Celery EC2 서버용 (Celery Worker + Beat)
+# 사용법: docker compose -f docker-compose.celery.yml up -d
+
+services:
+  # Celery Worker
+  celery-worker:
+    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    container_name: hadbetter-celery-worker
+    command: celery -A config worker -l info --concurrency=4
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      # Django EC2의 RabbitMQ 연결 (Private IP 사용)
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@${DJANGO_EC2_PRIVATE_IP}:5672//
+      # AWS RDS 연결
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_URL=${REDIS_URL}
+      - DEBUG=False
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # Celery Beat (스케줄러)
+  celery-beat:
+    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    container_name: hadbetter-celery-beat
+    command: celery -A config beat -l info
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      # Django EC2의 RabbitMQ 연결 (Private IP 사용)
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@${DJANGO_EC2_PRIVATE_IP}:5672//
+      # AWS RDS 연결
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_URL=${REDIS_URL}
+      - DEBUG=False
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  hadbetter-network:
+    driver: bridge
