@@ -45,32 +45,19 @@ const RANK_GLASS_STYLES: Record<number, { background: string; border: string; sh
 export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading }: ResultPopupProps) {
   if (!isOpen) return null;
 
-  // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
-  // 1) 결과 팝업 닫기
-  // 2) 대시보드 팝업 닫기 (있는 경우)
-  // 3) Search 페이지로 이동
-  const handleMainClick = () => {
-    onClose(); // 결과 팝업 닫기
-    onCloseDashboard?.(); // 대시보드 팝업 닫기
-    if (onNavigate) {
-      onNavigate("search"); // Search 페이지로 이동
-    }
-  };
-
-  const handleDashboardClick = () => {
-    onClose(); // 결과 팝업 닫기
-    // 대시보드에서 열린 경우: 팝업만 닫으면 대시보드가 보임
-    // 경주 끝난 후 열린 경우: onOpenDashboard로 대시보드 열기
-    if (onOpenDashboard) {
-      onOpenDashboard();
-    }
-  };
-
   // Portal을 사용하여 body에 직접 렌더링 (다른 팝업 위에 표시되도록)
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 hb-result-popup">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 p-4 hb-result-popup">
       <style>
         {`
+          @font-face {
+            font-family: 'Pretendard';
+            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+
           @font-face {
             font-family: 'FreesentationVF';
             src: url('/fonts/FreesentationVF.ttf') format('truetype');
@@ -92,10 +79,12 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
           .hb-result-popup .hb-result-shell {
             position: relative;
             overflow: hidden;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
           }
 
           .hb-result-popup .hb-result-shell.hb-result-glass {
-            background: linear-gradient(180deg, #d4ebf7 0%, #ffffff 100%);
+            background: #d4ebf7;
           }
 
           .hb-result-popup .hb-result-glass {
@@ -199,146 +188,120 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         `}
       </style>
       {/* 팝업 컨텐츠 */}
-      <div className="relative w-[378px] h-[841px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px]">
+      <div className="relative w-full max-w-[400px] h-[90vh] max-h-[840px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px] overflow-hidden flex flex-col">
 
         {/* 헤더 - 제목, X 버튼 */}
-        <div className="absolute left-[37px] top-[29px] right-[37px]">
+        <div className="relative px-6 pt-5 pb-4">
           {/* 제목 */}
-          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center">
-            <p className="hb-result-title text-[18px] text-black">
-            HAD BETTER
+          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center mb-4">
+            <p className="hb-result-title text-[16px] text-black">
+              HAD BETTER
             </p>
           </div>
 
           {/* X 버튼 */}
           <button
             onClick={onClose}
-            className="absolute hb-result-chip hb-result-pressable right-0 top-0 size-[44px] rounded-[14px] flex items-center justify-center text-black"
+            className="absolute top-5 right-6 hb-result-chip hb-result-pressable size-[44px] rounded-[14px] flex items-center justify-center text-black"
           >
-            <p className="css-4hzbpn font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[16px] text-black">✕</p>
+            <span className="font-['Press_Start_2P:Regular',sans-serif] text-[14px]">✕</span>
           </button>
         </div>
 
-        {/* 로딩 상태 */}
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[16px] text-black">결과 로딩 중...</p>
-          </div>
-        )}
+        {/* 컨텐츠 영역 - 스크롤 가능 */}
+        <div className="flex-1 overflow-y-auto overflow-x-visible px-5 pb-6 pt-2 flex flex-col items-center">
+          {/* 로딩 상태 */}
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[16px] text-black">결과 로딩 중...</p>
+            </div>
+          )}
 
-        {/* 순위 표시 */}
-        {!isLoading && result && (
-          <div className="absolute left-[61.01px] top-[116.83px] w-[255.999px] h-[170.974px] flex gap-[16px] items-end justify-center">
-            {/* rank 기준으로 정렬 후 2위-1위-3위 순서로 배치 */}
-            {(() => {
-              const sortedRankings = [...result.rankings].sort((a, b) => (a.rank || 99) - (b.rank || 99));
-              return [1, 0, 2].map((displayIndex) => {
-              const ranking = sortedRankings[displayIndex];
-              if (!ranking) return null;
+          {/* 순위 표시 */}
+          {!isLoading && result && (
+            <div className="w-full flex gap-4 items-end justify-center mb-6 pt-6">
+              {/* rank 기준으로 정렬 후 2위-1위-3위 순서로 배치 */}
+              {(() => {
+                const sortedRankings = [...result.rankings].sort((a, b) => (a.rank || 99) - (b.rank || 99));
+                return [1, 0, 2].map((displayIndex) => {
+                const ranking = sortedRankings[displayIndex];
+                if (!ranking) return null;
 
-              const rank = ranking.rank || displayIndex + 1;
-              const isFirst = rank === 1;
-              const glassStyle = RANK_GLASS_STYLES[rank] || RANK_GLASS_STYLES[3];
-              const medal = RANK_MEDALS[rank] || '🏅';
-              const displayName = ranking.type === 'USER' ? '나' : ranking.name || `Bot ${ranking.bot_id}`;
-              const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
+                const rank = ranking.rank || displayIndex + 1;
+                const isFirst = rank === 1;
+                const glassStyle = RANK_GLASS_STYLES[rank] || RANK_GLASS_STYLES[3];
+                const medal = RANK_MEDALS[rank] || '🏅';
+                const displayName = ranking.type === 'USER' ? '나' : ranking.name || `Bot ${ranking.bot_id}`;
+                const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
 
-              return (
-                <div
-                  key={ranking.route_id}
-                  className={`flex flex-col items-center ${isFirst ? 'w-[95.999px]' : 'w-[64px]'}`}
-                >
-                  <div className="relative">
-                    <div
-                      className={`${isFirst ? 'size-[95.999px]' : 'size-[64px]'} rounded-full flex items-center justify-center`}
-                      style={{
-                        background: glassStyle.background,
-                        border: glassStyle.border,
-                        boxShadow: glassStyle.shadow,
-                        backdropFilter: 'blur(18px) saturate(160%)',
-                        WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-                      }}
-                    >
-                      <p className={`${isFirst ? 'text-[48px] leading-[1]' : 'text-[30px] leading-[1]'} flex items-center justify-center`}>{medal}</p>
+                return (
+                  <div
+                    key={ranking.route_id}
+                    className={`flex flex-col items-center ${isFirst ? 'w-[96px]' : 'w-[64px]'}`}
+                  >
+                    <div className="relative overflow-visible">
+                      <div
+                        className={`${isFirst ? 'size-[96px]' : 'size-[64px]'} rounded-full flex items-center justify-center`}
+                        style={{
+                          background: glassStyle.background,
+                          border: glassStyle.border,
+                          boxShadow: glassStyle.shadow,
+                          backdropFilter: 'blur(18px) saturate(160%)',
+                          WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+                        }}
+                      >
+                        <p className={`${isFirst ? 'text-[48px] leading-[1]' : 'text-[30px] leading-[1]'} flex items-center justify-center`}>{medal}</p>
+                      </div>
+                      {isFirst && <p className="absolute text-[24px] leading-[1] left-1/2 -translate-x-1/2 top-[-14px] z-[100] pointer-events-none">⭐</p>}
                     </div>
-                    {isFirst && <p className="absolute text-[24px] leading-[1] left-1/2 -translate-x-1/2 top-[-14px]">⭐</p>}
+                    <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-3' : 'mt-2'}`}>
+                      {rank}위
+                    </p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-1">{displayName}</p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-1">{duration}</p>
                   </div>
-                  <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
-                    {rank}위
-                  </p>
-                  <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-[4px]">{displayName}</p>
-                  <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-[4px]">{duration}</p>
-                </div>
-              );
-            });
-            })()}
-          </div>
-        )}
+                );
+              });
+              })()}
+            </div>
+          )}
 
-        {/* 축하 메시지 */}
-        <div className="absolute hb-result-card left-[24px] top-[299.8px] w-[330.038px] h-[77.683px] rounded-[16px] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
-          <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f] text-center">
-            {result?.user_result.is_win
-              ? '오늘은 내가 제일 빨리 도착했어요!'
-              : result?.user_result.rank
-                ? `${result.user_result.rank}위로 도착했어요!`
-                : '경주가 종료되었습니다!'}
-          </p>
-          <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[13px] text-[#2d5f3f] text-center">
-            {result?.user_result.is_win ? '🌈BEST CHOICE!🌈' : '🏁FINISHED!🏁'}
-          </p>
-        </div>
+          {/* 축하 메시지 */}
+          {!isLoading && result && (
+            <div className="w-full hb-result-card rounded-[16px] flex flex-col items-center justify-center gap-2 px-6 py-4 mb-6">
+              <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f] text-center">
+                {result?.user_result.is_win
+                  ? '오늘은 내가 제일 빨리 도착했어요!'
+                  : result?.user_result.rank
+                    ? `${result.user_result.rank}위로 도착했어요!`
+                    : '경주가 종료되었습니다!'}
+              </p>
+              <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[13px] text-[#2d5f3f] text-center">
+                {result?.user_result.is_win ? '🌈BEST CHOICE!🌈' : '🏁FINISHED!🏁'}
+              </p>
+            </div>
+          )}
 
-        {/* 기록 카드들 */}
-        <div className="absolute left-[24px] top-[417.49px] w-[330.038px] flex flex-col gap-[11.995px]">
-          {result?.rankings.map((ranking) => {
-            const displayName = ranking.type === 'USER' ? '내 기록' : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
-            const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
+          {/* 기록 카드들 */}
+          {!isLoading && result && (
+            <div className="w-full flex flex-col gap-3">
+              {result?.rankings.map((ranking) => {
+                const displayName = ranking.type === 'USER' ? '내 기록' : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
+                const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
 
-            return (
-              <div
-                key={ranking.route_id}
-                className={`hb-result-card h-[64px] rounded-[16px] flex flex-col items-center justify-center`}
-                style={{ background: undefined }}
-              >
-                <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f]`}>{displayName}</p>
-                <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-[3.995px]`}>{duration}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 하단 버튼들 */}
-        <div className="absolute left-[24px] top-[653.48px] w-[330.038px] flex flex-col gap-[11.995px]">
-          {/* Main 버튼 */}
-          <button
-            onClick={handleMainClick}
-            className="hb-result-button hb-result-button-main h-[56px] rounded-[24px]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(72, 212, 72, 0.85) 0%, rgba(61, 184, 61, 0.85) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.7)',
-              boxShadow: '0 8px 24px rgba(72, 212, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(18px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-            }}
-          >
-            <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[18px] text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">Main</p>
-          </button>
-
-          {/* Dashboard 버튼 */}
-          <button
-            onClick={handleDashboardClick}
-            className="hb-result-button hb-result-button-dashboard h-[56px] rounded-[24px]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(0, 217, 255, 0.85) 0%, rgba(0, 184, 212, 0.85) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.7)',
-              boxShadow: '0 8px 24px rgba(0, 217, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(18px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-            }}
-          >
-            <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[18px] text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">Dashboard</p>
-          </button>
+                return (
+                  <div
+                    key={ranking.route_id}
+                    className="hb-result-card h-[64px] rounded-[16px] flex flex-col items-center justify-center"
+                    style={{ background: undefined }}
+                  >
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f]">{displayName}</p>
+                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-1">{duration}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>,
