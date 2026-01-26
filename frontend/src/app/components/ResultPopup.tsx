@@ -12,6 +12,7 @@ interface ResultPopupProps {
   onCloseDashboard?: () => void; // 대시보드 닫기 콜백 (Main 버튼 클릭 시 사용)
   result?: RouteResultResponse | null; // 경주 결과 데이터
   isLoading?: boolean; // 로딩 상태
+  userNickname?: string; // 유저 닉네임
 }
 
 // 순위별 메달 이모지
@@ -42,7 +43,7 @@ const RANK_GLASS_STYLES: Record<number, { background: string; border: string; sh
 
 
 
-export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading }: ResultPopupProps) {
+export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading, userNickname = '나' }: ResultPopupProps) {
   if (!isOpen) return null;
 
   // 메인(SearchPage)으로 돌아갈 때의 내비게이션 규칙:
@@ -240,7 +241,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
               const isFirst = rank === 1;
               const glassStyle = RANK_GLASS_STYLES[rank] || RANK_GLASS_STYLES[3];
               const medal = RANK_MEDALS[rank] || '🏅';
-              const displayName = ranking.type === 'USER' ? '나' : ranking.name || `Bot ${ranking.bot_id}`;
+              const displayName = ranking.type === 'USER' ? userNickname : ranking.name || `Bot ${ranking.bot_id}`;
               const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
 
               return (
@@ -292,7 +293,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         {/* 기록 카드들 */}
         <div className="absolute left-[24px] top-[417.49px] w-[330.038px] flex flex-col gap-[11.995px]">
           {result?.rankings.map((ranking) => {
-            const displayName = ranking.type === 'USER' ? '내 기록' : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
+            const displayName = ranking.type === 'USER' ? `${userNickname}의 기록` : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
             const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
 
             return (

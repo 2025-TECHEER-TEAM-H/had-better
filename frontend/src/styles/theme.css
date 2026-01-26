@@ -79,6 +79,11 @@
 }
 
 @theme inline {
+  /* 폰트 패밀리 */
+  --font-pretendard: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-pixel: "Press Start 2P", cursive;
+  --font-wittgenstein: "Wittgenstein", serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

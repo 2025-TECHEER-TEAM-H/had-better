@@ -249,41 +249,6 @@ export function RouteTimeline({
         </div>
       </div>
 
-      {/* 경로 개요 바 */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-2">
-        {legs.map((leg, index) => {
-          const isWalk = leg.mode === 'WALK';
-          const isTransport = leg.mode === 'BUS' || leg.mode === 'SUBWAY';
-          const timeMinutes = secondsToMinutes(leg.sectionTime || 0);
-
-          return (
-            <div key={index} className="flex items-center gap-1 flex-shrink-0">
-              {isWalk ? (
-                <>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-[10px]">🚶</span>
-                    </div>
-                    <span className="text-[10px] text-gray-600 font-medium">{timeMinutes}분 ({metersToKilometers(leg.distance || 0)})</span>
-                  </div>
-                  <div className="w-8 h-1 bg-gray-300 rounded-full" />
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`px-2 py-1 rounded ${isTransport ? '' : 'bg-gray-300'} text-white text-[10px] font-bold`} style={isTransport ? { backgroundColor: colors.primary } : {}}>
-                      {leg.route || leg.mode}
-                    </div>
-                    <span className="text-[10px] text-gray-600 font-medium">{timeMinutes}분 ({metersToKilometers(leg.distance || 0)})</span>
-                  </div>
-                  {index < legs.length - 1 && <div className="w-8 h-1 bg-gray-300 rounded-full" />}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {/* 상세 타임라인 */}
       <div className="flex flex-col gap-0 relative">
         {/* 전체 타임라인 수직 선 - 전체 구간 연결 */}
@@ -308,6 +273,11 @@ export function RouteTimeline({
             const prevIsTransport = prevLeg && (prevLeg.mode === 'BUS' || prevLeg.mode === 'SUBWAY');
             const nextIsTransport = nextLeg && (nextLeg.mode === 'BUS' || nextLeg.mode === 'SUBWAY');
 
+            // 노선 색상 결정 (routeColor가 있으면 사용, 없으면 기본 회색)
+            const routeColor = leg.routeColor ? `#${leg.routeColor.replace('#', '')}` : '#888888';
+            // 이전 leg의 색상 (연결선용)
+            const prevRouteColor = prevLeg?.routeColor ? `#${prevLeg.routeColor.replace('#', '')}` : '#888888';
+
             const position = cardPositions[index] || { boardingTop: 0, alightingTop: 0, cardTop: 0 };
             const boardingTop = position.boardingTop || 0;
             const alightingTop = position.alightingTop || 0;
@@ -329,7 +299,7 @@ export function RouteTimeline({
                     style={{
                       top: `${boardingTop || 0}px`,
                       height: `${lineHeight}px`,
-                      backgroundColor: colors.primary,
+                      backgroundColor: routeColor,
                       opacity: 1.0
                     }}
                   />
@@ -342,7 +312,7 @@ export function RouteTimeline({
                     style={{
                       top: `${alightingTop || 0}px`,
                       height: `${connectionHeight}px`,
-                      background: `repeating-linear-gradient(to bottom, ${prevIsTransport ? colors.primary : '#d1d5db'} 0px, ${prevIsTransport ? colors.primary : '#d1d5db'} 4px, transparent 4px, transparent 8px)`,
+                      background: `repeating-linear-gradient(to bottom, ${prevIsTransport ? prevRouteColor : '#d1d5db'} 0px, ${prevIsTransport ? prevRouteColor : '#d1d5db'} 4px, transparent 4px, transparent 8px)`,
                       opacity: 0.4
                     }}
                   />
@@ -359,24 +329,13 @@ export function RouteTimeline({
                   >
                     <div
                       className="w-[32px] h-[32px] rounded-full flex items-center justify-center border-2 border-white shadow-md -translate-x-1/2"
-                      style={{ backgroundColor: colors.primary }}
+                      style={{ backgroundColor: routeColor }}
                     >
                       <span className="text-white text-[12px] font-bold">{isTransport ? '🚌' : '🚇'}</span>
                     </div>
                   </div>
                 )}
 
-                {/* 교통수단 정보 - 선 왼쪽 중간에 표시 */}
-                {isTransport && lineHeight > 0 && (
-                  <div
-                    className="absolute left-[-70px] -translate-y-1/2 flex items-center gap-1.5 z-20"
-                    style={{ top: `${(boardingTop || 0) + lineHeight / 2}px` }}
-                  >
-                    <span className="font-['Wittgenstein',sans-serif] text-[12px] text-gray-700 font-semibold whitespace-nowrap">
-                      {secondsToMinutes(leg.sectionTime || 0)}분
-                    </span>
-                  </div>
-                )}
 
                 {/* 하차 마커 (교통수단 구간 끝) - 초록색 선과 맞닿도록 */}
                 {isTransport && (!isLast || alightingTop > boardingTop) && (
@@ -418,6 +377,14 @@ export function RouteTimeline({
           const isFirst = index === 0;
           const isLast = index === legs.length - 1;
           const timeMinutes = secondsToMinutes(leg.sectionTime || 0);
+
+          // 노선 색상 결정 (routeColor가 있으면 사용, 없으면 기본 회색)
+          const routeColor = leg.routeColor ? `#${leg.routeColor.replace('#', '')}` : '#888888';
+          const legColors = {
+            primary: routeColor,
+            light: `${routeColor}30`, // 30% 투명도
+            badgeBorder: `${routeColor}40`, // 40% 투명도
+          };
 
           return (
             <div
@@ -489,13 +456,13 @@ export function RouteTimeline({
                     </div>
 
                     {/* 교통수단 정보 - 중간 강조 */}
-                    <div className="rounded-[8px] p-2.5 sm:p-3 mb-2" style={{ backgroundColor: colors.light }}>
+                    <div className="rounded-[8px] p-2.5 sm:p-3 mb-2" style={{ backgroundColor: legColors.light }}>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold" style={{ backgroundColor: colors.primary }}>
+                        <span className="text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold" style={{ backgroundColor: legColors.primary }}>
                           {leg.route || leg.mode}
                         </span>
                         <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-gray-700">
-                          {metersToKilometers(leg.distance || 0)}
+                          {metersToKilometers(leg.distance || 0)} • {secondsToMinutes(leg.sectionTime || 0)}분
                           {leg.passStopList?.stationList && ` • ${leg.passStopList.stationList.length}정류장`}
                         </span>
                       </div>
@@ -505,10 +472,10 @@ export function RouteTimeline({
                           onClick={() => toggleStopList(index)}
                           className="w-full mt-2 text-left text-[11px] sm:text-[10px] font-medium flex items-center justify-between py-1.5 min-h-[44px] sm:min-h-0"
                           style={{
-                            color: colors.primary,
+                            color: legColors.primary,
                           }}
                           onMouseEnter={(e) => {
-                            const rgb = colors.primary.replace('#', '');
+                            const rgb = legColors.primary.replace('#', '');
                             const r = parseInt(rgb.substr(0, 2), 16);
                             const g = parseInt(rgb.substr(2, 2), 16);
                             const b = parseInt(rgb.substr(4, 2), 16);
@@ -516,7 +483,7 @@ export function RouteTimeline({
                             e.currentTarget.style.color = darker;
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.color = colors.primary;
+                            e.currentTarget.style.color = legColors.primary;
                           }}
                         >
                           <span>{leg.passStopList.stationList.length}개 정류장 {expandedStops.has(index) ? '접기' : '보기'}</span>
@@ -527,7 +494,7 @@ export function RouteTimeline({
                       )}
                       {/* 정류장 목록 (펼쳐졌을 때) */}
                       {expandedStops.has(index) && leg.passStopList?.stationList && leg.passStopList.stationList.length > 0 && (
-                        <div className="mt-3 pt-3 border-t" style={{ borderColor: colors.badgeBorder }}>
+                        <div className="mt-3 pt-3 border-t" style={{ borderColor: legColors.badgeBorder }}>
                           <div className="space-y-1.5 max-h-[250px] sm:max-h-[200px] overflow-y-auto">
                             {leg.passStopList.stationList.map((station: any, stationIndex: number) => (
                               <div
