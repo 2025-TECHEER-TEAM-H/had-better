@@ -29,6 +29,23 @@ interface PlaceDetailPageProps {
   onOpenSubway?: () => void;
 }
 
+// 알파벳(A, B, C, ...)에서 인덱스 계산 (마커 색상용)
+const getIndexFromAlphabet = (letter: string): number => {
+  if (!letter || letter.length === 0) return 0;
+  const code = letter.charCodeAt(0);
+  // A=65, B=66, ... Z=90
+  if (code >= 65 && code <= 90) {
+    return code - 65;
+  }
+  return 0;
+};
+
+// 인덱스 기반 마커 색상 반환 (MapView와 동일한 팔레트)
+const getMarkerColor = (index: number): string => {
+  const cardPalette = ["#7ed321", "#00d9ff", "#ffffff", "#ffc107", "#ff9ff3", "#54a0ff"];
+  return cardPalette[index % cardPalette.length];
+};
+
 // 받침 여부에 따라 주격 조사 반환
 const getSubjectParticle = (word: string): "이" | "가" => {
   if (!word) return "이";
@@ -428,13 +445,16 @@ export function PlaceDetailPage({
   const placeInfoContent = (
     <div className="flex flex-col h-full gap-4">
       {/* 장소 정보 카드 */}
-      <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-white/30 shadow-lg p-5 flex-shrink-0">
+      <div
+        className="backdrop-blur-lg rounded-[10px] border border-white/30 shadow-lg p-5 flex-shrink-0"
+        style={{ backgroundColor: getMarkerColor(getIndexFromAlphabet(place.icon)) }}
+      >
         {/* 상단: 아이콘과 장소 이름 */}
         <div className="flex items-center gap-4 mb-4">
           {/* 아이콘 */}
           <div className="bg-white/90 backdrop-blur-lg relative rounded-[10px] shrink-0 size-[72px] border border-white/40 shadow-md">
             <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
-              <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[64px] text-[#0a0a0a] text-[44px] tracking-[0.3516px]">
+              <p className="font-['Pretendard',sans-serif] font-bold leading-[64px] text-[#0a0a0a] text-[44px]">
                 {place.icon}
               </p>
             </div>
