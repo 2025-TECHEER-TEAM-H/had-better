@@ -84,7 +84,7 @@ function Frame2() {
   return (
     <div className="absolute bg-[#4a9960] content-stretch flex h-[83px] items-center justify-center left-1/2 p-[6px] rounded-[40.5px] top-[350px] translate-x-[-50%] w-[602px]">
       <div aria-hidden="true" className="absolute border-6 border-black border-solid inset-0 pointer-events-none rounded-[40.5px] shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
-      <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[90px] not-italic relative shrink-0 text-[24px] text-center text-white tracking-[3.6px]">start</p>
+      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[90px] not-italic relative shrink-0 text-[18px] text-center text-white tracking-[3.6px]">start</p>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export default function Tablet() {
       </p>
       <Frame3 />
       <Frame2 />
-      <p className="absolute css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal leading-[normal] left-0 not-italic right-0 text-[20px] text-black text-center top-[450px]">선택 경로 실시간 비교</p>
+      <p className="absolute font-['Pretendard',sans-serif] font-bold leading-[normal] left-0 not-italic right-0 text-[16px] text-black text-center top-[450px]">선택 경로 실시간 비교</p>
       <div className="absolute left-[-381px] size-[128px] top-[244px]" data-name="star 1">
         <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgStar1} />
       </div>

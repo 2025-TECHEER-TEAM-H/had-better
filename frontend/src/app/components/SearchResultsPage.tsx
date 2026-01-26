@@ -544,11 +544,11 @@ export function SearchResultsPage({
         {/* 장소 이름 */}
         <div className="flex-[1_0_0] min-h-px min-w-px relative">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex flex-col items-start relative w-full">
-            <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-extrabold leading-[18px] text-[14px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[18px] text-[16px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
               {result.name}
             </p>
             {buildSubline(result) && (
-              <p className="css-ew64yg font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+              <p className="font-['Pretendard',sans-serif] font-medium leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
                 {buildSubline(result)}
               </p>
             )}
@@ -593,7 +593,7 @@ export function SearchResultsPage({
       {error && !isLoading && (
         <div className="text-center py-8">
           <div className="inline-block bg-red-100/90 backdrop-blur-lg border border-red-300 rounded-[10px] px-4 py-2 shadow-lg">
-            <p className="text-red-600 font-bold drop-shadow-sm">{error}</p>
+            <p className="font-['Pretendard',sans-serif] font-bold text-red-600 drop-shadow-sm">{error}</p>
           </div>
         </div>
       )}
@@ -602,7 +602,7 @@ export function SearchResultsPage({
       {!isLoading && !error && searchResults.length === 0 && searchQuery && (
         <div className="text-center py-8">
           <div className="inline-block bg-white/90 backdrop-blur-lg border border-black/20 rounded-[10px] px-4 py-2 shadow-lg">
-            <p className="text-gray-600 drop-shadow-sm">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
+            <p className="font-['Pretendard',sans-serif] font-medium text-gray-600 drop-shadow-sm">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
           </div>
         </div>
       )}
@@ -618,7 +618,7 @@ export function SearchResultsPage({
           onClick={() => setVisibleCount((prev) => prev + 10)}
           className="w-full py-4 text-black font-bold rounded-[10px] border border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
         >
-          <span className="font-['Press_Start_2P:Regular',sans-serif] text-[12px] drop-shadow-md">
+          <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] drop-shadow-md">
             정보 더보기 ({searchResults.length - visibleCount}개 남음)
           </span>
         </button>
@@ -677,11 +677,11 @@ export function SearchResultsPage({
             >
               <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
             </button>
-            <p className="css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[30px] text-[16px] text-white text-center drop-shadow-md">
+            <p className="font-['DNFBitBitv2',sans-serif] font-bold leading-[30px] text-[16px] text-white text-center drop-shadow-md">
               검색 결과
             </p>
             {searchQuery && (
-              <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
+              <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
                 "{searchQuery}"
               </p>
             )}

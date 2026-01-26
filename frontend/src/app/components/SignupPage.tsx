@@ -370,7 +370,7 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
         {/* 에러 메시지 */}
         {error && (
           <div className="absolute left-1/2 translate-x-[-50%] top-[120px] md:top-[140px] z-30">
-            <p className="text-red-500 text-xs md:text-sm font-bold bg-white/90 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg border border-red-200 shadow-sm">
+            <p className="font-['Pretendard',sans-serif] font-medium text-red-500 text-[12px] bg-white/90 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg border border-red-200 shadow-sm">
               {error}
             </p>
           </div>
@@ -466,7 +466,7 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
 
       {/* 이미 계정이 있으신가요? 로그인 */}
       <div className="absolute left-1/2 translate-x-[-50%] top-[620px] md:top-[920px] flex flex-col items-center gap-[8px] z-20 pb-8">
-        <p className="css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center opacity-60 tracking-[0.2px] whitespace-nowrap">
+        <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center opacity-60 tracking-[0.2px] whitespace-nowrap">
           이미 계정이 있으신가요?{" "}
           <button
             type="button"
