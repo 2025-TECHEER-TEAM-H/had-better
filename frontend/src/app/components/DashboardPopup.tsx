@@ -322,10 +322,10 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                     >
                       Lv.{levelInfo.lv}
                     </span>
-                    <span className="text-xs font-bold text-[#6b9080]">{levelInfo.title}</span>
+                    <span className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080]">{levelInfo.title}</span>
                   </div>
                   <h2 className="hb-pixel-font text-xl text-[#1a1a2e]">{user?.nickname || "Guest"}</h2>
-                  <p className="text-[11px] text-[#6b9080] opacity-80">{user?.email || "로그인이 필요합니다"}</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] opacity-80">{user?.email || "로그인이 필요합니다"}</p>
                 </div>
               </div>
 
@@ -356,7 +356,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
               ].map((item, idx) => (
                 <div key={idx} className="hb-dashboard-card rounded-[20px] p-3 flex flex-col items-center justify-center text-center">
                   <span className="text-xl mb-1">{item.icon}</span>
-                  <span className="text-[10px] text-[#6b9080] mb-1">{item.label}</span>
+                  <span className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] mb-1">{item.label}</span>
                   <span className="hb-pixel-font text-base text-[#1a1a2e]">{item.value}</span>
                 </div>
               ))}
@@ -375,19 +375,19 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                     className="hb-dashboard-card hb-dashboard-pressable rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all"
                   >
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1a1a2e]">{game.route_name}</span>
-                      <span className="text-[11px] text-[#6b9080]">{game.duration}</span>
+                      <span className="font-['Pretendard',sans-serif] font-semibold text-[14px] text-[#1a1a2e]">{game.route_name}</span>
+                      <span className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080]">{game.duration}</span>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className={`hb-pixel-font text-xs ${game.rank.includes("1") ? "text-[#f1c40f]" : "text-[#1a1a2e]"}`}>
                         {game.rank}
                       </span>
-                      <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity text-[#6b9080]">상세보기 →</span>
+                      <span className="font-['Pretendard',sans-serif] font-medium text-[12px] opacity-0 group-hover:opacity-100 transition-opacity text-[#6b9080]">상세보기 →</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-sm text-[#6b9080] hb-dashboard-card rounded-[18px]">
+                <div className="text-center py-8 font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] hb-dashboard-card rounded-[18px]">
                   아직 기록이 없습니다.
                 </div>
               )}
@@ -405,7 +405,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                   <div key={idx} className="flex flex-col items-center gap-2 flex-1 group relative">
                     <div className="relative w-full flex justify-center items-end h-16">
                       {/* 툴팁 */}
-                      <span className="absolute -top-6 text-[10px] font-bold text-[#2ecc71] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      <span className="absolute -top-6 font-['Pretendard',sans-serif] font-bold text-[12px] text-[#2ecc71] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                         {m.wins}승
                       </span>
                       {/* 막대 그래프 */}
@@ -416,7 +416,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                         style={{ height: `${m.wins > 0 ? Math.max((m.wins / maxWins) * 100, 10) : 5}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-bold text-[#6b9080] opacity-80">{m.label}</span>
+                    <span className="font-['Pretendard',sans-serif] font-bold text-[9px] text-[#6b9080] opacity-80">{m.label}</span>
                   </div>
                 ))}
               </div>
@@ -428,16 +428,16 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
                 <h3 className="hb-pixel-font text-[#1a1a2e]">
                   승리의 기록
                 </h3>
-                <span className="text-xs font-bold text-[#6b9080]">{year}.{String(month + 1).padStart(2, '0')}</span>
+                <span className="font-['Pretendard',sans-serif] font-bold text-[12px] text-[#6b9080]">{year}.{String(month + 1).padStart(2, '0')}</span>
               </div>
               <div className="grid grid-cols-7 gap-2">
                 {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-                  <div key={d} className="text-center text-[10px] font-bold text-[#6b9080] opacity-60">{d}</div>
+                  <div key={d} className="text-center font-['Pretendard',sans-serif] font-bold text-[12px] text-[#6b9080] opacity-60">{d}</div>
                 ))}
                 {days.map((d, i) => (
                   <div
                     key={i}
-                    className={`aspect-square flex items-center justify-center text-[11px] rounded-lg transition-all relative
+                    className={`aspect-square flex items-center justify-center font-['Pretendard',sans-serif] font-medium text-[12px] rounded-lg transition-all relative
                       ${d.month !== "current" ? "opacity-20" : "bg-white/20"}
                       ${d.day && isWinDay(d.day) ? "bg-gradient-to-br from-[#48d448] to-[#2ecc71] text-white shadow-md font-bold" : ""}
                       ${d.day && isToday(d.day) ? "border border-[#6b9080]" : ""}

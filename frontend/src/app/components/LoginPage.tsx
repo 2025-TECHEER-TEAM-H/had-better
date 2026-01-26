@@ -386,7 +386,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
         {/* 에러 메시지 */}
         {error && (
           <div className="absolute left-1/2 translate-x-[-50%] top-[120px] md:top-[140px] z-30">
-            <p className="text-red-500 text-xs md:text-sm font-bold bg-white/90 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg border border-red-200 shadow-sm">
+            <p className="font-['Pretendard',sans-serif] font-medium text-red-500 text-[12px] bg-white/90 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg border border-red-200 shadow-sm">
               {error}
             </p>
           </div>
@@ -454,7 +454,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
               <p className="text-white text-[20px] font-bold leading-none">✓</p>
             )}
           </div>
-          <p className="css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] tracking-[0.2px] whitespace-nowrap">
+          <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] tracking-[0.2px] whitespace-nowrap">
             로그인 유지
           </p>
         </label>
@@ -465,7 +465,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
           onClick={handleSignup}
           className="hover:opacity-80 transition-opacity shrink-0"
         >
-          <p className="css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center tracking-[0.2px] whitespace-nowrap">
+          <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center tracking-[0.2px] whitespace-nowrap">
             회원가입
           </p>
         </button>

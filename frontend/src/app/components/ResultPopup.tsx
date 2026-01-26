@@ -168,7 +168,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         {/* 로딩 상태 */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[16px] text-black">결과 로딩 중...</p>
+            <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-black">결과 로딩 중...</p>
           </div>
         )}
 
@@ -213,11 +213,11 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                       </p>
                     )}
                   </div>
-                  <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
+                  <p className={`font-['Pretendard',sans-serif] font-semibold text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
                     {rank}위
                   </p>
-                  <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-[4px]">{displayName}</p>
-                  <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-[4px]">{duration}</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] mt-[4px]">{displayName}</p>
+                  <p className="font-['Pretendard',sans-serif] font-semibold text-[14px] text-[#2d5f3f] mt-[4px]">{duration}</p>
                 </div>
               );
             });
@@ -227,7 +227,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
 
         {/* 축하 메시지 */}
         <div className="absolute hb-result-card left-1/2 -translate-x-1/2 top-[299.8px] w-[330.038px] h-[77.683px] rounded-[16px] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
-          <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f] text-center">
+          <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-[#2d5f3f] text-center">
             {result?.user_result.is_win
               ? '오늘은 내가 제일 빨리 도착했어요!'
               : result?.user_result.rank
@@ -235,7 +235,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                 : '경주가 종료되었습니다!'}
           </p>
           <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[13px] text-[#2d5f3f] text-center">
-            {result?.user_result.is_win ? '🌈BEST CHOICE!🌈' : '🏁FINISHED!🏁'}
+            {result?.user_result.is_win ? 'BEST CHOICE!' : 'FINISHED!'}
           </p>
         </div>
 
@@ -251,8 +251,8 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                 className={`hb-result-card h-[64px] rounded-[16px] flex flex-col items-center justify-center`}
                 style={{ background: undefined }}
               >
-                <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f]`}>{displayName}</p>
-                <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-[3.995px]`}>{duration}</p>
+                <p className={`font-['Pretendard',sans-serif] font-bold text-[16px] text-[#2d5f3f]`}>{displayName}</p>
+                <p className={`font-['Pretendard',sans-serif] font-semibold text-[14px] text-[#6b9080] mt-[3.995px]`}>{duration}</p>
               </div>
             );
           })}

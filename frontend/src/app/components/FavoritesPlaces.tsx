@@ -609,7 +609,7 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
             </div>
           ) : favorites.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-700 font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[13px]">
+              <p className="font-['Pretendard',sans-serif] font-medium text-gray-700 text-[12px]">
                 즐겨찾기한 장소가 없습니다.
               </p>
             </div>
@@ -631,10 +631,10 @@ export function FavoritesPlaces({ isOpen, onClose, onNavigate, onOpenDashboard, 
 
                   {/* 장소 정보 */}
                   <div className="flex-1 pt-2">
-                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[16px] text-[#111827] leading-[18px] mb-1">
+                    <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-[#111827] leading-[18px] mb-1">
                       {place.name}
                     </p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[11px] text-[#375a4e] leading-[14px] mb-2">
+                    <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#375a4e] leading-[14px] mb-2">
                       {place.address}
                     </p>
                     <div className="hb-favorites-chip rounded-[999px] inline-flex items-center px-3 py-1.5">

@@ -442,7 +442,7 @@ export function PlaceDetailPage({
 
           {/* 장소 이름과 즐겨찾기 */}
           <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-            <p className="css-ew64yg font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold leading-[22px] text-[16px] text-black break-words flex-1">
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[22px] text-[16px] text-black break-words flex-1">
               {place.name}
             </p>
             {/* 즐겨찾기 버튼 */}
@@ -464,14 +464,14 @@ export function PlaceDetailPage({
           {(calculatedDistance || place.distance) && (
             <div className="flex items-center gap-2">
               <span className="text-[12px]">📍</span>
-              <p className="css-4hzbpn font-['Wittgenstein:Medium',sans-serif] font-medium leading-[16px] text-[#4a9960] text-[12px]">
+              <p className="font-['Pretendard',sans-serif] font-semibold leading-[16px] text-[#4a9960] text-[14px]">
                 {calculatedDistance || place.distance}
               </p>
             </div>
           )}
           <div className="flex items-start gap-2">
             <span className="text-[12px] mt-0.5">🏠</span>
-            <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal leading-[18px] text-[#6b7280] text-[12px] break-words flex-1">
+            <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#6b7280] text-[12px] break-words flex-1">
               {place.address}
             </p>
           </div>
@@ -483,7 +483,7 @@ export function PlaceDetailPage({
         onClick={handleStartNavigation}
         className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg flex-shrink-0 mt-auto"
       >
-        <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
+        <p className="absolute font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[18px] left-[50%] text-[18px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md">
           경로 안내 시작! 🏁
         </p>
       </button>
@@ -594,8 +594,7 @@ export function PlaceDetailPage({
                     }
                   }}
                   placeholder="목적지를 입력해주세요"
-                  className="css-4hzbpn font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[30px] text-[13px] text-black flex-1 bg-transparent outline-none placeholder:text-gray-400"
-                  style={{ fontVariationSettings: "'wght' 400" }}
+                  className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] text-[14px] text-black flex-1 bg-transparent outline-none placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -612,7 +611,7 @@ export function PlaceDetailPage({
                   }}
                   className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[57px]"
                 >
-                  <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지도</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지도</p>
                 </button>
 
                 {/* 검색 버튼 - PlaceDetailPage를 닫고 검색 페이지로 이동 */}
@@ -623,7 +622,7 @@ export function PlaceDetailPage({
                   }}
                   className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[56px]"
                 >
-                  <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">검색</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">검색</p>
                 </button>
 
                 {/* 지하철 버튼 - PlaceDetailPage를 닫고 지하철 노선도 오버레이 열기 */}
@@ -634,7 +633,7 @@ export function PlaceDetailPage({
                   }}
                   className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[57px]"
                 >
-                  <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지하철</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지하철</p>
                 </button>
 
                 {/* MY 버튼 - PlaceDetailPage를 닫고 대시보드 팝업 열기 */}
@@ -645,7 +644,7 @@ export function PlaceDetailPage({
                   }}
                   className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[56px]"
                 >
-                  <p className="css-ew64yg font-['Wittgenstein:Medium',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">MY</p>
+                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">MY</p>
                 </button>
               </div>
             </div>
@@ -659,10 +658,10 @@ export function PlaceDetailPage({
                 <div className="flex flex-col gap-4">
                   {/* 장소 이름 */}
                   <div>
-                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black mb-2">
+                    <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black mb-2">
                       장소명
                     </p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-black leading-[20px] break-words">
+                    <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black leading-[20px] break-words">
                       {place.name}
                     </p>
                   </div>
@@ -670,9 +669,9 @@ export function PlaceDetailPage({
                   {/* 거리 정보 (GPS 기반) */}
                   {(calculatedDistance || place.distance) && (
                     <div className="flex items-center gap-2">
-                      <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">거리:</p>
+                      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black">거리:</p>
                       <div className="bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/40 rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
-                        <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[8px] text-cyan-600 leading-[9px]">
+                        <p className="font-['Pretendard',sans-serif] font-semibold text-[14px] text-cyan-600 leading-[16px]">
                           {calculatedDistance || place.distance}
                         </p>
                       </div>
@@ -681,15 +680,15 @@ export function PlaceDetailPage({
 
                   {/* 주소 */}
                   <div className="flex flex-col gap-1">
-                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">주소:</p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[12px] text-[#6b9080] leading-[18px] break-words">
+                    <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black">주소:</p>
+                    <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] leading-[18px] break-words">
                       {place.address}
                     </p>
                   </div>
 
                   {/* 즐겨찾기 버튼 */}
                   <div className="flex items-center justify-between pt-3 border-t border-white/30">
-                    <p className="font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">즐겨찾기</p>
+                    <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black">즐겨찾기</p>
                     <button
                       onClick={handleToggleFavorite}
                       className="bg-white/90 backdrop-blur-lg relative rounded-[14px] shrink-0 size-[48px] border border-white/40 shadow-md transition-all hover:bg-white active:scale-95 flex items-center justify-center"
@@ -712,7 +711,7 @@ export function PlaceDetailPage({
               onClick={handleStartNavigation}
               className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
             >
-              <p className="absolute css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[18px] left-[50%] text-[12px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md" style={{ fontVariationSettings: "'wght' 400" }}>
+              <p className="absolute font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[18px] left-[50%] text-[18px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md">
                 경로 안내 시작! 🏁
               </p>
             </button>
