@@ -1455,8 +1455,11 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             <button
               onClick={onBack}
               className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] w-[48px] h-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
+              title="뒤로가기"
             >
-              <p className="font-['Pretendard',sans-serif] leading-[24px] text-[12px] text-white text-center drop-shadow-md">←</p>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
             <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-white text-center drop-shadow-md">경로 선택</h1>
           </div>
@@ -1796,8 +1799,11 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
         <button
           onClick={onBack}
           className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all"
+          title="뒤로가기"
         >
-          <p className="font-['Pretendard',sans-serif] text-[12px] text-black font-bold">←</p>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </button>
       </div>
 
