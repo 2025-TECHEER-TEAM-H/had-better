@@ -41,7 +41,7 @@ export function Onboarding5Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       {/* 건너뛰기 버튼 */}
       <button
         onClick={handleSkip}
-        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Pretendard',sans-serif] font-medium text-[12px]"
+        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Pretendard',sans-serif] font-medium text-[16px]"
       >
         건너뛰기
       </button>
@@ -49,12 +49,12 @@ export function Onboarding5Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       {/* 상단 컨텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
-        <h1 className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[16px]">
+        <h1 className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]">
           자, 오늘의 승자는 누가 될까요
         </h1>
 
         {/* 서브 타이틀 */}
-        <div className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[12px]">
+        <div className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]">
           <p className="mb-0">준비가 됐다면 엔진을 켜고</p>
           <p>첫 번째 레이스를 시작해보세요!</p>
         </div>
