@@ -7,7 +7,6 @@
 import { create } from 'zustand';
 import type {
   RouteSearchResponse,
-  RouteLegSummary,
   RouteLegDetailResponse,
   CreateRouteResponse,
 } from '@/types/route';

@@ -12,6 +12,9 @@ import { MovingCharacter, type CharacterColor } from "@/components/MovingCharact
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
 import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, getBusRoutePath, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
 import { trackBusPositions, getBusRoutePath as fetchBusRoutePath } from "@/lib/api";
+import { HorizontalRanking } from "./route-detail/HorizontalRanking";
+import { RouteTimeline } from "./route-detail/RouteTimeline";
+import { RealtimeInfoContent } from "./route-detail/RealtimeInfoContent";
 
 // 사용자 경로 시뮬레이션을 위한 Leg 타이밍 정보
 interface LegTiming {
@@ -131,6 +134,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const [showResultPopup, setShowResultPopup] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isRankingVisible, setIsRankingVisible] = useState(true); // 실시간 순위창 표시 상태
+
+  // 하단 시트 탭 상태
+  const [bottomSheetView, setBottomSheetView] = useState<'route' | 'realtime'>('route');
+
+  // HorizontalRanking 관련 상태
+  const [selectedPlayer, setSelectedPlayer] = useState<Player>('user');
+  const [isRouteInfoExpanded, setIsRouteInfoExpanded] = useState(false);
+
+  // 실시간 그래프 데이터
+  const [simulationStartTime, setSimulationStartTime] = useState<number | null>(null);
+  const [chartData, setChartData] = useState<Array<{
+    time: number;
+    timestamp: number;
+    [key: string]: number | string;
+  }>>([]);
 
   // 레이어 관련 상태
   const { mapStyle, setMapStyle } = useMapStore();
@@ -1082,6 +1100,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     };
   }, []);
 
+  // 시뮬레이션 시작 시간 기록 (실시간 그래프용)
+  useEffect(() => {
+    if (isUserAutoMoving && !simulationStartTime) {
+      setSimulationStartTime(Date.now());
+    }
+  }, [isUserAutoMoving, simulationStartTime]);
+
   // 시뮬레이션 시작 (SSE로 대체 - 주석 처리)
   // const startSimulation = useCallback(() => {
   //   if (isSimulating) return;
@@ -1153,9 +1178,6 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   //   setFinishTimes(new Map()); // 도착 시간 기록도 초기화
   //   setSimulationStartTime(null); // 시작 시간도 초기화
   // }, [stopSimulation]);
-
-  // 시뮬레이션 시작 시간 기록
-  const [simulationStartTime, setSimulationStartTime] = useState<number | null>(null);
 
   // 시뮬레이션 결과를 기반으로 결과 데이터 생성
   const generateResultFromSimulation = useCallback((): RouteResultResponse => {
@@ -1734,6 +1756,148 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     return players.every((player) => (playerProgress.get(player) || 0) >= 1);
   }, [playerProgress]);
 
+  // 플레이어별 색상 매핑
+  const playerColors = useMemo<Record<Player, CharacterColor>>(() => {
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+    return {
+      user: 'green',
+      bot1: (botParticipants[0]?.bot_type as CharacterColor) || 'purple',
+      bot2: (botParticipants[1]?.bot_type as CharacterColor) || 'yellow',
+    };
+  }, [createRouteResponse]);
+
+  // HorizontalRanking용 순위 리스트 (확장된 형식)
+  const rankingsList = useMemo(() => {
+    const botParticipants = createRouteResponse?.participants.filter(p => p.type === 'BOT') || [];
+
+    return rankings.map((r, index) => {
+      const routeLegId = assignments.get(r.player);
+      const legData = routeLegId ? legDetails.get(routeLegId) : null;
+      const totalTimeMinutes = legData ? Math.round(legData.totalTime / 60) : 0;
+      const remainingMinutes = legData && r.progress < 1
+        ? Math.ceil((legData.totalTime * (1 - r.progress)) / 60)
+        : 0;
+
+      // 1위와의 시간 차이 계산
+      const firstPlace = rankings[0];
+      const firstLegId = assignments.get(firstPlace.player);
+      const firstLegData = firstLegId ? legDetails.get(firstLegId) : null;
+      let timeDifference: number | null = null;
+      let timeDifferenceText: string | null = null;
+
+      if (index > 0 && legData && firstLegData) {
+        const myRemainingTime = legData.totalTime * (1 - r.progress);
+        const firstRemainingTime = firstLegData.totalTime * (1 - firstPlace.progress);
+        timeDifference = Math.round((myRemainingTime - firstRemainingTime) / 60);
+        if (timeDifference > 0) {
+          timeDifferenceText = `${timeDifference}분 뒤처짐`;
+        } else if (timeDifference < 0) {
+          timeDifferenceText = `${Math.abs(timeDifference)}분 앞섬`;
+        }
+      }
+
+      return {
+        player: r.player,
+        progress: r.progress,
+        rank: index + 1,
+        name: r.player === 'user'
+          ? '나'
+          : (r.player === 'bot1' ? botParticipants[0]?.name : botParticipants[1]?.name) || '고스트',
+        totalTimeMinutes,
+        isArrived: r.progress >= 1,
+        remainingMinutes,
+        timeDifference,
+        timeDifferenceText,
+      };
+    });
+  }, [rankings, assignments, legDetails, createRouteResponse]);
+
+  // 선택된 플레이어의 경로 데이터
+  const selectedLegData = useMemo(() => {
+    const routeLegId = assignments.get(selectedPlayer);
+    return routeLegId ? legDetails.get(routeLegId) : null;
+  }, [assignments, legDetails, selectedPlayer]);
+
+  // 사용자 경로 데이터 (통계용)
+  const userLegData = useMemo(() => {
+    const routeLegId = assignments.get('user');
+    return routeLegId ? legDetails.get(routeLegId) : null;
+  }, [assignments, legDetails]);
+
+  // 플레이어별 경로 데이터 가져오기 헬퍼
+  const getPlayerLegData = useCallback((player: Player) => {
+    const routeLegId = assignments.get(player);
+    return routeLegId ? legDetails.get(routeLegId) : null;
+  }, [assignments, legDetails]);
+
+  // HorizontalRanking용 경로 타임라인 렌더링 콜백
+  const renderRouteTimeline = useCallback((player: Player) => {
+    const legData = getPlayerLegData(player);
+    if (!legData) return null;
+
+    return (
+      <RouteTimeline
+        legs={legData.legs || []}
+        isLoading={isLoadingDetails}
+        playerColor={playerColors[player]}
+        totalTime={legData.totalTime || 0}
+        totalDistance={legData.totalDistance || 0}
+        totalWalkTime={legData.totalWalkTime || 0}
+        totalWalkDistance={legData.totalWalkDistance || 0}
+        transferCount={legData.transferCount || 0}
+        pathType={legData.pathType}
+      />
+    );
+  }, [getPlayerLegData, isLoadingDetails, playerColors]);
+
+  // 실시간 차트 데이터 수집 (5초마다)
+  useEffect(() => {
+    if (!simulationStartTime) return;
+
+    const updateChartData = () => {
+      const elapsedSeconds = Math.floor((Date.now() - simulationStartTime) / 1000);
+
+      const dataPoint: Record<string, number | string> = {
+        time: elapsedSeconds,
+        timestamp: Date.now(),
+      };
+
+      (['user', 'bot1', 'bot2'] as Player[]).forEach((player) => {
+        const progress = playerProgress.get(player) || 0;
+        const rankingInfo = rankingsList.find(r => r.player === player);
+        const routeLegId = assignments.get(player);
+        const legData = routeLegId ? legDetails.get(routeLegId) : null;
+
+        // 순위 데이터
+        dataPoint[`rank_${player}`] = rankingInfo?.rank || 0;
+
+        // 진행률 데이터
+        dataPoint[`progress_${player}`] = Math.round(progress * 100);
+
+        // 남은 시간 데이터
+        if (legData && progress < 1) {
+          const remainingSeconds = legData.totalTime * (1 - progress);
+          dataPoint[`remaining_${player}`] = Math.ceil(remainingSeconds / 60);
+        } else {
+          dataPoint[`remaining_${player}`] = 0;
+        }
+      });
+
+      setChartData(prev => {
+        const newData = [...prev, dataPoint];
+        // 최근 60개 데이터만 유지 (약 5분간의 데이터)
+        return newData.slice(-60);
+      });
+    };
+
+    // 즉시 한 번 실행
+    updateChartData();
+
+    // 5초마다 업데이트
+    const interval = setInterval(updateChartData, 5000);
+    return () => clearInterval(interval);
+  }, [simulationStartTime, playerProgress, rankingsList, assignments, legDetails]);
+
   // 드래그 시작
   const handleDragStart = (clientY: number) => {
     setIsDragging(true);
@@ -1985,7 +2149,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   // GPS 상태 카드
   const gpsStatusCard = (
     <div className={`rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-3 mb-3 ${
-      isOffRoute ? 'bg-[#ff6b6b]' : isUserArrived ? 'bg-[#4ecdc4]' : 'bg-white'
+      isOffRoute ? 'bg-[#ff6b6b]' : 'bg-white'
     }`}>
       {/* 경로 이탈 경고 */}
       {isOffRoute && (
@@ -1994,24 +2158,6 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
             경로에서 {distanceFromRoute}m 이탈했습니다!
           </p>
-        </div>
-      )}
-
-      {/* 도착 완료 */}
-      {isUserArrived && (
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[18px]">🎉</span>
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white font-bold">
-              도착 완료! 봇 시뮬레이션 관전 중...
-            </p>
-          </div>
-          <button
-            onClick={openResultPopup}
-            className="px-3 py-1 bg-white text-[#4ecdc4] rounded-full text-[11px] font-bold hover:bg-gray-100 transition-colors"
-          >
-            결과 보기
-          </button>
         </div>
       )}
 
@@ -2114,102 +2260,6 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     </div>
   );
 
-  // 경로 카드 생성
-  const renderRouteCard = (player: Player, index: number) => {
-    const route = getPlayerRoute(player);
-    if (!route || !route.summary) return null;
-
-    const playerColor = PLAYER_COLORS[player];
-    const playerGradient = PLAYER_GRADIENTS[playerColor];
-    const timeMinutes = secondsToMinutes(route.summary.totalTime);
-    const distanceStr = metersToKilometers(route.summary.totalDistance);
-    const isUser = player === "user";
-
-    return (
-      <div
-        key={player}
-        className={`bg-gradient-to-b ${playerGradient} rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] p-[23.364px]`}
-      >
-        {/* 헤더 */}
-        <div className="flex gap-[11.992px] items-center mb-[16px]">
-          <div className="bg-white rounded-[10px] w-[48px] h-[48px] border-[3px] border-black flex items-center justify-center overflow-hidden">
-            <img
-              src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
-              alt={`${player} character`}
-              className="w-[36px] h-[36px] object-contain"
-            />
-          </div>
-          <div className="flex-1">
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[18px] mb-[3.997px]">
-              {isUser ? `내 경로 (경로 ${route.legIndex + 1})` : `${PLAYER_LABELS[player]} 경로`}
-            </p>
-            <div className="flex gap-[3.997px]">
-              <div className="bg-[#ffd93d] h-[24px] px-[12px] border-[3px] border-black flex items-center justify-center">
-                <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px]">
-                  {timeMinutes}분
-                </p>
-              </div>
-              <div className="bg-white h-[24px] px-[12px] border-[3px] border-black flex items-center justify-center">
-                <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px]">
-                  {distanceStr}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 이동 경로 */}
-        <div>
-          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[15px] mb-[8px]">
-            이동 경로
-          </p>
-          <div className="flex flex-col gap-[12px]">
-            {route.detail?.legs.map((leg, legIndex) => (
-              <div key={legIndex} className="flex gap-[7.995px] items-start">
-                <div className="bg-[#7ed321] w-[27.992px] h-[27.992px] rounded-[4px] border-[3px] border-black flex items-center justify-center shrink-0">
-                  <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[15px]">
-                    {legIndex + 1}
-                  </p>
-                </div>
-                <div className="flex-1">
-                  <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[14px]">
-                    {MODE_ICONS[leg.mode] || "🚶"}{" "}
-                    {leg.mode === "WALK"
-                      ? `도보 이동 (${metersToKilometers(leg.distance)})`
-                      : `${leg.route || leg.mode} (${secondsToMinutes(leg.sectionTime)}분)`}
-                    {/* 유저 버스 도착 정보 표시 (정류장 이탈 후 숨김) */}
-                    {player === 'user' && leg.mode === "BUS" && !hasLeftBusStop &&
-                     userBusArrival && userBusArrival.status === "ACTIVE" &&
-                     userBusArrival.bus_name === (leg.route?.split(':').pop() || leg.route) && (
-                      <span className="ml-2 text-[#ffd93d]">
-                        · 다음 버스: {userBusArrival.arrival_message}
-                      </span>
-                    )}
-                  </p>
-                  <p className="font-['Wittgenstein',sans-serif] text-[10px] text-white/70 leading-[12px] mt-1">
-                    {leg.start.name} → {leg.end.name}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {!route.detail && isLoadingDetails && (
-              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white/70">
-                경로 정보 로딩 중...
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 경로 카드들
-  const routeCards = (
-    <div className="flex flex-col gap-[16px]">
-      {players.map((player, index) => renderRouteCard(player, index))}
-    </div>
-  );
-
   // 웹 뷰
   if (isWebView) {
     return (
@@ -2235,29 +2285,47 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
           {/* 스크롤 가능한 컨텐츠 영역 */}
           <div className="flex-1 overflow-auto px-5 py-5">
-            {/* GPS 상태 */}
-            {gpsStatusCard}
+            {bottomSheetView === 'route' ? (
+              <>
+                {/* GPS 상태 */}
+                {gpsStatusCard}
 
-            {/* 실시간 순위 */}
-            {isRankingVisible ? (
-              <div className="mb-4">
-                {rankingCard}
-              </div>
+                {/* HorizontalRanking */}
+                <div className="mb-4">
+                  <HorizontalRanking
+                    rankings={rankingsList}
+                    playerColors={playerColors}
+                    selectedPlayer={selectedPlayer}
+                    onSelect={setSelectedPlayer}
+                    isExpanded={isRouteInfoExpanded}
+                    onToggleExpand={() => setIsRouteInfoExpanded(!isRouteInfoExpanded)}
+                    renderRouteTimeline={renderRouteTimeline}
+                  />
+                </div>
+              </>
             ) : (
-              <button
-                onClick={() => setIsRankingVisible(true)}
-                className="mb-4 ml-auto bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-3 flex items-center justify-center hover:scale-[1.02] active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
-              >
-                <span className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">순위 보기</span>
-              </button>
+              <RealtimeInfoContent
+                rankings={rankingsList}
+                playerColors={playerColors}
+                simulationStartTime={simulationStartTime}
+                distanceToDestination={distanceToDestination}
+                isOffRoute={isOffRoute}
+                distanceFromRoute={distanceFromRoute}
+                isGpsTracking={isGpsTracking}
+                isGpsTestMode={isGpsTestMode}
+                botPositions={botPositions}
+                departureName={departure?.name}
+                arrivalName={arrival?.name}
+                createRouteResponse={createRouteResponse}
+                userProgress={playerProgress.get('user') || 0}
+                userTotalTime={userLegData?.totalTime || 0}
+                chartData={chartData}
+              />
             )}
-
-            {/* 경로 카드들 */}
-            {routeCards}
           </div>
 
           {/* 하단 고정 버튼 */}
-          <div className="p-5 bg-white border-t-[3px] border-black">
+          <div className="p-5 bg-white border-t-[3px] border-black space-y-3">
             <button
               onClick={handleFinishRoute}
               disabled={!allPlayersFinished}
@@ -2274,12 +2342,48 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                 {allPlayersFinished ? '🚀' : '⏳'}
               </p>
             </button>
+
+            {/* 탭 버튼들 */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBottomSheetView('realtime')}
+                className={`flex-1 h-[44px] rounded-[12px] border-[3px] border-black font-['Wittgenstein',sans-serif] text-[12px] font-bold transition-all ${
+                  bottomSheetView === 'realtime'
+                    ? 'bg-[#ffd93d] shadow-[4px_4px_0px_0px_black]'
+                    : 'bg-white hover:bg-gray-100'
+                }`}
+              >
+                실시간정보
+              </button>
+              <button
+                onClick={() => setBottomSheetView('route')}
+                className={`flex-1 h-[44px] rounded-[12px] border-[3px] border-black font-['Wittgenstein',sans-serif] text-[12px] font-bold transition-all ${
+                  bottomSheetView === 'route'
+                    ? 'bg-[#ffd93d] shadow-[4px_4px_0px_0px_black]'
+                    : 'bg-white hover:bg-gray-100'
+                }`}
+              >
+                노선정보
+              </button>
+            </div>
           </div>
         </div>
 
         {/* 오른쪽 지도 영역 */}
         <div className="flex-1 relative">
           {mapContent}
+
+          {/* 경기 중 표시 - 상단 가운데 */}
+          {!allPlayersFinished && (
+            <div className="absolute left-1/2 top-[12px] -translate-x-1/2 z-30">
+              <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full border border-white/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                <span className="font-['Wittgenstein',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
+                  경기 중
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 오른쪽 상단 버튼 컨테이너 */}
           <div className="absolute top-5 right-5 flex flex-col gap-3 z-10">
@@ -2531,6 +2635,18 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         {mapContent}
       </div>
 
+      {/* 경기 중 표시 - 상단 가운데 */}
+      {!allPlayersFinished && (
+        <div className="absolute left-1/2 top-[16px] -translate-x-1/2 z-30">
+          <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full border border-white/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+            <span className="font-['Wittgenstein',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
+              경기 중
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 경주취소 버튼 - 좌상단에 배치 */}
       <button
         onClick={handleCancelRoute}
@@ -2747,19 +2863,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {/* GPS 상태 표시 - 좌측 (경주취소 버튼 아래) */}
       <div className="absolute left-[20px] top-[60px] z-30">
         <div className={`rounded-[10px] border-[2px] border-black shadow-[3px_3px_0px_0px_black] px-3 py-2 ${
-          isOffRoute ? 'bg-[#ff6b6b]' : isUserArrived ? 'bg-[#4ecdc4]' : 'bg-white'
+          isOffRoute ? 'bg-[#ff6b6b]' : 'bg-white'
         }`}>
           {isOffRoute ? (
             <p className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold">
               ⚠️ 경로 이탈 {distanceFromRoute}m
             </p>
-          ) : isUserArrived ? (
-            <button
-              onClick={openResultPopup}
-              className="font-['Wittgenstein',sans-serif] text-[11px] text-white font-bold hover:underline"
-            >
-              🎉 도착! [결과 보기]
-            </button>
           ) : (
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
@@ -2777,33 +2886,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             </div>
           )}
         </div>
-
       </div>
-
-      {/* 실시간 순위 카드 - 슬라이드업 위 */}
-      {isRankingVisible ? (
-        <div
-          className="absolute left-[20.05px] right-[20.05px] z-20 transition-all"
-          style={{
-            bottom: `calc(${sheetHeight}% + 30px)`,
-            transitionDuration: isDragging ? "0ms" : "300ms",
-          }}
-        >
-          {rankingCard}
-        </div>
-      ) : (
-        /* 순위창 토글 버튼 - 순위창이 숨겨졌을 때 표시 (오른쪽 배치) */
-        <button
-          onClick={() => setIsRankingVisible(true)}
-          className="absolute right-[20.05px] z-20 bg-[#ffd93d] rounded-[12px] border-[3px] border-black shadow-[4px_4px_0px_0px_black] px-4 py-2 flex items-center hover:scale-105 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all"
-          style={{
-            bottom: `calc(${sheetHeight}% + 30px)`,
-            transitionDuration: isDragging ? "0ms" : "300ms",
-          }}
-        >
-          <span className="font-['Wittgenstein',sans-serif] text-[11px] text-black font-bold">순위 보기</span>
-        </button>
-      )}
 
       {/* 슬라이드업 - 경로 카드들 */}
       <div
@@ -2826,9 +2909,66 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           <div className="bg-[#d1d5dc] h-[5.996px] w-[48px] rounded-full" />
         </div>
 
-        {/* 경로 카드들 스크롤 영역 */}
-        <div className="px-[23.86px] pb-[100px] overflow-y-auto h-[calc(100%-40px)]">
-          {routeCards}
+        {/* 탭 버튼들 */}
+        <div className="flex gap-2 px-4 mb-3">
+          <button
+            onClick={() => setBottomSheetView('realtime')}
+            className={`flex-1 h-[36px] rounded-[10px] border-[2px] border-black font-['Wittgenstein',sans-serif] text-[11px] font-bold transition-all ${
+              bottomSheetView === 'realtime'
+                ? 'bg-[#ffd93d] shadow-[3px_3px_0px_0px_black]'
+                : 'bg-white hover:bg-gray-100'
+            }`}
+          >
+            실시간정보
+          </button>
+          <button
+            onClick={() => setBottomSheetView('route')}
+            className={`flex-1 h-[36px] rounded-[10px] border-[2px] border-black font-['Wittgenstein',sans-serif] text-[11px] font-bold transition-all ${
+              bottomSheetView === 'route'
+                ? 'bg-[#ffd93d] shadow-[3px_3px_0px_0px_black]'
+                : 'bg-white hover:bg-gray-100'
+            }`}
+          >
+            노선정보
+          </button>
+        </div>
+
+        {/* 컨텐츠 영역 */}
+        <div className="px-4 pb-[140px] overflow-y-auto h-[calc(100%-100px)]">
+          {bottomSheetView === 'route' ? (
+            <>
+              {/* HorizontalRanking */}
+              <div className="mb-4">
+                <HorizontalRanking
+                  rankings={rankingsList}
+                  playerColors={playerColors}
+                  selectedPlayer={selectedPlayer}
+                  onSelect={setSelectedPlayer}
+                  isExpanded={isRouteInfoExpanded}
+                  onToggleExpand={() => setIsRouteInfoExpanded(!isRouteInfoExpanded)}
+                  renderRouteTimeline={renderRouteTimeline}
+                />
+              </div>
+            </>
+          ) : (
+            <RealtimeInfoContent
+              rankings={rankingsList}
+              playerColors={playerColors}
+              simulationStartTime={simulationStartTime}
+              distanceToDestination={distanceToDestination}
+              isOffRoute={isOffRoute}
+              distanceFromRoute={distanceFromRoute}
+              isGpsTracking={isGpsTracking}
+              isGpsTestMode={isGpsTestMode}
+              botPositions={botPositions}
+              departureName={departure?.name}
+              arrivalName={arrival?.name}
+              createRouteResponse={createRouteResponse}
+              userProgress={playerProgress.get('user') || 0}
+              userTotalTime={userLegData?.totalTime || 0}
+              chartData={chartData}
+            />
+          )}
         </div>
       </div>
 

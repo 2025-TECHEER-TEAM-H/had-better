@@ -1,4 +1,8 @@
-import { DashboardPage } from "@/imports/App-12-344";
+import characterGreenFront from "@/assets/character-green-front.png";
+import routeService from "@/services/routeService";
+import userService, { type UserStats } from "@/services/userService";
+import { useAuthStore } from "@/stores/authStore";
+import { useEffect, useState } from "react";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -10,311 +14,343 @@ interface DashboardPopupProps {
 }
 
 export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: DashboardPopupProps) {
+  const user = useAuthStore((state) => state.user);
+  const [stats, setStats] = useState<UserStats>({
+    total_games: 0,
+    wins: 0,
+    win_rate: 0,
+    recent_games: [],
+  });
+  const [allRoutes, setAllRoutes] = useState<any[]>([]);
+  const currentDate = new Date();
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchData = async () => {
+        try {
+          const [statsData, routesData] = await Promise.all([
+            userService.getStats(),
+            routeService.getUserRoutes("FINISHED"),
+          ]);
+          setStats(statsData);
+          setAllRoutes(routesData);
+        } catch (error) {
+          console.error("[Dashboard] 데이터 로드 실패:", error);
+        }
+      };
+      fetchData();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  // 달력 관련 로직
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDayOfMonth = getFirstDayOfMonth(year, month);
+
+  const days = [];
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    days.push({ day: null, month: "prev" });
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push({ day: i, month: "current" });
+  }
+
+  const winDates = new Set(
+    allRoutes
+      .filter((r) => r.is_win)
+      .map((r) => {
+        const date = new Date(r.start_time);
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      })
+  );
+
+  const isToday = (d: number) => {
+    const today = new Date();
+    return today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+  };
+
+  const isWinDay = (d: number) => {
+    return winDates.has(`${year}-${month}-${d}`);
+  };
+
+  // 최근 6개월 월별 통계 계산
+  const getMonthlyStats = () => {
+    interface MonthlyStat {
+      year: number;
+      month: number;
+      label: string;
+      wins: number;
+    }
+    const last6Months: MonthlyStat[] = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last6Months.push({
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        label: `${d.getMonth() + 1}월`,
+        wins: 0
+      });
+    }
+
+    allRoutes.forEach(route => {
+      if (!route.is_win) return;
+      const d = new Date(route.start_time);
+      const mIdx = last6Months.findIndex(m => m.year === d.getFullYear() && m.month === d.getMonth());
+      if (mIdx !== -1) {
+        last6Months[mIdx].wins++;
+      }
+    });
+
+    const maxWins = Math.max(...last6Months.map(m => m.wins), 1);
+    return { last6Months, maxWins };
+  };
+
+  const { last6Months, maxWins } = getMonthlyStats();
+
+  // 레벨 및 칭호 계산 로직
+  const getLevelInfo = (totalGames: number) => {
+    if (totalGames <= 5) return { lv: 1, title: "초보 모험가", color: "#4ade80", icon: "🌱" };
+    if (totalGames <= 15) return { lv: 2, title: "프로 환승러", color: "#3498db", icon: "🏃" };
+    if (totalGames <= 30) return { lv: 3, title: "대중교통 마스터", color: "#9b59b6", icon: "🚌" };
+    return { lv: 4, title: "하드베터의 전설", color: "#f1c40f", icon: "👑" };
+  };
+
+  const levelInfo = getLevelInfo(stats.total_games);
 
   return (
     <>
       <style>
         {`
           @font-face {
-            font-family: 'FreesentationVF';
-            src: url('/fonts/FreesentationVF.ttf') format('truetype');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: swap;
-          }
-
-          @font-face {
             font-family: 'DNFBitBitv2';
-            src:
-              url('/fonts/DNFBitBitv2.otf') format('opentype'),
-              url('/fonts/DNFBitBitv2.ttf') format('truetype');
+            src: url('/fonts/DNFBitBitv2.otf') format('opentype');
             font-weight: 400;
             font-style: normal;
             font-display: swap;
           }
 
-          .hb-dashboard-popup {
-            background: linear-gradient(180deg, #c5e7f5 0%, #f3fbff 48%, #ffffff 100%);
+          .hb-dashboard-glass {
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.2) 100%);
+            border: 1px solid rgba(255,255,255,0.5);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.08);
           }
 
-          .hb-dashboard-popup .hb-dashboard-glass {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%);
-            border: 1px solid rgba(255,255,255,0.38);
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28);
-            backdrop-filter: blur(18px) saturate(160%);
-            -webkit-backdrop-filter: blur(18px) saturate(160%);
+          .hb-pixel-font {
+            font-family: 'DNFBitBitv2', sans-serif;
           }
 
-          .hb-dashboard-popup .hb-dashboard-glass-fun::before {
-            content: "";
-            position: absolute;
-            inset: -30% -40%;
-            pointer-events: none;
-            background: linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0) 60%);
-            opacity: 0;
-            animation: hb-dashboard-sheen 12.5s ease-in-out infinite;
+          /* 애니메이션 */
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
           }
 
-          @keyframes hb-dashboard-sheen {
-            0% { transform: translateX(-40%) translateY(-10%) rotate(12deg); opacity: 0; }
-            12% { opacity: 0.55; }
-            50% { opacity: 0.35; }
-            100% { transform: translateX(140%) translateY(10%) rotate(12deg); opacity: 0; }
+          @keyframes characterBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-4px) scale(1.05); }
           }
 
-          /* DashboardPage 내부 배경 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] {
-            background: transparent !important;
+          .animate-fade-up {
+            animation: fadeInUp 0.5s ease-out forwards;
           }
 
-          /* Container2 (헤더) 배경 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] > [data-name="Container"]:first-child {
-            background: transparent !important;
+          .animate-character {
+            animation: characterBounce 2s ease-in-out infinite;
           }
 
-          /* aria-hidden으로 숨겨진 모든 테두리 요소 완전 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [aria-hidden="true"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-          }
-
-          /* 모든 검은색 테두리를 반투명 흰색으로 변경 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [class*="border-black"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [style*="border"][style*="black"] {
-            border-color: rgba(255,255,255,0.38) !important;
-            border-width: 1px !important;
-          }
-
-          /* 모든 요소의 테두리 색상을 흰색 반투명으로 변경 */
-          .hb-dashboard-popup [data-name="DashboardPage"] * {
-            border-color: rgba(255,255,255,0.38) !important;
-          }
-
-          /* Container57 내부의 모든 카드들을 SearchPage 글래스 스타일로 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div[class*="gap-"] > div,
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            border-color: rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
-            backdrop-filter: blur(18px) saturate(160%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-            border-radius: 22px !important;
-          }
-
-          /* bg-white 배경을 글래스 스타일로 변경 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [class*="bg-white"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [class*="bg-"]:not([class*="bg-clip"]):not([class*="bg-gradient"]) {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
-            backdrop-filter: blur(18px) saturate(160%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-          }
-
-          /* 기존 배경색/테두리/그림자 완전히 제거하고 글래스 스타일 적용 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="bg-"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="border-"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[class*="shadow-"] {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-            border: 1px solid rgba(255,255,255,0.38) !important;
-            border-color: rgba(255,255,255,0.38) !important;
-            box-shadow: 0 18px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28) !important;
-          }
-
-          /* 인라인 스타일 배경도 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[style*="background"] {
-            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%) !important;
-          }
-
-          /* 최근 게임 섹션 내부 요소들의 모든 효과 제거 (경로 A, B, C) */
-          /* Container29 (최근 게임 섹션) 내부의 Container28의 자식들 (경로 항목들) */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div {
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            outline: none !important;
-          }
-
-          /* 경로 항목 컨테이너 (Container17, Container22, Container27)의 테두리 완전 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div[class*="bg-\\[#f9fafb\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div[class*="h-\\[62\\.674px\\]"] {
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            box-shadow: none !important;
-            background: transparent !important;
-          }
-
-          /* 경로 항목 내부의 aria-hidden 테두리 요소 완전 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [aria-hidden="true"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [aria-hidden="true"][class*="border-"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [aria-hidden="true"][class*="border-\\[#e5e7eb\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [aria-hidden="true"][class*="border-\\[1\\.346px\\]"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            pointer-events: none !important;
-            position: absolute !important;
-            left: -9999px !important;
-            width: 0 !important;
-            height: 0 !important;
-          }
-
-          /* 경로 항목 내부의 모든 요소들 테두리/그림자 완전 제거 (트로피, 경로명, 포인트 등) */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div *,
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Paragraph"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [class*="border"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [class*="shadow"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [style*="border"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [style*="box-shadow"] {
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            box-shadow: none !important;
-            outline: none !important;
-            background: transparent !important;
-          }
-
-          /* 경로 항목 내부의 모든 하위 요소들도 테두리/그림자 제거 (재귀적으로) */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * *,
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [data-name="Container"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [data-name="Paragraph"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [class*="border"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [class*="shadow"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [style*="border"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * [style*="box-shadow"] {
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            box-shadow: none !important;
-            outline: none !important;
-            background: transparent !important;
-          }
-
-          /* 경로명과 시간 사이 간격 줄이기 (경로 A, B, C) */
-          /* Paragraph8, Paragraph10, Paragraph12 (시간 표시)의 top 값을 줄여서 경로명과 가깝게 */
-          /* 모든 시간 Paragraph 요소 (top-[20px] 클래스를 가진 요소들) */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] [data-name="Paragraph"][class*="top-\\[20px\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] [data-name="Paragraph"]:nth-child(2),
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] > div [data-name="Paragraph"]:nth-child(2),
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] [data-name="Paragraph"]:nth-of-type(2) {
-            top: 16px !important;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-            line-height: 1.1 !important;
-            transform: translateY(-4px) !important;
-          }
-
-          /* 경로명 Paragraph의 line-height 조정 및 margin 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] [data-name="Paragraph"]:first-child,
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] [data-name="Paragraph"][class*="top-0"] {
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-            line-height: 1.1 !important;
-          }
-
-          /* 경로 항목 컨테이너의 높이 조정으로 시간이 잘 보이도록 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"][class*="h-\\[35\\.997px\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"][class*="flex-\\[1_0_0\\]"] {
-            height: auto !important;
-            min-height: 32px !important;
-            max-height: none !important;
-            overflow: visible !important;
-            padding: 0 !important;
-          }
-
-          /* 범인: bg-clip-padding을 가진 내부 div 완전 무력화 (Container14, Container19, Container24 내부) */
-          /* 이 div가 size-full로 높이를 제한해서 시간이 잘림 - display: contents로 완전히 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"][class*="flex-\\[1_0_0\\]"] > div[class*="bg-clip-padding"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"][class*="h-\\[35\\.997px\\]"] > div[class*="bg-clip-padding"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] > div[class*="bg-clip-padding"][class*="size-full"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] > div[class*="bg-clip-padding"][class*="border-0"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] > div[class*="bg-clip-padding"][class*="relative"][class*="size-full"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [data-name="Container"] > div[class*="bg-clip-padding"] {
-            display: contents !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            width: auto !important;
-            overflow: visible !important;
-            position: static !important;
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          /* 경로 항목 전체 컨테이너의 높이도 조정 및 테두리 완전 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div[class*="h-\\[62\\.674px\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div[class*="rounded-\\[14px\\]"] {
-            height: auto !important;
-            min-height: 50px !important;
-            max-height: none !important;
-            padding-top: 8px !important;
-            padding-bottom: 8px !important;
-            border: none !important;
-            border-color: transparent !important;
-            box-shadow: none !important;
-            overflow: visible !important;
-          }
-
-          /* 경로 항목 컨테이너 내부의 모든 테두리 요소 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [class*="border-\\[#"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [class*="border-\\[1\\.346px\\]"],
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div [class*="border-\\[#e5e7eb\\]"] {
-            border: none !important;
-            border-color: transparent !important;
-            border-width: 0 !important;
-            display: none !important;
-          }
-
-          /* 모든 컨테이너의 overflow 제거 */
-          .hb-dashboard-popup [data-name="DashboardPage"] [data-name="Container"]:last-child > div > div[data-name="Container"]:last-child > div[data-name="Container"] > div * {
-            overflow: visible !important;
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .hb-dashboard-popup .hb-dashboard-glass-fun::before {
-              animation: none !important;
-            }
-          }
+          /* 스크롤바 숨기기 */
+          .scrollbar-hide::-webkit-scrollbar { display: none; }
+          .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         `}
       </style>
       
-      {/* 백드롭 - 클릭하면 닫힘 */}
-      <div 
-        className="fixed inset-0 bg-black/40 z-[60] transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* 팝업 컨테이너 */}
+      {/* 백드롭 */}
+      <div className="fixed inset-0 bg-black/30 z-[60] backdrop-blur-sm transition-opacity" onClick={onClose} />
+
+      {/* 팝업 */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="hb-dashboard-popup pointer-events-auto w-full max-w-[400px] h-[90vh] max-h-[840px] rounded-[22px] hb-dashboard-glass hb-dashboard-glass-fun overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-200"
+          className="pointer-events-auto w-full max-w-[420px] h-[85vh] max-h-[800px] rounded-[32px] hb-dashboard-glass overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-300 relative"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
         >
-          {/* 대시보드 콘텐츠 */}
-          <div className="relative min-h-full flex flex-col">
+          {/* 헤더 */}
+          <div className="sticky top-0 z-10 px-6 py-4 flex justify-between items-center backdrop-blur-md bg-white/10">
+            <h1 className="hb-pixel-font text-xl text-[#1a1a2e]">DASHBOARD</h1>
+            <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
+              ✕
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* 1. 프로필 섹션 */}
+            <div className="hb-dashboard-glass rounded-[24px] p-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden bg-white/40"
+                  style={{ border: `2px solid ${levelInfo.color}` }}
+                >
+                  <img
+                    src={characterGreenFront}
+                    alt="Character"
+                    className="w-[120%] h-[120%] object-contain animate-character"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </div>
             <div className="flex-1">
-              <DashboardPage onClose={onClose} onLogout={onLogout} onNavigate={onNavigate} />
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white hb-pixel-font"
+                      style={{ backgroundColor: levelInfo.color }}
+                    >
+                      Lv.{levelInfo.lv}
+                    </span>
+                    <span className="text-xs font-bold text-[#6b9080]">{levelInfo.title}</span>
+                  </div>
+                  <h2 className="hb-pixel-font text-xl text-[#1a1a2e]">{user?.nickname || "Guest"}</h2>
+                  <p className="text-[11px] text-[#6b9080] opacity-80">{user?.email || "로그인이 필요합니다"}</p>
+                </div>
+              </div>
+
+              {/* 레벨 게이지 (다음 레벨까지) */}
+              <div className="mt-4 space-y-1">
+                <div className="flex justify-between text-[9px] font-bold text-[#6b9080]">
+                  <span>NEXT LEVEL</span>
+                  <span>{stats.total_games} / {levelInfo.lv === 1 ? 6 : levelInfo.lv === 2 ? 16 : levelInfo.lv === 3 ? 31 : stats.total_games}</span>
+                </div>
+                <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-1000 ease-out"
+                    style={{
+                      width: `${Math.min(100, (stats.total_games / (levelInfo.lv === 1 ? 6 : levelInfo.lv === 2 ? 16 : levelInfo.lv === 3 ? 31 : stats.total_games)) * 100)}%`,
+                      backgroundColor: levelInfo.color
+                    }}
+                  />
+                </div>
+              </div>
             </div>
+
+            {/* 2. 통계 섹션 */}
+            <div className="grid grid-cols-3 gap-3 animate-fade-up" style={{ animationDelay: '0.2s' }}>
+              {[
+                { label: "총 게임", value: stats.total_games, icon: "🎮" },
+                { label: "승리", value: stats.wins, icon: "🏆" },
+                { label: "승률", value: `${stats.win_rate}%`, icon: "📈" },
+              ].map((item, idx) => (
+                <div key={idx} className="hb-dashboard-glass rounded-[20px] p-3 flex flex-col items-center justify-center text-center">
+                  <span className="text-xl mb-1">{item.icon}</span>
+                  <span className="text-[10px] text-[#6b9080] mb-1">{item.label}</span>
+                  <span className="hb-pixel-font text-base text-[#1a1a2e]">{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 3. 최근 게임 섹션 */}
+            <div className="space-y-3 animate-fade-up" style={{ animationDelay: '0.3s' }}>
+              <h3 className="hb-pixel-font text-[#1a1a2e] flex items-center gap-2">
+                <span>📜</span> 최근 모험
+              </h3>
+              {stats.recent_games.length > 0 ? (
+                stats.recent_games.map((game, idx) => (
+                  <div key={idx} className="hb-dashboard-glass rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1a1a2e]">{game.route_name}</span>
+                      <span className="text-[11px] text-[#6b9080]">{game.duration}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className={`hb-pixel-font text-sm ${game.rank.includes("1") ? "text-[#f1c40f]" : "text-[#1a1a2e]"}`}>
+                        {game.rank}
+                      </span>
+                      <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity text-[#6b9080]">상세보기 →</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-sm text-[#6b9080] hb-dashboard-glass rounded-[18px]">
+                  아직 기록이 없습니다.
+                </div>
+              )}
+            </div>
+
+            {/* 2-1. 월별 추세 그래프 섹션 */}
+            <div className="hb-dashboard-glass rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.4s' }}>
+              <div className="flex justify-between items-center">
+                <h3 className="hb-pixel-font text-sm text-[#1a1a2e] flex items-center gap-2">
+                  <span>📊</span> 승리 추세 (최근 6개월)
+                </h3>
+              </div>
+              <div className="flex items-end justify-between h-24 px-2">
+                {last6Months.map((m, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1 group relative">
+                    <div className="relative w-full flex justify-center items-end h-16">
+                      {/* 툴팁 */}
+                      <span className="absolute -top-6 text-[10px] font-bold text-[#2ecc71] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        {m.wins}승
+                      </span>
+                      {/* 막대 그래프 */}
+                      <div
+                        className={`w-3 rounded-t-full transition-all duration-1000 ease-out
+                          ${m.wins === maxWins && m.wins > 0 ? "bg-gradient-to-t from-[#2ecc71] to-[#4ade80] shadow-[0_0_10px_rgba(46,204,113,0.4)]" : "bg-[#6b9080]/20"}
+                        `}
+                        style={{ height: `${m.wins > 0 ? Math.max((m.wins / maxWins) * 100, 10) : 5}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-bold text-[#6b9080] opacity-80">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. 승리 달력 섹션 */}
+            <div className="hb-dashboard-glass rounded-[24px] p-5 space-y-4 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+              <div className="flex justify-between items-center">
+                <h3 className="hb-pixel-font text-[#1a1a2e] flex items-center gap-2">
+                  <span>🏆</span> 승리의 기록
+                </h3>
+                <span className="text-xs font-bold text-[#6b9080]">{year}.{String(month + 1).padStart(2, '0')}</span>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+                  <div key={d} className="text-center text-[10px] font-bold text-[#6b9080] opacity-60">{d}</div>
+                ))}
+                {days.map((d, i) => (
+                  <div
+                    key={i}
+                    className={`aspect-square flex items-center justify-center text-[11px] rounded-lg transition-all relative
+                      ${d.month !== "current" ? "opacity-20" : "bg-white/20"}
+                      ${d.day && isWinDay(d.day) ? "bg-gradient-to-br from-[#48d448] to-[#2ecc71] text-white shadow-md font-bold" : ""}
+                      ${d.day && isToday(d.day) ? "border border-[#6b9080]" : ""}
+                    `}
+                  >
+                    {d.day}
+                    {d.day && isWinDay(d.day) && <span className="absolute -top-1 -right-1 text-[8px]">👑</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. 로그아웃 버튼 */}
+            <button
+              onClick={onLogout}
+              className="w-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c] py-4 rounded-[20px] hb-pixel-font hover:bg-[#e74c3c] hover:text-white transition-all shadow-sm hover:shadow-lg animate-fade-up"
+              style={{ animationDelay: '0.6s', marginBottom: '40px' }}
+            >
+              LOG OUT
+            </button>
           </div>
         </div>
       </div>

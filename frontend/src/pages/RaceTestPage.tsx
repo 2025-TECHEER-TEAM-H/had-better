@@ -61,7 +61,7 @@ export function RaceTestPage() {
   };
 
   // SSE 연결
-  const { status, botStates, connect, disconnect } = useRouteSSE(
+  const { status, botStates, disconnect } = useRouteSSE(
     activeRouteId,
     {
       onConnected: (data) => {

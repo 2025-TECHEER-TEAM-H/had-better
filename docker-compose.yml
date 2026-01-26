@@ -46,6 +46,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_ERLANG_COOKIE: "hadbetter_cookie_key"
     ports:
       - "5672:5672"   # AMQP 포트
       - "15672:15672" # 관리 콘솔 포트
