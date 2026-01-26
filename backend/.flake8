@@ -1,0 +1,30 @@
+[flake8]
+# Black과 호환되는 라인 길이
+max-line-length = 88
+
+# Black과 충돌하는 규칙 무시
+# E203: 슬라이스에서 공백 (Black과 충돌)
+# W503: 이항 연산자 앞 줄바꿈 (Black과 충돌)
+# E501: 라인 길이 (Black이 처리)
+extend-ignore = E203, W503, E501
+
+# 검사 제외 경로
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    */venv/*,
+    migrations,
+    */migrations/*,
+    build,
+    dist,
+    *.egg-info,
+    .tox,
+    .mypy_cache
+
+# 파일별 예외 규칙
+per-file-ignores =
+    # __init__.py에서는 사용하지 않는 import 허용 (재export용)
+    __init__.py:F401
+    # settings.py에서는 와일드카드 import 허용
+    config/settings.py:F403,F405

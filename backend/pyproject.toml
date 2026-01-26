@@ -88,8 +88,45 @@ exclude = [
     "**/migrations"
 ]
 
-# pytest 설정 (추후 테스트 추가시 사용)
+# pytest 설정
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
-python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --tb=short"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+testpaths = ["apps"]
+addopts = [
+    "-v",                           # verbose 출력
+    "--tb=short",                   # 에러 traceback 간결하게
+    "--strict-markers",             # 정의되지 않은 marker 사용 시 에러
+    "--cov=apps",                   # 커버리지 측정 (apps 폴더)
+    "--cov-report=term-missing",    # 커버되지 않은 라인 표시
+    "--cov-report=html",            # HTML 리포트 생성
+    "--cov-fail-under=0",           # 최소 커버리지 (현재는 0%, 추후 상향)
+]
+asyncio_mode = "auto"               # 비동기 테스트 자동 감지
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# pytest-cov 설정
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "*/migrations/*",
+    "*/tests.py",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
