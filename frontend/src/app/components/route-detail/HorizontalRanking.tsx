@@ -185,30 +185,17 @@ export function HorizontalRanking({
                   {/* 중앙: 정보 */}
                   <div className="flex-1 flex flex-col gap-2">
                     {/* 플레이어 이름 */}
-                    <div className="flex gap-2 items-center">
-                      <div
-                        className="h-[3px] w-[16px] border-[0.673px] border-black rounded-full"
-                        style={{ backgroundColor: colorScheme.line }}
-                      />
-                      <p className="font-['Wittgenstein',sans-serif] text-[14px] text-black font-semibold">
-                        {r.name}
-                      </p>
-                    </div>
+                    <p className="font-['Wittgenstein',sans-serif] text-[14px] text-black font-semibold">
+                      {r.name}
+                    </p>
 
                     {/* 진행률 정보 */}
                     <div className="flex gap-2 flex-wrap">
-                      <div className="bg-[#ffd93d] h-[24px] px-[10px] py-[4px] border-[3px] border-black flex items-center justify-center rounded-md">
+                      <div className="bg-[#ffd93d] h-[24px] px-[10px] py-[4px] flex items-center justify-center rounded-md">
                         <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-tight font-semibold">
                           진행률: {progressPercent}%
                         </p>
                       </div>
-                      {r.remainingMinutes !== undefined && !r.isArrived && (
-                        <div className="bg-white h-[24px] px-[10px] py-[4px] border-[3px] border-black flex items-center justify-center rounded-md">
-                          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-tight font-semibold">
-                            남은 시간: {r.remainingMinutes}분
-                          </p>
-                        </div>
-                      )}
                       {r.isArrived && (
                         <div className="bg-green-500 h-[24px] px-[10px] py-[4px] border-[3px] border-black flex items-center justify-center rounded-md">
                           <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-tight font-semibold">
