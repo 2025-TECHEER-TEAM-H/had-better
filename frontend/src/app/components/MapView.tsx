@@ -422,7 +422,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         .toString(16)
         .padStart(2, "0")}`;
     };
-    // (labelText를 항상 black으로 고정해서, 밝기 기반 분기는 필요 없음)
 
     // 기존 마커들 제거
     placeMarkers.current.forEach((marker) => marker.remove());
@@ -461,8 +460,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       // const tensDigit = Math.floor(displayNumber / 10);
       // const onesDigit = displayNumber % 10;
 
-      // 글씨색은 항상 검정으로 통일
-      const labelText = "black";
       // SVG id는 XML Name 규칙을 타서 숫자 시작/특수문자에 취약할 수 있어 안전하게 sanitize + prefix
       const safeId = String(markerInfo.id).replace(/[^a-zA-Z0-9_-]/g, "_");
       const pinFillId = `${svgIdPrefixRef.current}-pinFill-${safeId}`;
@@ -475,54 +472,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           cursor: pointer;
           overflow: visible;
         ">
-          <!-- 라벨(우측, 장소 이름) -->
-          <div style="
-            position: absolute;
-            left: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px 10px 44px; /* 핀 아래로 깔리므로 텍스트는 핀 오른쪽에서 시작 */
-            background: rgba(255,255,255,0.96);
-            color: ${labelText};
-            border: 2px solid rgba(0,0,0,0.18);
-            border-radius: 999px;
-            white-space: nowrap;
-            max-width: 240px;
-            overflow: visible;
-            user-select: none;
-            z-index: 0; /* 핀보다 뒤 */
-          ">
-            <!-- 텍스트(장소 위치) -->
-            <div style="
-              display: flex;
-              flex-direction: column;
-              gap: 2px;
-              min-width: 0;
-              padding-right: 2px;
-            ">
-              <div style="
-                font-size: 12px;
-                font-weight: 900;
-                line-height: 1.05;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              ">${markerInfo.name}</div>
-              <div style="
-                display: ${markerInfo.address ? "block" : "none"};
-                font-size: 10px;
-                font-weight: 700;
-                line-height: 1.05;
-                opacity: 0.65;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              ">${markerInfo.address ?? ""}</div>
-            </div>
-          </div>
-
-          <!-- 핀(좌측) -->
+          <!-- 핀 -->
           <div style="
             position: absolute;
             left: 0;
@@ -530,7 +480,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             width: 48px;
             height: 58px;
             filter: none;
-            z-index: 1; /* 라벨보다 위 */
+            z-index: 1;
           ">
             <svg width="48" height="58" viewBox="0 0 48 58" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
               <defs>
