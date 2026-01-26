@@ -11,9 +11,35 @@ import { useRouteStore, type Player } from "@/stores/routeStore";
 import { type BotStatus, type BotStatusUpdateEvent, type LegStep, type RouteResultResponse, type RouteSegment } from "@/types/route";
 import * as turf from "@turf/turf";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
+import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo, type TransportModeMarker } from "./MapView";
 import { HorizontalRanking } from "./route-detail/HorizontalRanking";
 import { RouteTimeline } from "./route-detail/RouteTimeline";
+
+// 숫자 이미지 import (1~10)
+import imgNumber10 from "/assets/Double/hud_character_0.png"; // 10은 0 이미지 사용
+import imgNumber1 from "/assets/Double/hud_character_1.png";
+import imgNumber2 from "/assets/Double/hud_character_2.png";
+import imgNumber3 from "/assets/Double/hud_character_3.png";
+import imgNumber4 from "/assets/Double/hud_character_4.png";
+import imgNumber5 from "/assets/Double/hud_character_5.png";
+import imgNumber6 from "/assets/Double/hud_character_6.png";
+import imgNumber7 from "/assets/Double/hud_character_7.png";
+import imgNumber8 from "/assets/Double/hud_character_8.png";
+import imgNumber9 from "/assets/Double/hud_character_9.png";
+
+// 숫자 이미지 배열 (1~10)
+const NUMBER_IMAGES = [
+  imgNumber1,
+  imgNumber2,
+  imgNumber3,
+  imgNumber4,
+  imgNumber5,
+  imgNumber6,
+  imgNumber7,
+  imgNumber8,
+  imgNumber9,
+  imgNumber10,
+];
 
 // 사용자 경로 시뮬레이션을 위한 Leg 타이밍 정보
 interface LegTiming {
@@ -401,7 +427,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
   const routeLines = useMemo<RouteLineInfo[]>(() => {
     const lines: RouteLineInfo[] = [];
 
+    // 선택된 플레이어를 제외한 나머지 플레이어의 경로 먼저 추가
     for (const [player, routeLegId] of assignments) {
+      if (player === selectedPlayer) continue; // 선택된 플레이어는 나중에 추가
+
       const detail = legDetails.get(routeLegId);
       if (!detail) continue;
 
@@ -446,14 +475,61 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           id: `route-${player}`,
           coordinates: allCoordinates,
           color: lineColor,
-          width: player === 'user' ? 6 : 4,
-          opacity: player === 'user' ? 1 : 0.7,
+          width: 8,
+          opacity: 1,
         });
       }
     }
 
+    // 선택된 플레이어의 경로를 마지막에 추가 (맨 위로 표시)
+    const selectedRouteLegId = assignments.get(selectedPlayer);
+    if (selectedRouteLegId) {
+      const detail = legDetails.get(selectedRouteLegId);
+      if (detail) {
+        const lineColor = getPlayerLineColor(selectedPlayer);
+        const allCoordinates: [number, number][] = [];
+
+        for (const leg of detail.legs) {
+          if (leg.passShape?.linestring) {
+            const points = leg.passShape.linestring.split(' ');
+            for (const point of points) {
+              const [lon, lat] = point.split(',').map(Number);
+              if (!isNaN(lon) && !isNaN(lat)) {
+                allCoordinates.push([lon, lat]);
+              }
+            }
+          } else if (leg.steps && leg.steps.length > 0) {
+            for (const step of leg.steps) {
+              if (step.linestring) {
+                const points = step.linestring.split(' ');
+                for (const point of points) {
+                  const [lon, lat] = point.split(',').map(Number);
+                  if (!isNaN(lon) && !isNaN(lat)) {
+                    allCoordinates.push([lon, lat]);
+                  }
+                }
+              }
+            }
+          } else {
+            allCoordinates.push([leg.start.lon, leg.start.lat]);
+            allCoordinates.push([leg.end.lon, leg.end.lat]);
+          }
+        }
+
+        if (allCoordinates.length > 0) {
+          lines.push({
+            id: `route-${selectedPlayer}`,
+            coordinates: allCoordinates,
+            color: lineColor,
+            width: 10,
+            opacity: 1,
+          });
+        }
+      }
+    }
+
     return lines;
-  }, [assignments, legDetails, getPlayerLineColor]);
+  }, [assignments, legDetails, getPlayerLineColor, selectedPlayer]);
 
   // 출발지/도착지 마커 생성
   const endpoints = useMemo<EndpointMarker[]>(() => {
@@ -477,6 +553,40 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
     return markers;
   }, [departure, arrival]);
+
+  // 이동 수단 마커 생성 (버스/걷기 시작 지점) - 모든 플레이어의 경로에 표시
+  const transportModeMarkers = useMemo<TransportModeMarker[]>(() => {
+    const markers: TransportModeMarker[] = [];
+
+    // 모든 플레이어의 경로에 대해 마커 생성
+    for (const [player, routeLegId] of assignments) {
+      const detail = legDetails.get(routeLegId);
+      if (!detail || !detail.legs) continue;
+
+      // 각 leg의 시작점에 이동 수단 마커 추가
+      detail.legs.forEach((leg, index) => {
+        const mode = leg.mode;
+        let transportMode: 'BUS' | 'EXPRESSBUS' | 'SUBWAY' | 'WALK' = 'WALK';
+
+        if (mode === 'BUS' || mode === 'EXPRESSBUS') {
+          transportMode = mode as 'BUS' | 'EXPRESSBUS';
+        } else if (mode === 'SUBWAY' || mode === 'TRAIN') {
+          transportMode = 'SUBWAY';
+        } else {
+          transportMode = 'WALK';
+        }
+
+        markers.push({
+          id: `transport-${player}-${index}`,
+          coordinates: [leg.start.lon, leg.start.lat],
+          mode: transportMode,
+          player: player,
+        });
+      });
+    }
+
+    return markers;
+  }, [assignments, legDetails]);
 
   // 경로 좌표로 turf LineString 생성
   const getRouteLineString = useCallback((player: Player) => {
@@ -1914,7 +2024,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       });
 
       setChartData(prev => {
-        const newData = [...prev, dataPoint];
+        const newData = [...prev, dataPoint as { [key: string]: string | number; time: number; timestamp: number; }];
         // 최근 60개 데이터만 유지 (약 5분간의 데이터)
         return newData.slice(-60);
       });
@@ -2107,6 +2217,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         routeLines={routeLines}
         endpoints={endpoints}
         fitToRoutes={routeLines.length > 0}
+        transportModeMarkers={transportModeMarkers}
       />
 
       {/* 경로 로딩 오버레이 */}
@@ -2238,20 +2349,53 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                                    playerColor === 'yellow' ? '#ffd93d' :
                                    playerColor === 'purple' ? '#a78bfa' : '#7ed321';
 
+          const rankNumber = index + 1;
+
           return (
             <div key={player} className="flex gap-[7.995px] items-center">
-              <div className="bg-white w-[45px] h-[26px] border-[3px] border-black flex items-center justify-center">
-                <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-black leading-[12px]">
-                  {index + 1}위
-                </p>
+              <div
+                className="size-[48px] flex items-center justify-center shrink-0 rounded-[16px] shadow-[0px_10px_22px_rgba(0,0,0,0.14)]"
+                style={{
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.40) 100%)",
+                  backdropFilter: "blur(18px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(18px) saturate(160%)",
+                  border: "1px solid rgba(255,255,255,0.50)",
+                  boxShadow: "0 10px 22px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.35)",
+                }}
+              >
+                {rankNumber <= 10 ? (
+                  <img
+                    src={NUMBER_IMAGES[rankNumber - 1]}
+                    alt={`${rankNumber}위`}
+                    className="size-[32px] object-contain drop-shadow-sm"
+                  />
+                ) : (
+                  <p className="font-['Pretendard',sans-serif] text-[24px] text-black/90">
+                    {rankNumber}
+                  </p>
+                )}
               </div>
-              {/* 캐릭터 헬멧 이미지 */}
+              {/* 캐릭터 얼굴 아이콘 */}
               <div className="w-[32px] h-[32px] flex items-center justify-center">
-                <img
-                  src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
-                  alt={`${player} character`}
-                  className="w-full h-full object-contain"
-                />
+                {rankNumber === 1 ? (
+                  <img
+                    src="/src/assets/face-gold.png"
+                    alt="1위 얼굴"
+                    className="w-full h-full object-contain"
+                  />
+                ) : rankNumber === 2 ? (
+                  <img
+                    src="/src/assets/face-teal.png"
+                    alt="2위 얼굴"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <img
+                    src="/src/assets/face-purple.png"
+                    alt="3위 얼굴"
+                    className="w-full h-full object-contain"
+                  />
+                )}
               </div>
               <div className="flex-1 bg-white h-[18px] rounded-[4px] border-[3px] border-black overflow-hidden">
                 <div
@@ -2334,24 +2478,20 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           </div>
 
           {/* 하단 고정 버튼 */}
-          <div className="p-5 bg-white border-t-[3px] border-black space-y-3">
+          <div className="p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg border-t border-white/30">
             <button
               onClick={handleFinishRoute}
               disabled={!allPlayersFinished}
-              className={`w-full h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] transition-all ${
+              className={`w-full h-[56px] rounded-[18px] border transition-all flex items-center justify-center ${
                 allPlayersFinished
-                  ? 'bg-[#00d9ff] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer'
-                  : 'bg-gray-400 cursor-not-allowed opacity-60'
+                  ? "bg-[#4a9960] hover:bg-[#3d7f50] border-white/35 cursor-pointer active:translate-y-[1px] shadow-[0px_12px_26px_rgba(0,0,0,0.16)]"
+                  : "bg-[#9cba9c] border-white/20 cursor-not-allowed shadow-[0px_6px_12px_rgba(0,0,0,0.10)]"
               }`}
             >
-              <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] text-[18px] font-bold text-white leading-[21px]">
+              <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
                 {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
               </span>
-              <p className="text-[14px] text-white leading-[21px]">
-                {allPlayersFinished ? '🚀' : '⏳'}
-              </p>
             </button>
-
           </div>
         </div>
 
@@ -2920,22 +3060,21 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       </div>
 
       {/* 도착 완료 버튼 - 하단 고정 */}
-      <button
-        onClick={handleFinishRoute}
-        disabled={!allPlayersFinished}
-        className={`fixed bottom-[24px] left-[24px] right-[24px] h-[60px] rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] flex items-center justify-center gap-[7.995px] transition-all z-50 ${
-          allPlayersFinished
-            ? 'bg-[#00d9ff] hover:scale-105 active:shadow-[4px_4px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer'
-            : 'bg-gray-400 cursor-not-allowed opacity-60'
-        }`}
-      >
-        <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] text-[18px] font-bold text-white leading-[21px]">
-          {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
-        </span>
-        <p className="text-[14px] text-white leading-[21px]">
-          {allPlayersFinished ? '🚀' : '⏳'}
-        </p>
-      </button>
+      <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg z-50">
+        <button
+          onClick={handleFinishRoute}
+          disabled={!allPlayersFinished}
+          className={`w-full h-[56px] rounded-[18px] border transition-all flex items-center justify-center ${
+            allPlayersFinished
+              ? "bg-[#4a9960] hover:bg-[#3d7f50] border-white/35 cursor-pointer active:translate-y-[1px] shadow-[0px_12px_26px_rgba(0,0,0,0.16)]"
+              : "bg-[#9cba9c] border-white/20 cursor-not-allowed shadow-[0px_6px_12px_rgba(0,0,0,0.10)]"
+          }`}
+        >
+          <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+            {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
+          </span>
+        </button>
+      </div>
 
       {/* 버스 번호 입력 모달 */}
       {showBusInputModal && (
