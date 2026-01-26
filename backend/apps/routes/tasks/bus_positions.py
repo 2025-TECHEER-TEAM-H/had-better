@@ -25,14 +25,14 @@ BUS_POSITIONS_CACHE_TTL = 65  # 65초 (60초 폴링 + 여유 5초)
 # 공공데이터포털 기본 할당량(1,000회/일) 초과하므로 할당량 증가 신청 필요
 POPULAR_BUS_ROUTES = [
     # 간선버스 (파랑) - 8개 (주요 노선)
-    ("100100057", "360"),   # 360번 (강남-마포)
-    ("100100118", "472"),   # 472번 (강남-신촌)
-    ("100100016", "151"),   # 151번 (중랑-여의도)
-    ("100100043", "261"),   # 261번 (마포-강남)
-    ("100100001", "100"),   # 100번 (용산-중구)
-    ("100100065", "402"),   # 402번 (종로-서초)
-    ("100100124", "501"),   # 501번 (방배-광화문)
-    ("100100019", "162"),   # 162번 (광진-여의도)
+    ("100100057", "360"),  # 360번 (강남-마포)
+    ("100100118", "472"),  # 472번 (강남-신촌)
+    ("100100016", "151"),  # 151번 (중랑-여의도)
+    ("100100043", "261"),  # 261번 (마포-강남)
+    ("100100001", "100"),  # 100번 (용산-중구)
+    ("100100065", "402"),  # 402번 (종로-서초)
+    ("100100124", "501"),  # 501번 (방배-광화문)
+    ("100100019", "162"),  # 162번 (광진-여의도)
     # 지선버스 (초록) - 5개
     ("100100463", "5513"),  # 5513번
     ("100100559", "6411"),  # 6411번
@@ -63,19 +63,21 @@ def fetch_route_buses(route_info: tuple) -> list:
 
                 sect_ord = bus.get("sectOrd")
 
-                result.append({
-                    "veh_id": bus.get("vehId"),
-                    "route_id": route_id,
-                    "bus_number": bus_number,
-                    "plate_no": bus.get("plainNo"),
-                    "coordinates": [lon, lat],
-                    "sect_ord": int(sect_ord) if sect_ord else None,
-                    "stop_flag": bus.get("stopFlag") == "1",
-                    "bus_type": "저상" if bus.get("busType") == "1" else "일반",
-                    "is_full": bus.get("isFullFlag") == "1",
-                    "congestion": int(bus.get("congetion") or 0),
-                    "data_time": bus.get("dataTm"),
-                })
+                result.append(
+                    {
+                        "veh_id": bus.get("vehId"),
+                        "route_id": route_id,
+                        "bus_number": bus_number,
+                        "plate_no": bus.get("plainNo"),
+                        "coordinates": [lon, lat],
+                        "sect_ord": int(sect_ord) if sect_ord else None,
+                        "stop_flag": bus.get("stopFlag") == "1",
+                        "bus_type": "저상" if bus.get("busType") == "1" else "일반",
+                        "is_full": bus.get("isFullFlag") == "1",
+                        "congestion": int(bus.get("congetion") or 0),
+                        "data_time": bus.get("dataTm"),
+                    }
+                )
             except (ValueError, TypeError):
                 continue
 
@@ -118,9 +120,13 @@ def fetch_all_bus_positions(self):
         "total_buses": len(all_buses),
     }
 
-    cache.set(BUS_POSITIONS_CACHE_KEY, json.dumps(cache_data), timeout=BUS_POSITIONS_CACHE_TTL)
+    cache.set(
+        BUS_POSITIONS_CACHE_KEY, json.dumps(cache_data), timeout=BUS_POSITIONS_CACHE_TTL
+    )
 
-    logger.info(f"버스 위치 데이터 캐싱 완료: {len(all_buses)}대 (노선 {len(POPULAR_BUS_ROUTES)}개)")
+    logger.info(
+        f"버스 위치 데이터 캐싱 완료: {len(all_buses)}대 (노선 {len(POPULAR_BUS_ROUTES)}개)"
+    )
 
     return {
         "total_buses": len(all_buses),

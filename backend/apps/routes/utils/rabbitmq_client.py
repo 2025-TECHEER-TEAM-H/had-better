@@ -10,12 +10,12 @@ RabbitMQ 클라이언트 (SSE Pub/Sub)
 import json
 import logging
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 import pika
-from pika.exceptions import AMQPConnectionError, AMQPChannelError
 from django.conf import settings
+from pika.exceptions import AMQPChannelError, AMQPConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,7 @@ class RabbitMQClient:
     # 이벤트 발행 (Publisher)
     # =========================================================================
 
-    def publish(
-        self, route_itinerary_id: int, event_type: str, data: dict
-    ) -> bool:
+    def publish(self, route_itinerary_id: int, event_type: str, data: dict) -> bool:
         """
         SSE 이벤트 발행 (재시도 로직 포함)
 
@@ -152,7 +150,7 @@ class RabbitMQClient:
 
     def subscribe(
         self, route_itinerary_id: int, timeout: int = 30
-    ) -> Generator[Optional[dict], None, None]:
+    ) -> Generator[dict | None, None, None]:
         """
         SSE 이벤트 구독 (Generator, 연결 복구 포함)
 
@@ -202,7 +200,7 @@ class RabbitMQClient:
                     reconnect_attempts = 0
 
                     # 메시지 수신
-                    for method, properties, body in channel.consume(
+                    for _method, _properties, body in channel.consume(
                         queue_name, inactivity_timeout=timeout
                     ):
                         if body:
@@ -229,7 +227,10 @@ class RabbitMQClient:
 
                 if reconnect_attempts < max_reconnect_attempts:
                     # 재연결 알림 이벤트
-                    yield {"event": "reconnecting", "data": {"attempt": reconnect_attempts}}
+                    yield {
+                        "event": "reconnecting",
+                        "data": {"attempt": reconnect_attempts},
+                    }
                     time.sleep(RETRY_DELAY * reconnect_attempts)  # 지수적 백오프
                 else:
                     # 최대 재연결 시도 초과
@@ -261,7 +262,9 @@ class RabbitMQClient:
                 logger.info(f"Exchange 삭제 완료: {exchange_name}")
                 return True
         except (AMQPConnectionError, AMQPChannelError) as e:
-            logger.warning(f"Exchange 삭제 실패: route_itinerary_id={route_itinerary_id}, error={e}")
+            logger.warning(
+                f"Exchange 삭제 실패: route_itinerary_id={route_itinerary_id}, error={e}"
+            )
             return False
 
     # =========================================================================

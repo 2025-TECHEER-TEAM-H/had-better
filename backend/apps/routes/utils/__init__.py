@@ -8,11 +8,11 @@ routes 앱 유틸리티 모듈
 - geo_utils: 좌표 계산 유틸리티
 """
 
-from .redis_client import redis_client
-from .rabbitmq_client import rabbitmq_client
 from .bus_api_client import bus_api_client
-from .subway_api_client import subway_api_client
 from .geo_utils import calculate_distance, find_closest_station
+from .rabbitmq_client import rabbitmq_client
+from .redis_client import redis_client
+from .subway_api_client import subway_api_client
 
 __all__ = [
     "redis_client",

@@ -13,7 +13,6 @@ API 문서:
 
 import logging
 import xml.etree.ElementTree as ET
-from typing import Optional
 from urllib.parse import unquote
 
 import requests
@@ -59,7 +58,7 @@ class SeoulBusAPIClient:
             logger.error(f"XML 파싱 오류: {e}")
             return []
 
-    def _get_error_message(self, response_text: str) -> Optional[str]:
+    def _get_error_message(self, response_text: str) -> str | None:
         """
         API 오류 메시지 추출
 
@@ -187,7 +186,9 @@ class SeoulBusAPIClient:
 
             return items
         except requests.RequestException as e:
-            logger.error(f"노선 정류소 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 정류소 API 요청 실패: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
         except (ValueError, KeyError) as e:
             logger.error(
@@ -196,8 +197,8 @@ class SeoulBusAPIClient:
             return []
 
     def get_arrival_info(
-        self, st_id: str, bus_route_id: str, ord: Optional[int] = None
-    ) -> Optional[dict]:
+        self, st_id: str, bus_route_id: str, ord: int | None = None
+    ) -> dict | None:
         """
         버스 도착정보 조회 (JSON 형식)
 
@@ -384,7 +385,7 @@ class SeoulBusAPIClient:
             )
             return None
 
-    def get_bus_position(self, veh_id: str) -> Optional[dict]:
+    def get_bus_position(self, veh_id: str) -> dict | None:
         """
         버스 실시간 위치 조회 (JSON 형식)
 
@@ -501,10 +502,14 @@ class SeoulBusAPIClient:
 
             return items
         except requests.RequestException as e:
-            logger.error(f"노선 버스 위치 API 요청 실패: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 버스 위치 API 요청 실패: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
         except (ValueError, KeyError) as e:
-            logger.error(f"노선 버스 위치 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}")
+            logger.error(
+                f"노선 버스 위치 API JSON 파싱 오류: bus_route_id={bus_route_id}, error={e}"
+            )
             return []
 
 

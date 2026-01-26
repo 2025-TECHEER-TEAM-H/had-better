@@ -20,7 +20,6 @@ API 문서:
 """
 
 import logging
-from typing import Optional
 
 import requests
 from django.conf import settings
@@ -122,7 +121,9 @@ class SeoulSubwayAPIClient:
                 ...
             }]
         """
-        url = f"{self.BASE_URL}/{self.api_key}/json/realtimePosition/0/100/{subway_line}"
+        url = (
+            f"{self.BASE_URL}/{self.api_key}/json/realtimePosition/0/100/{subway_line}"
+        )
 
         try:
             response = requests.get(url, timeout=self.timeout)
@@ -151,7 +152,7 @@ class SeoulSubwayAPIClient:
 
     def filter_by_train_no(
         self, positions: list[dict], train_no: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         열차번호로 필터링
 
@@ -201,7 +202,7 @@ class SeoulSubwayAPIClient:
         subway_line_id: str,
         destination_station: str,
         pass_stops: list[str] = None,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         방향으로 열차 필터링 (pass_stops 기반)
 
@@ -268,7 +269,7 @@ class SeoulSubwayAPIClient:
         subway_line_id: str,
         destination_station: str,
         pass_stops: list[str],
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         trainLineNm 기반 방향 필터링 (fallback)
 

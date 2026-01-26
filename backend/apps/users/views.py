@@ -3,12 +3,10 @@
 """
 
 from django.utils import timezone
-
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-
-from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from apps.itineraries.models import SearchItineraryHistory
 from apps.places.models import SearchPlaceHistory
@@ -493,15 +491,20 @@ class UserStatsView(APIView):
         win_rate = round((wins / total_games * 100), 1) if total_games > 0 else 0.0
 
         # 최근 게임 3개 조회 (모든 상태 포함)
-        recent_routes = Route.objects.filter(
-            user=request.user,
-            participant_type=Route.ParticipantType.USER,
-        ).select_related(
-            "route_leg",
-            "route_leg__route_itinerary",
-        ).prefetch_related(
-            "route_leg__segments",
-        ).order_by("-created_at")[:3]
+        recent_routes = (
+            Route.objects.filter(
+                user=request.user,
+                participant_type=Route.ParticipantType.USER,
+            )
+            .select_related(
+                "route_leg",
+                "route_leg__route_itinerary",
+            )
+            .prefetch_related(
+                "route_leg__segments",
+            )
+            .order_by("-created_at")[:3]
+        )
 
         recent_games = []
         for route in recent_routes:
@@ -535,13 +538,15 @@ class UserStatsView(APIView):
             else:
                 rank_str = "CANCELED"
 
-            recent_games.append({
-                "id": route.id,
-                "route_name": f"{departure} → {arrival}",
-                "duration": duration_str,
-                "rank": rank_str,
-                "created_at": route.created_at.isoformat(),
-            })
+            recent_games.append(
+                {
+                    "id": route.id,
+                    "route_name": f"{departure} → {arrival}",
+                    "duration": duration_str,
+                    "rank": rank_str,
+                    "created_at": route.created_at.isoformat(),
+                }
+            )
 
         stats = {
             "total_games": total_games,

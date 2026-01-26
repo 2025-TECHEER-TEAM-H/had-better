@@ -75,8 +75,8 @@ class PlaceSearchView(APIView):
         검색 키워드로 장소 검색 (TMap API 호출)
         """
         q = request.query_params.get("q")
-        lat = request.query_params.get("lat") #필수가 아닌 선택값
-        lon = request.query_params.get("lon") #필수가 아닌 선택값
+        lat = request.query_params.get("lat")  # 필수가 아닌 선택값
+        lon = request.query_params.get("lon")  # 필수가 아닌 선택값
         page = int(request.query_params.get("page", 1))
         limit = int(request.query_params.get("limit", 20))
 
@@ -97,7 +97,9 @@ class PlaceSearchView(APIView):
             )
 
         # 로그인 사용자인 경우 검색 기록 저장 (save_history 파라미터로 제어)
-        save_history = request.query_params.get("save_history", "true").lower() == "true"
+        save_history = (
+            request.query_params.get("save_history", "true").lower() == "true"
+        )
         if request.user.is_authenticated and save_history:
             # 동일 키워드에 대한 이전 검색 기록은 soft delete 처리하여
             # 항상 "가장 최근 검색 1개만" 활성 상태로 남도록 정리
@@ -135,7 +137,7 @@ class PlaceSearchView(APIView):
             # tmap_poi_id와 tmap_pkey 확인
             tmap_poi_id = result.get("id")
             tmap_pkey = result.get("pkey") or result.get("id")  # pkey가 없으면 id 사용
-            
+
             # tmap_poi_id가 없으면 건너뛰기
             if not tmap_poi_id:
                 continue
@@ -158,6 +160,7 @@ class PlaceSearchView(APIView):
             except Exception as e:
                 # 개별 POI 저장 실패 시 로그만 남기고 계속 진행
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"POI 저장 실패: {result.get('name')} - {str(e)}")
                 continue
@@ -289,13 +292,13 @@ class PlaceSearchView(APIView):
                 results.append(
                     {
                         "id": poi.get("id"),
-                        "pkey": poi.get("pkey") or poi.get("id"),  # pkey가 없으면 id 사용
+                        "pkey": poi.get("pkey")
+                        or poi.get("id"),  # pkey가 없으면 id 사용
                         "name": poi.get("name", ""),
                         "address": address,
-
                         "category": (
                             # 더# TMap 분류는 코드(mlClass)로 오는 경우가 많아 프론트에서 활용이 어려움.
-                        # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback. 구체적인 분류가 우선
+                            # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback. 구체적인 분류가 우선
                             poi.get("lowerBizName")
                             or poi.get("middleBizName")
                             or poi.get("upperBizName")
@@ -408,13 +411,10 @@ class SearchPlaceHistoryListView(APIView):
         tags=["Places"],
     )
     def get(self, request):
-        histories = (
-            SearchPlaceHistory.objects.filter(
-                user=request.user,
-                deleted_at__isnull=True,
-            )
-            .order_by("-created_at")
-        )
+        histories = SearchPlaceHistory.objects.filter(
+            user=request.user,
+            deleted_at__isnull=True,
+        ).order_by("-created_at")
         serializer = SearchPlaceHistorySerializer(histories, many=True)
         return success_response(serializer.data)
 

@@ -20,12 +20,12 @@ def success_response(data=None, status=200, meta=None):
     }
     """
     response_data = {
-        'status': 'success',
-        'data': data,
-        'meta': {
-            'timestamp': timezone.localtime(timezone.now()).isoformat(),
-            **(meta or {})
-        }
+        "status": "success",
+        "data": data,
+        "meta": {
+            "timestamp": timezone.localtime(timezone.now()).isoformat(),
+            **(meta or {}),
+        },
     }
     return Response(response_data, status=status)
 
@@ -54,13 +54,13 @@ def paginated_response(data, page, limit, total_count):
     return success_response(
         data=data,
         meta={
-            'pagination': {
-                'page': page,
-                'limit': limit,
-                'total_count': total_count,
-                'total_pages': total_pages,
-                'has_next': page < total_pages,
-                'has_prev': page > 1
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1,
             }
-        }
+        },
     )

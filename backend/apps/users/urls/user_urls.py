@@ -17,7 +17,6 @@ from ..views import (
     ItineraryHistoryListView,
     PlaceHistoryDetailView,
     PlaceHistoryListView,
-    UserMeView,
     UserStatsView,
 )
 

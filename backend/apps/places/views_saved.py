@@ -11,13 +11,12 @@ API 엔드포인트:
 from django.db import IntegrityError
 from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes  # 업데이트된 import
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from drf_spectacular.types import OpenApiTypes  # 업데이트된 import
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .models import PoiPlace, SavedPlace
 from .serializers import (
@@ -54,7 +53,7 @@ def error_response(code, message, status_code, details=None):
         "error": {
             "code": code,
             "message": message,
-        }
+        },
     }
     if details:
         response["error"]["details"] = details
@@ -92,9 +91,8 @@ class SavedPlaceListCreateView(APIView):
 
         # 기본 쿼리: 활성 상태인 즐겨찾기만
         queryset = SavedPlace.objects.filter(
-            user=user,
-            deleted_at__isnull=True
-        ).select_related('poi_place')
+            user=user, deleted_at__isnull=True
+        ).select_related("poi_place")
 
         # 카테고리 필터 적용
         if category_filter:
@@ -104,13 +102,13 @@ class SavedPlaceListCreateView(APIView):
         # 정렬: home → work → school → 기타 (생성일 역순)
         queryset = queryset.annotate(
             category_order=Case(
-                When(category='home', then=Value(1)),
-                When(category='work', then=Value(2)),
-                When(category='school', then=Value(3)),
+                When(category="home", then=Value(1)),
+                When(category="work", then=Value(2)),
+                When(category="school", then=Value(3)),
                 default=Value(4),
                 output_field=IntegerField(),
             )
-        ).order_by('category_order', '-created_at')
+        ).order_by("category_order", "-created_at")
 
         serializer = SavedPlaceListSerializer(queryset, many=True)
         return success_response(serializer.data)
@@ -163,13 +161,13 @@ class SavedPlaceListCreateView(APIView):
         # 카테고리 중복 체크 (home/work/school)
         if category:
             existing_category = SavedPlace.objects.filter(
-                user=user,
-                category=category,
-                deleted_at__isnull=True
+                user=user, category=category, deleted_at__isnull=True
             ).first()
 
             if existing_category:
-                category_display = dict(SavedPlace.CATEGORY_CHOICES).get(category, category)
+                category_display = dict(SavedPlace.CATEGORY_CHOICES).get(
+                    category, category
+                )
                 return error_response(
                     code="CATEGORY_ALREADY_EXISTS",
                     message=f"이미 '{category_display}'이(가) 등록되어 있습니다.",
@@ -181,10 +179,7 @@ class SavedPlaceListCreateView(APIView):
                 )
 
         # 기존 즐겨찾기 확인 (삭제된 것 포함)
-        existing = SavedPlace.objects.filter(
-            user=user,
-            poi_place=poi_place
-        ).first()
+        existing = SavedPlace.objects.filter(user=user, poi_place=poi_place).first()
 
         if existing:
             if existing.deleted_at:
@@ -243,9 +238,7 @@ class SavedPlaceDetailView(APIView):
         """즐겨찾기 객체 조회 (사용자 검증 포함)"""
         try:
             return SavedPlace.objects.get(
-                id=saved_place_id,
-                user=user,
-                deleted_at__isnull=True
+                id=saved_place_id, user=user, deleted_at__isnull=True
             )
         except SavedPlace.DoesNotExist:
             return None
@@ -317,14 +310,18 @@ class SavedPlaceDetailView(APIView):
         # 카테고리 변경 시 중복 체크
         new_category = serializer.validated_data.get("category")
         if new_category and new_category != saved_place.category:
-            existing_category = SavedPlace.objects.filter(
-                user=request.user,
-                category=new_category,
-                deleted_at__isnull=True
-            ).exclude(id=saved_place_id).first()
+            existing_category = (
+                SavedPlace.objects.filter(
+                    user=request.user, category=new_category, deleted_at__isnull=True
+                )
+                .exclude(id=saved_place_id)
+                .first()
+            )
 
             if existing_category:
-                category_display = dict(SavedPlace.CATEGORY_CHOICES).get(new_category, new_category)
+                category_display = dict(SavedPlace.CATEGORY_CHOICES).get(
+                    new_category, new_category
+                )
                 return error_response(
                     code="CATEGORY_ALREADY_EXISTS",
                     message=f"이미 '{category_display}'이(가) 등록되어 있습니다.",

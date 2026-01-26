@@ -5,7 +5,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import RouteItinerary, RouteLeg, RouteSegment, SearchItineraryHistory
+from .models import RouteLeg, RouteSegment, SearchItineraryHistory
 
 
 def to_seoul_time(dt):
@@ -31,33 +31,24 @@ class RouteSearchRequestSerializer(serializers.Serializer):
     }
     """
 
-    startX = serializers.CharField(help_text='출발지 경도 (lon)')
-    startY = serializers.CharField(help_text='출발지 위도 (lat)')
-    endX = serializers.CharField(help_text='도착지 경도 (lon)')
-    endY = serializers.CharField(help_text='도착지 위도 (lat)')
+    startX = serializers.CharField(help_text="출발지 경도 (lon)")
+    startY = serializers.CharField(help_text="출발지 위도 (lat)")
+    endX = serializers.CharField(help_text="도착지 경도 (lon)")
+    endY = serializers.CharField(help_text="도착지 위도 (lat)")
     count = serializers.IntegerField(
-        default=10,
-        min_value=1,
-        max_value=20,
-        help_text='경로 개수 (기본값: 10)'
+        default=10, min_value=1, max_value=20, help_text="경로 개수 (기본값: 10)"
     )
-    lang = serializers.IntegerField(
-        default=0,
-        help_text='언어 (0: 한국어, 1: 영어)'
-    )
+    lang = serializers.IntegerField(default=0, help_text="언어 (0: 한국어, 1: 영어)")
     format = serializers.CharField(
-        default='json',
-        help_text='응답 형식 (기본값: "json")'
+        default="json", help_text='응답 형식 (기본값: "json")'
     )
 
     # 출발지/도착지 이름 (검색 기록용) - 필수 필드
     departure_name = serializers.CharField(
-        required=True,
-        help_text='출발지명 (검색 기록용, 건물명 또는 도로명 주소)'
+        required=True, help_text="출발지명 (검색 기록용, 건물명 또는 도로명 주소)"
     )
     arrival_name = serializers.CharField(
-        required=True,
-        help_text='도착지명 (검색 기록용, 건물명 또는 도로명 주소)'
+        required=True, help_text="도착지명 (검색 기록용, 건물명 또는 도로명 주소)"
     )
 
 
@@ -68,51 +59,51 @@ class RouteSegmentSerializer(serializers.ModelSerializer):
     Mapbox에서 사용할 수 있는 형태로 세그먼트 정보 반환
     """
 
-    segment_id = serializers.IntegerField(source='id')
-    sectionTime = serializers.IntegerField(source='section_time')
+    segment_id = serializers.IntegerField(source="id")
+    sectionTime = serializers.IntegerField(source="section_time")
     start = serializers.SerializerMethodField()
     end = serializers.SerializerMethodField()
-    routeName = serializers.CharField(source='route_name')
-    routeColor = serializers.CharField(source='route_color')
-    pathCoordinates = serializers.JSONField(source='path_coordinates')
+    routeName = serializers.CharField(source="route_name")
+    routeColor = serializers.CharField(source="route_color")
+    pathCoordinates = serializers.JSONField(source="path_coordinates")
     geojson = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteSegment
         fields = [
-            'segment_id',
-            'segment_index',
-            'mode',
-            'sectionTime',
-            'distance',
-            'start',
-            'end',
-            'routeName',
-            'routeColor',
-            'pathCoordinates',
-            'geojson',
+            "segment_id",
+            "segment_index",
+            "mode",
+            "sectionTime",
+            "distance",
+            "start",
+            "end",
+            "routeName",
+            "routeColor",
+            "pathCoordinates",
+            "geojson",
         ]
 
     def get_start(self, obj):
         return {
-            'name': obj.start_name,
-            'lat': obj.start_lat,
-            'lon': obj.start_lon,
+            "name": obj.start_name,
+            "lat": obj.start_lat,
+            "lon": obj.start_lon,
         }
 
     def get_end(self, obj):
         return {
-            'name': obj.end_name,
-            'lat': obj.end_lat,
-            'lon': obj.end_lon,
+            "name": obj.end_name,
+            "lat": obj.end_lat,
+            "lon": obj.end_lon,
         }
 
     def get_geojson(self, obj):
         """좌표 배열을 GeoJSON으로 변환"""
         if obj.path_coordinates:
             return {
-                'type': 'LineString',
-                'coordinates': obj.path_coordinates,
+                "type": "LineString",
+                "coordinates": obj.path_coordinates,
             }
         return None
 
@@ -124,26 +115,26 @@ class RouteLegSummarySerializer(serializers.ModelSerializer):
     경로 검색 결과에서 각 경로 옵션의 요약 정보
     """
 
-    route_leg_id = serializers.IntegerField(source='id')
-    pathType = serializers.IntegerField(source='path_type')
-    totalTime = serializers.IntegerField(source='total_time')
-    totalDistance = serializers.IntegerField(source='total_distance')
-    totalWalkTime = serializers.IntegerField(source='total_walk_time')
-    totalWalkDistance = serializers.IntegerField(source='total_walk_distance')
-    transferCount = serializers.IntegerField(source='transfer_count')
+    route_leg_id = serializers.IntegerField(source="id")
+    pathType = serializers.IntegerField(source="path_type")
+    totalTime = serializers.IntegerField(source="total_time")
+    totalDistance = serializers.IntegerField(source="total_distance")
+    totalWalkTime = serializers.IntegerField(source="total_walk_time")
+    totalWalkDistance = serializers.IntegerField(source="total_walk_distance")
+    transferCount = serializers.IntegerField(source="transfer_count")
     fare = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteLeg
         fields = [
-            'route_leg_id',
-            'pathType',
-            'totalTime',
-            'totalDistance',
-            'totalWalkTime',
-            'totalWalkDistance',
-            'transferCount',
-            'fare'
+            "route_leg_id",
+            "pathType",
+            "totalTime",
+            "totalDistance",
+            "totalWalkTime",
+            "totalWalkDistance",
+            "transferCount",
+            "fare",
         ]
 
     def get_fare(self, obj):
@@ -152,17 +143,17 @@ class RouteLegSummarySerializer(serializers.ModelSerializer):
         raw_data에서 fare 정보 추출
         """
         raw_data = obj.raw_data or {}
-        fare_info = raw_data.get('fare', {})
+        fare_info = raw_data.get("fare", {})
 
         if not fare_info:
             return {
-                'regular': {
-                    'totalFare': obj.total_fare,
-                    'currency': {
-                        'symbol': '￦',
-                        'currency': '원',
-                        'currencyCode': 'KRW'
-                    }
+                "regular": {
+                    "totalFare": obj.total_fare,
+                    "currency": {
+                        "symbol": "￦",
+                        "currency": "원",
+                        "currencyCode": "KRW",
+                    },
                 }
             }
 
@@ -177,46 +168,46 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
     raw_data에서 TMAP 원본 응답의 legs 정보를 직접 반환
     """
 
-    route_leg_id = serializers.IntegerField(source='id')
-    route_itinerary_id = serializers.IntegerField(source='route_itinerary.id')
-    pathType = serializers.IntegerField(source='path_type')
-    totalTime = serializers.IntegerField(source='total_time')
-    totalDistance = serializers.IntegerField(source='total_distance')
-    totalWalkTime = serializers.IntegerField(source='total_walk_time')
-    totalWalkDistance = serializers.IntegerField(source='total_walk_distance')
-    transferCount = serializers.IntegerField(source='transfer_count')
+    route_leg_id = serializers.IntegerField(source="id")
+    route_itinerary_id = serializers.IntegerField(source="route_itinerary.id")
+    pathType = serializers.IntegerField(source="path_type")
+    totalTime = serializers.IntegerField(source="total_time")
+    totalDistance = serializers.IntegerField(source="total_distance")
+    totalWalkTime = serializers.IntegerField(source="total_walk_time")
+    totalWalkDistance = serializers.IntegerField(source="total_walk_distance")
+    transferCount = serializers.IntegerField(source="transfer_count")
     fare = serializers.SerializerMethodField()
     legs = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteLeg
         fields = [
-            'route_leg_id',
-            'route_itinerary_id',
-            'pathType',
-            'totalTime',
-            'totalDistance',
-            'totalWalkTime',
-            'totalWalkDistance',
-            'transferCount',
-            'fare',
-            'legs',
+            "route_leg_id",
+            "route_itinerary_id",
+            "pathType",
+            "totalTime",
+            "totalDistance",
+            "totalWalkTime",
+            "totalWalkDistance",
+            "transferCount",
+            "fare",
+            "legs",
         ]
 
     def get_fare(self, obj):
         """요금 정보 추출"""
         raw_data = obj.raw_data or {}
-        fare_info = raw_data.get('fare', {})
+        fare_info = raw_data.get("fare", {})
 
         if not fare_info:
             return {
-                'regular': {
-                    'totalFare': obj.total_fare,
-                    'currency': {
-                        'symbol': '￦',
-                        'currency': '원',
-                        'currencyCode': 'KRW'
-                    }
+                "regular": {
+                    "totalFare": obj.total_fare,
+                    "currency": {
+                        "symbol": "￦",
+                        "currency": "원",
+                        "currencyCode": "KRW",
+                    },
                 }
             }
 
@@ -242,7 +233,7 @@ class RouteLegDetailSerializer(serializers.ModelSerializer):
         - Lane: 다중 노선 정보 (버스)
         """
         raw_data = obj.raw_data or {}
-        return raw_data.get('legs', [])
+        return raw_data.get("legs", [])
 
 
 class RouteSearchResponseSerializer(serializers.Serializer):
@@ -267,8 +258,8 @@ class RouteSearchResponseSerializer(serializers.Serializer):
 
     def get_created_at(self, obj):
         if isinstance(obj, dict):
-            return to_seoul_time(obj.get('created_at'))
-        return to_seoul_time(getattr(obj, 'created_at', None))
+            return to_seoul_time(obj.get("created_at"))
+        return to_seoul_time(getattr(obj, "created_at", None))
 
 
 class SearchItineraryHistorySerializer(serializers.ModelSerializer):
@@ -284,13 +275,13 @@ class SearchItineraryHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SearchItineraryHistory
-        fields = ['id', 'departure', 'arrival', 'created_at']
+        fields = ["id", "departure", "arrival", "created_at"]
 
     def get_departure(self, obj):
-        return {'name': obj.departure_name}
+        return {"name": obj.departure_name}
 
     def get_arrival(self, obj):
-        return {'name': obj.arrival_name}
+        return {"name": obj.arrival_name}
 
     def get_created_at(self, obj):
         return to_seoul_time(obj.created_at)
@@ -301,8 +292,8 @@ class SearchItineraryHistoryDetailSerializer(serializers.ModelSerializer):
     경로 검색 결과 상세 조회 Serializer
     """
 
-    search_itinerary_history_id = serializers.IntegerField(source='id')
-    route_itinerary_id = serializers.IntegerField(source='route_itinerary.id')
+    search_itinerary_history_id = serializers.IntegerField(source="id")
+    route_itinerary_id = serializers.IntegerField(source="route_itinerary.id")
     departure = serializers.SerializerMethodField()
     arrival = serializers.SerializerMethodField()
     legs = serializers.SerializerMethodField()
@@ -311,19 +302,19 @@ class SearchItineraryHistoryDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = SearchItineraryHistory
         fields = [
-            'search_itinerary_history_id',
-            'route_itinerary_id',
-            'departure',
-            'arrival',
-            'legs',
-            'created_at'
+            "search_itinerary_history_id",
+            "route_itinerary_id",
+            "departure",
+            "arrival",
+            "legs",
+            "created_at",
         ]
 
     def get_departure(self, obj):
-        return {'name': obj.departure_name}
+        return {"name": obj.departure_name}
 
     def get_arrival(self, obj):
-        return {'name': obj.arrival_name}
+        return {"name": obj.arrival_name}
 
     def get_legs(self, obj):
         """연결된 RouteItinerary의 legs 반환"""

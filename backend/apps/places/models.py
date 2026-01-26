@@ -20,8 +20,8 @@ class PoiPlace(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'poi_place'
-        ordering = ['-updated_at']
+        db_table = "poi_place"
+        ordering = ["-updated_at"]
 
     def __str__(self):
         return f"{self.name} ({self.address})"
@@ -33,7 +33,7 @@ class SearchPlaceHistory(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='search_place_histories'
+        related_name="search_place_histories",
     )
     keyword = models.CharField(max_length=255)
 
@@ -43,8 +43,8 @@ class SearchPlaceHistory(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'search_place_history'
-        ordering = ['-created_at']
+        db_table = "search_place_history"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.user.name} - {self.keyword}"
@@ -54,54 +54,48 @@ class SavedPlace(models.Model):
     """사용자의 즐겨찾기 장소 (Soft Delete 방식)"""
 
     CATEGORY_CHOICES = [
-        ('home', '집'),
-        ('work', '회사'),
-        ('school', '학교'),
+        ("home", "집"),
+        ("work", "회사"),
+        ("school", "학교"),
     ]
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='saved_places'
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_places"
     )
     poi_place = models.ForeignKey(
-        PoiPlace,
-        on_delete=models.CASCADE,
-        related_name='saved_by_users'
+        PoiPlace, on_delete=models.CASCADE, related_name="saved_by_users"
     )
     category = models.CharField(
         max_length=10,
         choices=CATEGORY_CHOICES,
         null=True,
         blank=True,
-        help_text='집(home), 회사(work), 학교(school) 또는 일반 즐겨찾기(null)'
+        help_text="집(home), 회사(work), 학교(school) 또는 일반 즐겨찾기(null)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='Soft Delete 타임스탬프'
+        null=True, blank=True, help_text="Soft Delete 타임스탬프"
     )
 
     class Meta:
-        db_table = 'saved_place'
-        ordering = ['-created_at']
+        db_table = "saved_place"
+        ordering = ["-created_at"]
         constraints = [
             # 같은 사용자가 같은 POI를 중복 저장 방지 (활성 상태만)
             models.UniqueConstraint(
-                fields=['user', 'poi_place'],
+                fields=["user", "poi_place"],
                 condition=models.Q(deleted_at__isnull=True),
-                name='unique_active_saved_place'
+                name="unique_active_saved_place",
             ),
             # 같은 사용자가 같은 카테고리(home/work/school)를 중복 저장 방지
             models.UniqueConstraint(
-                fields=['user', 'category'],
+                fields=["user", "category"],
                 condition=models.Q(deleted_at__isnull=True, category__isnull=False),
-                name='unique_active_category_per_user'
+                name="unique_active_category_per_user",
             ),
         ]
 
     def __str__(self):
-        category_display = self.get_category_display() if self.category else '일반'
+        category_display = self.get_category_display() if self.category else "일반"
         return f"{self.user.name} - {self.poi_place.name} ({category_display})"
