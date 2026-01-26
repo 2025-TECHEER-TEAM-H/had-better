@@ -51,32 +51,6 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 p-4 hb-result-popup">
       <style>
         {`
-          @font-face {
-            font-family: 'Pretendard';
-            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
-            font-weight: 600;
-            font-style: normal;
-            font-display: swap;
-          }
-
-          @font-face {
-            font-family: 'FreesentationVF';
-            src: url('/fonts/FreesentationVF.ttf') format('truetype');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: swap;
-          }
-
-          @font-face {
-            font-family: 'DNFBitBitv2';
-            src:
-              url('/fonts/DNFBitBitv2.otf') format('opentype'),
-              url('/fonts/DNFBitBitv2.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-          }
-
           .hb-result-popup .hb-result-shell {
             position: relative;
             overflow: hidden;

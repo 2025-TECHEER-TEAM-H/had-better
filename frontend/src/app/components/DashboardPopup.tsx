@@ -134,22 +134,6 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
     <>
       <style>
         {`
-          @font-face {
-            font-family: 'Pretendard';
-            src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
-            font-weight: 600;
-            font-style: normal;
-            font-display: swap;
-          }
-
-          @font-face {
-            font-family: 'DNFBitBitv2';
-            src: url('/fonts/DNFBitBitv2.otf') format('opentype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-          }
-
           .hb-dashboard-shell {
             position: relative;
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
