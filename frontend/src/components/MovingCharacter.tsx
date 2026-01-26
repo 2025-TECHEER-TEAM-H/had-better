@@ -17,7 +17,7 @@ import {
     type InterpolationState,
 } from '@/utils/routeInterpolation';
 import type { Feature, LineString } from 'geojson';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // 캐릭터 색상 타입
 export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple';
@@ -79,14 +79,14 @@ export function MovingCharacter({
   const interpolationStateRef = useRef<InterpolationState | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // 프레임 이미지 경로
-  const frames = [
+  // 프레임 이미지 경로 (메모이제이션)
+  const frames = useMemo(() => [
     `/src/assets/${color}/character_${color}_idle.png`,
     `/src/assets/${color}/character_${color}_walk_a.png`,
     `/src/assets/${color}/character_${color}_front.png`,
     `/src/assets/${color}/character_${color}_walk_b.png`,
     `/src/assets/${color}/character_${color}_jump.png`,
-  ];
+  ], [color]);
 
   // 상태에 따른 프레임 선택
   const getFrameByStatus = useCallback((status: BotStatus, frameIndex: number): number => {
@@ -290,85 +290,66 @@ export function MovingCharacter({
       }}
       onClick={onClick}
     >
-      {/* 이동 수단 마커 표시 (경로 위 마커와 동일한 디자인) */}
+      {/* 상태 텍스트 표시 */}
       {(() => {
-        const colorMap = {
-          green: '#7ED321',
-          purple: '#A78BFA',
-          yellow: '#FFD93D',
-          pink: '#FF6B9D',
-        };
-        const markerColor = colorMap[color];
-        let emoji = '';
+        let statusText = '';
 
-        if (status === 'RIDING_BUS') emoji = '🚌';
-        else if (status === 'RIDING_SUBWAY') emoji = '🚇';
-        else if (status === 'WALKING') emoji = '🚶';
-        else return null; // FINISHED나 다른 상태는 표시 안 함
+        switch (status) {
+          case 'WALKING':
+            statusText = '걷는 중';
+            break;
+          case 'WAITING_BUS':
+            statusText = '버스 대기 중';
+            break;
+          case 'WAITING_SUBWAY':
+            statusText = '지하철 대기 중';
+            break;
+          case 'RIDING_BUS':
+            statusText = '버스 이동 중';
+            break;
+          case 'RIDING_SUBWAY':
+            statusText = '지하철 이동 중';
+            break;
+          case 'FINISHED':
+            statusText = '도착';
+            break;
+          default:
+            return null;
+        }
 
         return (
           <div
-            className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+            className="absolute -top-5 left-1/2 -translate-x-1/2 pointer-events-none"
             style={{
-              width: '28px',
-              height: '28px',
-              background: markerColor,
-              border: '3px solid white',
-              borderRadius: '50%',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              lineHeight: '1',
+              background: 'rgba(0, 0, 0, 0.75)',
+              color: 'white',
+              padding: '5px 10px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: '500',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              zIndex: 10,
             }}
           >
-            {emoji}
+            {statusText}
+            {/* 말풍선 꼬리 */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-6px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid transparent',
+                borderRight: '6px solid transparent',
+                borderTop: '6px solid rgba(0, 0, 0, 0.75)',
+              }}
+            />
           </div>
         );
       })()}
-
-      {/* 대기 중 말풍선 */}
-      {(status === 'WAITING_BUS' || status === 'WAITING_SUBWAY') && (
-        <div
-          className="absolute -top-16 left-1/2 -translate-x-1/2 pointer-events-none"
-          style={{
-            background: 'rgba(0, 0, 0, 0.75)',
-            color: 'white',
-            padding: '6px 10px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: '500',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            zIndex: 10,
-          }}
-        >
-          {status === 'WAITING_BUS' ? '🚌 버스' : '🚇 지하철'}
-          {waitingTimeMinutes !== undefined && waitingTimeMinutes > 0 && (
-            <span style={{ marginLeft: '4px', color: '#FFD93D' }}>
-              {waitingTimeMinutes}분 후 도착
-            </span>
-          )}
-          {(!waitingTimeMinutes || waitingTimeMinutes <= 0) && (
-            <span style={{ marginLeft: '4px' }}>대기 중...</span>
-          )}
-          {/* 말풍선 꼬리 */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-6px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderTop: '6px solid rgba(0, 0, 0, 0.75)',
-            }}
-          />
-        </div>
-      )}
 
       {/* 캐릭터 이미지 */}
       <img
