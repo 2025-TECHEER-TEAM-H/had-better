@@ -130,24 +130,6 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
             filter: brightness(1.04);
           }
 
-          .hb-result-popup .hb-result-button {
-            transition: transform 140ms ease-out, box-shadow 140ms ease-out, filter 140ms ease-out;
-            will-change: transform, box-shadow, filter;
-          }
-
-          .hb-result-popup .hb-result-button:active {
-            transform: translateY(3px) scale(0.97);
-            filter: brightness(0.95);
-          }
-
-          .hb-result-popup .hb-result-button-main:active {
-            box-shadow: 0 3px 12px rgba(72, 212, 72, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-          }
-
-          .hb-result-popup .hb-result-button-dashboard:active {
-            box-shadow: 0 3px 12px rgba(0, 217, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-          }
-
           @media (prefers-reduced-motion: reduce) {
             .hb-result-popup .hb-result-glass-fun::before {
               animation: none !important;
@@ -163,13 +145,13 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         `}
       </style>
       {/* 팝업 컨텐츠 */}
-      <div className="relative w-full max-w-[400px] h-[90vh] max-h-[840px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px] overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-[400px] h-[90vh] max-h-[840px] mx-auto hb-result-shell hb-result-glass hb-result-glass-fun rounded-[22px] overflow-hidden">
 
         {/* 헤더 - 제목, X 버튼 */}
-        <div className="relative px-6 pt-5 pb-4">
+        <div className="absolute left-1/2 -translate-x-1/2 top-[29px] w-[calc(100%-74px)]">
           {/* 제목 */}
-          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center mb-4">
-            <p className="hb-result-title text-[16px] text-black">
+          <div className="hb-result-chip rounded-[16px] h-[44px] flex items-center justify-center">
+            <p className="hb-result-title text-[18px] text-black">
               HAD BETTER
             </p>
           </div>
@@ -177,9 +159,9 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
           {/* X 버튼 */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-6 hb-result-chip hb-result-pressable size-[44px] rounded-[14px] flex items-center justify-center text-black"
+            className="absolute hb-result-chip hb-result-pressable right-0 top-0 size-[44px] rounded-[14px] flex items-center justify-center text-black"
           >
-            <span className="font-['Press_Start_2P:Regular',sans-serif] text-[14px]">✕</span>
+            <p className="font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[16px] text-black">✕</p>
           </button>
         </div>
 
@@ -192,7 +174,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
 
         {/* 순위 표시 */}
         {!isLoading && result && (
-          <div className="absolute left-[61.01px] top-[116.83px] w-[255.999px] h-[170.974px] flex gap-[16px] items-end justify-center">
+          <div className="absolute left-1/2 -translate-x-1/2 top-[116.83px] w-[255.999px] h-[170.974px] flex gap-[16px] items-end justify-center">
             {/* rank 기준으로 정렬 후 2위-1위-3위 순서로 배치 */}
             {(() => {
               const sortedRankings = [...result.rankings].sort((a, b) => (a.rank || 99) - (b.rank || 99));
@@ -225,11 +207,11 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                     >
                       <p className={`${isFirst ? 'text-[48px] leading-[1]' : 'text-[30px] leading-[1]'} flex items-center justify-center`}>{medal}</p>
                     </div>
-                    <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-3' : 'mt-2'}`}>
-                      {rank}위
-                    </p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#6b9080] mt-1">{displayName}</p>
-                    <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] mt-1">{duration}</p>
+                    {isFirst && (
+                      <p className="absolute text-[24px] leading-[1] left-1/2 -translate-x-1/2 top-[-14px] z-[50]">
+                        ⭐
+                      </p>
+                    )}
                   </div>
                   <p className={`font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f] ${isFirst ? 'mt-[12px]' : 'mt-[8px]'}`}>
                     {rank}위
@@ -244,7 +226,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         )}
 
         {/* 축하 메시지 */}
-        <div className="absolute hb-result-card left-[24px] top-[299.8px] w-[330.038px] h-[77.683px] rounded-[16px] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
+        <div className="absolute hb-result-card left-1/2 -translate-x-1/2 top-[299.8px] w-[330.038px] h-[77.683px] rounded-[16px] flex flex-col items-center justify-center gap-[8px] px-[26.72px] py-[18.72px]">
           <p className="font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] text-[15px] text-[#2d5f3f] text-center">
             {result?.user_result.is_win
               ? '오늘은 내가 제일 빨리 도착했어요!'
@@ -258,7 +240,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         </div>
 
         {/* 기록 카드들 */}
-        <div className="absolute left-[24px] top-[417.49px] w-[330.038px] flex flex-col gap-[11.995px]">
+        <div className="absolute left-1/2 -translate-x-1/2 top-[417.49px] w-[330.038px] flex flex-col gap-[11.995px]">
           {result?.rankings.map((ranking) => {
             const displayName = ranking.type === 'USER' ? `${userNickname}의 기록` : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
             const duration = ranking.duration ? formatDuration(ranking.duration) : '-';
@@ -276,38 +258,6 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
           })}
         </div>
 
-        {/* 하단 버튼들 */}
-        <div className="absolute left-[24px] top-[653.48px] w-[330.038px] flex flex-col gap-[11.995px]">
-          {/* Main 버튼 */}
-          <button
-            onClick={handleMainClick}
-            className="hb-result-button hb-result-button-main h-[56px] rounded-[24px]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(72, 212, 72, 0.85) 0%, rgba(61, 184, 61, 0.85) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.7)',
-              boxShadow: '0 8px 24px rgba(72, 212, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(18px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-            }}
-          >
-            <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[18px] text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">Main</p>
-          </button>
-
-          {/* Dashboard 버튼 */}
-          <button
-            onClick={handleDashboardClick}
-            className="hb-result-button hb-result-button-dashboard h-[56px] rounded-[24px]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(0, 217, 255, 0.85) 0%, rgba(0, 184, 212, 0.85) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.7)',
-              boxShadow: '0 8px 24px rgba(0, 217, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(18px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-            }}
-          >
-            <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[18px] text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">Dashboard</p>
-          </button>
-        </div>
       </div>
     </div>,
     document.body
