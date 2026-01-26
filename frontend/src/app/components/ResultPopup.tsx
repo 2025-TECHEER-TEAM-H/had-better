@@ -12,6 +12,7 @@ interface ResultPopupProps {
   onCloseDashboard?: () => void; // 대시보드 닫기 콜백 (Main 버튼 클릭 시 사용)
   result?: RouteResultResponse | null; // 경주 결과 데이터
   isLoading?: boolean; // 로딩 상태
+  isCanceling?: boolean | 'record'; // 취소 중 상태 (true: 취소, false: 완료, 'record': 기록 조회)
   userNickname?: string; // 유저 닉네임
 }
 
@@ -43,7 +44,7 @@ const RANK_GLASS_STYLES: Record<number, { background: string; border: string; sh
 
 
 
-export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading, userNickname = '나' }: ResultPopupProps) {
+export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCloseDashboard, result, isLoading, isCanceling = 'record', userNickname = '나' }: ResultPopupProps) {
   if (!isOpen) return null;
 
   // Portal을 사용하여 body에 직접 렌더링 (다른 팝업 위에 표시되도록)
@@ -178,8 +179,26 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
 
         {/* 로딩 상태 */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-black">결과 로딩 중...</p>
+          <div className="absolute left-1/2 -translate-x-1/2 top-[333px] w-[330.038px] h-[120px] rounded-[16px] flex items-center justify-center">
+            <div className="hb-result-card w-full h-full rounded-[16px] flex flex-col items-center justify-center gap-[12px] px-[26.72px] py-[24px]">
+              {isCanceling === 'record' ? (
+                // 기록 조회 중
+                <p className="font-['Pretendard',sans-serif] font-medium text-[16px] text-black text-center">
+                  경주 기록을 불러오고 있습니다..
+                </p>
+              ) : (
+                <>
+                  {/* 영어 메시지 (픽셀 글씨체, 크게) */}
+                  <p className="font-['DNFBitBitv2','Press_Start_2P',sans-serif] text-[26px] text-black text-center">
+                    {isCanceling ? 'CANCELED!' : 'FINISHED!'}
+                  </p>
+                  {/* 한글 메시지 (영어보다 작게) */}
+                  <p className="font-['Pretendard',sans-serif] font-medium text-[16px] text-black text-center">
+                    {isCanceling ? '경주가 취소되었습니다' : '경주가 종료되었습니다'}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -277,30 +296,37 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
         )}
 
         {/* 축하 메시지 */}
+        {!isLoading && result && (
         <div className="absolute hb-result-card left-1/2 -translate-x-1/2 top-[333px] w-[330.038px] h-[120px] rounded-[16px] flex flex-col items-center justify-center gap-[12px] px-[26.72px] py-[24px]">
           {/* 영어 메시지 (픽셀 글씨체, 크게) */}
           <p className="font-['DNFBitBitv2','Press_Start_2P',sans-serif] text-[26px] text-black text-center">
-            {result?.user_result.rank === 1
-              ? 'BEST CHOICE!'
-              : result?.user_result.rank === 2
-                ? 'GOOD CHOICE!'
-                : result?.user_result.rank === 3
-                  ? 'NICE TRY!'
-                  : 'FINISHED!'}
+            {result?.status === 'CANCELED'
+              ? 'CANCELED'
+              : result?.user_result.rank === 1
+                ? 'BEST CHOICE!'
+                : result?.user_result.rank === 2
+                  ? 'GOOD CHOICE!'
+                  : result?.user_result.rank === 3
+                    ? 'NICE TRY!'
+                    : 'FINISHED!'}
           </p>
           {/* 한글 메시지 (영어보다 작게) */}
           <p className="font-['Pretendard',sans-serif] font-medium text-[16px] text-black text-center">
-            {result?.user_result.rank === 1
-              ? '최적의 경로로 가장 빨리 도착했어요!'
-              : result?.user_result.rank === 2
-                ? '조금만 더 서둘렀다면 1등!'
-                : result?.user_result.rank === 3
-                  ? '다음엔 더 나은 경로가 있을 거예요'
-                  : '경주가 종료되었습니다!'}
+            {result?.status === 'CANCELED'
+              ? '경주가 취소됐어요'
+              : result?.user_result.rank === 1
+                ? '최적의 경로로 가장 빨리 도착했어요!'
+                : result?.user_result.rank === 2
+                  ? '조금만 더 서둘렀다면 1등!'
+                  : result?.user_result.rank === 3
+                    ? '다음엔 더 나은 경로가 있을 거예요'
+                    : '경주가 종료되었습니다!'}
           </p>
         </div>
+        )}
 
         {/* 기록 카드들 */}
+        {!isLoading && result && (
         <div className="absolute left-1/2 -translate-x-1/2 top-[470px] w-[330.038px] flex flex-col gap-[18px]">
           {result?.rankings.map((ranking) => {
             const displayName = ranking.type === 'USER' ? `${userNickname}의 기록` : `${ranking.name || `Bot ${ranking.bot_id}`} 기록`;
@@ -345,6 +371,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
             );
           })}
         </div>
+        )}
 
       </div>
     </div>,

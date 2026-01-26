@@ -470,6 +470,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
         }}
         result={routeResult}
         isLoading={isResultLoading}
+        isCanceling="record"
         userNickname={user?.nickname}
       />
     </>
