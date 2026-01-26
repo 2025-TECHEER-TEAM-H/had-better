@@ -12,11 +12,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "127.0.0.1:5432:5432"  # localhost에서만 접속 가능 (보안)
+      - '127.0.0.1:5432:5432' # localhost에서만 접속 가능 (보안)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,11 +28,11 @@ services:
     image: redis:7-alpine
     container_name: hadbetter-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,15 +46,15 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-      RABBITMQ_ERLANG_COOKIE: "hadbetter_cookie_key"
+      RABBITMQ_ERLANG_COOKIE: 'hadbetter_cookie_key'
     ports:
-      - "5672:5672"   # AMQP 포트
-      - "15672:15672" # 관리 콘솔 포트
+      - '5672:5672' # AMQP 포트
+      - '15672:15672' # 관리 콘솔 포트
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-      - ./backend/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro  # Consumer timeout 설정 (2시간)
+      - ./backend/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro # Consumer timeout 설정 (2시간)
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: hadbetter-celery
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info -E
     env_file:
       - ./backend/.env
     environment:
@@ -129,6 +129,19 @@ services:
     networks:
       - hadbetter-network
 
+  # Celery Prometheus Exporter
+  celery-exporter:
+    image: ovalmoney/celery-exporter:latest
+    container_name: hadbetter-celery-exporter
+    command: --broker-url=amqp://guest:guest@rabbitmq:5672//
+    ports:
+      - '9540:9540'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hadbetter-network
+
   # ================================================================
   # pgAdmin - PostgreSQL 관리 도구 (시각적 DB 관리)
   # 접속: http://localhost:5050
@@ -141,7 +154,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@hadbetter.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80"
+      - '5050:80'
     depends_on:
       - db
     networks:
@@ -150,7 +163,8 @@ services:
 
 networks:
   hadbetter-network:
-    driver: bridge
+    #driver: bridge
+    external: true
 
 volumes:
   postgres_data:
