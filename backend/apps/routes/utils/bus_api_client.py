@@ -15,8 +15,9 @@ import logging
 import xml.etree.ElementTree as ET
 from urllib.parse import unquote
 
-import requests
 from django.conf import settings
+
+import requests
 
 logger = logging.getLogger(__name__)
 

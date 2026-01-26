@@ -15,9 +15,10 @@
 import logging
 from datetime import datetime
 
+from django.utils import timezone
+
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
-from django.utils import timezone
 
 from ..models import Route
 from ..services.bot_state import BotStateManager, BotStatus

@@ -4,11 +4,7 @@
 
 from django.urls import path
 
-from .views import (
-    RouteResultView,
-    RouteStatusUpdateView,
-    SSEStreamView,
-)
+from .views import RouteResultView, RouteStatusUpdateView, SSEStreamView
 
 urlpatterns = [
     # GET/POST /api/v1/routes는 config/urls.py에서 직접 정의

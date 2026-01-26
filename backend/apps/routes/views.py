@@ -21,14 +21,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-
-def to_seoul_time(dt):
-    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
-    if dt is None:
-        return None
-    return timezone.localtime(dt).isoformat()
-
-
 from drf_spectacular.utils import extend_schema
 
 from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
@@ -46,6 +38,14 @@ from .services.sse_publisher import SSEPublisher
 from .tasks.bot_simulation import update_bot_position
 from .utils.rabbitmq_client import rabbitmq_client
 from .utils.redis_client import redis_client
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
+
 
 logger = logging.getLogger(__name__)
 
@@ -931,9 +931,7 @@ eventSource.addEventListener('bot_status_update', (e) => {
         """SSE 스트림 연결"""
         # route_itinerary 존재 확인
         try:
-            RouteItinerary.objects.get(
-                id=route_itinerary_id, deleted_at__isnull=True
-            )
+            RouteItinerary.objects.get(id=route_itinerary_id, deleted_at__isnull=True)
         except RouteItinerary.DoesNotExist:
             return error_response(
                 code="RESOURCE_NOT_FOUND",

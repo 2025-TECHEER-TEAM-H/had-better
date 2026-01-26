@@ -7,6 +7,7 @@ import re
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from rest_framework import serializers
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.places.models import SearchPlaceHistory

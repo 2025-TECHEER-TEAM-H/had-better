@@ -16,8 +16,9 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Optional
 
-import redis
 from django.conf import settings
+
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -219,9 +220,7 @@ class RedisClient:
                 except redis.RedisError as e:
                     logger.warning(f"락 해제 중 오류: route_id={route_id}, error={e}")
 
-    def update_bot_state(
-        self, route_id: int, ttl: int = 3600, **kwargs
-    ) -> dict | None:
+    def update_bot_state(self, route_id: int, ttl: int = 3600, **kwargs) -> dict | None:
         """
         봇 상태 부분 업데이트
 

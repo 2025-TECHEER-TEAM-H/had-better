@@ -13,8 +13,9 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 
-import pika
 from django.conf import settings
+
+import pika
 from pika.exceptions import AMQPChannelError, AMQPConnectionError
 
 logger = logging.getLogger(__name__)

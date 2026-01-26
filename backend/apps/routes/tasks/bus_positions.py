@@ -9,8 +9,9 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from celery import shared_task
 from django.core.cache import cache
+
+from celery import shared_task
 
 from ..utils.bus_api_client import bus_api_client
 
