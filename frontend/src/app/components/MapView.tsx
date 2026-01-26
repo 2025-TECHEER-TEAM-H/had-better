@@ -110,6 +110,15 @@ export interface PlayerMarker {
   label?: string; // 라벨 (선택)
 }
 
+// 이동 수단 마커 타입 (버스/걷기 시작 지점 표시용)
+export interface TransportModeMarker {
+  id: string;
+  coordinates: [number, number];
+  mode: 'BUS' | 'EXPRESSBUS' | 'SUBWAY' | 'WALK';
+  player: string; // 'user' | 'bot1' | 'bot2'
+  color?: string; // 플레이어 경로 색상
+}
+
 interface MapViewProps {
   onNavigate?: (page: PageType) => void;
   /**
@@ -144,6 +153,10 @@ interface MapViewProps {
    * 플레이어 마커 (유저/봇 위치 표시)
    */
   playerMarkers?: PlayerMarker[];
+  /**
+   * 이동 수단 마커 (버스/걷기 시작 지점 표시)
+   */
+  transportModeMarkers?: TransportModeMarker[];
   /**
    * 지하철 노선도 표시 여부 (선택)
    */
@@ -184,6 +197,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   showControls = true,
   stationMarkers = [],
   playerPositions: _playerPositions,
+  transportModeMarkers = [],
 }, ref) {
   const location = useLocation();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -194,6 +208,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const transferMarkers = useRef<mapboxgl.Marker[]>([]); // 환승 지점 마커
   const stationMarkersRef = useRef<mapboxgl.Marker[]>([]); // 정류장/역 마커
   const playerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map()); // 플레이어 마커들
+  const transportModeMarkersRef = useRef<mapboxgl.Marker[]>([]); // 이동 수단 마커들
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
   // SVG <defs> id 충돌 방지: MapView 인스턴스별 고유 prefix (SVG id는 document 전역 namespace)
   const svgIdPrefixRef = useRef(`m${Math.random().toString(36).slice(2)}`);
@@ -959,6 +974,71 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       endpointMarkers.current = [];
     };
   }, [endpoints, isMapLoaded]);
+
+  // 이동 수단 마커 표시 (버스/걷기 시작 지점)
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // 기존 마커 제거
+    transportModeMarkersRef.current.forEach((marker) => marker.remove());
+    transportModeMarkersRef.current = [];
+
+    // 새 마커 추가
+    transportModeMarkers.forEach((marker) => {
+      const el = document.createElement("div");
+      el.className = "transport-mode-marker";
+
+      // 이동 수단에 따른 아이콘
+      let icon = '';
+      let bgColor = '';
+      if (marker.mode === 'BUS' || marker.mode === 'EXPRESSBUS') {
+        icon = '🚌';
+        bgColor = '#4a90e2';
+      } else if (marker.mode === 'SUBWAY') {
+        icon = '🚇';
+        bgColor = '#8b5cf6';
+      } else if (marker.mode === 'WALK') {
+        icon = '🚶';
+        bgColor = '#10b981';
+      }
+
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        ">
+          <div style="
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: ${bgColor};
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-size: 20px;
+          ">${icon}</div>
+        </div>
+      `;
+
+      const mapboxMarker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(marker.coordinates)
+        .addTo(map.current!);
+
+      transportModeMarkersRef.current.push(mapboxMarker);
+    });
+
+    return () => {
+      try {
+        transportModeMarkersRef.current.forEach((marker) => marker.remove());
+      } catch {
+        // 지도가 제거된 경우 무시
+      }
+      transportModeMarkersRef.current = [];
+    };
+  }, [transportModeMarkers, isMapLoaded]);
 
   // 정류장/역 마커 표시 - 비활성화 (경로선만 표시)
   useEffect(() => {
