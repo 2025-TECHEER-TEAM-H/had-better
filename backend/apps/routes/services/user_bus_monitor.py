@@ -1,8 +1,9 @@
 import logging
 from datetime import timedelta
-from typing import Optional, Dict, Any
+from typing import Any
 
 from django.utils import timezone
+
 from apps.routes.models import Route
 from apps.routes.utils.bus_api_client import bus_api_client
 
@@ -126,7 +127,7 @@ class UserBusMonitor:
         self.is_initialized = True
         return True
 
-    def check_arrival(self) -> Optional[Dict[str, Any]]:
+    def check_arrival(self) -> dict[str, Any] | None:
         """실시간 도착 정보 조회 (최적화 로직 적용)"""
         if not self.is_initialized:
             if not self.initialize():
@@ -175,7 +176,7 @@ class UserBusMonitor:
         # 3. 실제 API 호출
         self.last_call_time = now
         logger.info(
-            f"[UserBusMonitor] Calling Bus API (Window: -3m ~ +1m, Interval: 10s)"
+            "[UserBusMonitor] Calling Bus API (Window: -3m ~ +1m, Interval: 10s)"
         )
 
         arrival_info = bus_api_client.get_arrival_info(

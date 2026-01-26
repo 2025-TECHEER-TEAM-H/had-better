@@ -3,8 +3,8 @@
 python manage.py runserver 실행 시 uvicorn으로 ASGI 서버 자동 시작
 """
 
-import os
 import sys
+
 from django.core.management.base import BaseCommand
 
 

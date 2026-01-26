@@ -22,10 +22,10 @@ from django.utils import timezone
 from ..models import Route
 from ..services.bot_state import BotStateManager, BotStatus
 from ..services.sse_publisher import SSEPublisher
-from ..utils.redis_client import redis_client, RedisConnectionError
 from ..utils.bus_api_client import bus_api_client
-from ..utils.subway_api_client import subway_api_client
 from ..utils.geo_utils import calculate_distance
+from ..utils.redis_client import RedisConnectionError, redis_client
+from ..utils.subway_api_client import subway_api_client
 
 logger = logging.getLogger(__name__)
 

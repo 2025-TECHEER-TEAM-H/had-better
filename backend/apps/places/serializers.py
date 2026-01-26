@@ -1,6 +1,8 @@
 import math
+
 from django.utils import timezone
 from rest_framework import serializers
+
 from .models import PoiPlace, SavedPlace, SearchPlaceHistory
 
 

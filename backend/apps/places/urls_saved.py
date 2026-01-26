@@ -9,7 +9,8 @@ API 엔드포인트:
 """
 
 from django.urls import path
-from .views_saved import SavedPlaceListCreateView, SavedPlaceDetailView
+
+from .views_saved import SavedPlaceDetailView
 
 urlpatterns = [
     # GET/POST /api/v1/saved-places는 config/urls.py에서 직접 정의

@@ -14,10 +14,7 @@ from rest_framework.views import APIView
 
 from config.responses import success_response
 
-
 from .models import RouteItinerary, RouteLeg, RouteSegment, SearchItineraryHistory
-
-
 from .serializers import (
     RouteLegDetailSerializer,
     RouteLegSummarySerializer,

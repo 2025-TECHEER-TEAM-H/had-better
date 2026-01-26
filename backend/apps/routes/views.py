@@ -32,6 +32,7 @@ def to_seoul_time(dt):
 from drf_spectacular.utils import extend_schema
 
 from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
+from config.celery import app as celery_app
 
 from .models import Bot, Route
 from .serializers import (
@@ -40,12 +41,11 @@ from .serializers import (
     RouteStatusUpdateSerializer,
 )
 from .services.bot_state import BotStateManager
-from .services.sse_publisher import SSEPublisher
 from .services.id_converter import PublicAPIIdConverter
+from .services.sse_publisher import SSEPublisher
 from .tasks.bot_simulation import update_bot_position
 from .utils.rabbitmq_client import rabbitmq_client
 from .utils.redis_client import redis_client
-from config.celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 

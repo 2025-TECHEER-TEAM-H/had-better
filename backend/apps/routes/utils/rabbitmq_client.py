@@ -10,12 +10,12 @@ RabbitMQ 클라이언트 (SSE Pub/Sub)
 import json
 import logging
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 import pika
-from pika.exceptions import AMQPConnectionError, AMQPChannelError
 from django.conf import settings
+from pika.exceptions import AMQPChannelError, AMQPConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ class RabbitMQClient:
 
     def subscribe(
         self, route_itinerary_id: int, timeout: int = 30
-    ) -> Generator[Optional[dict], None, None]:
+    ) -> Generator[dict | None, None, None]:
         """
         SSE 이벤트 구독 (Generator, 연결 복구 포함)
 

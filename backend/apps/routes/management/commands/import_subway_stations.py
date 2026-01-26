@@ -48,7 +48,7 @@ class Command(BaseCommand):
 
         # CSV 파일 읽기
         stations_to_create = []
-        with open(csv_path, "r", encoding="cp949") as f:
+        with open(csv_path, encoding="cp949") as f:
             reader = csv.DictReader(f)
 
             for row in reader:

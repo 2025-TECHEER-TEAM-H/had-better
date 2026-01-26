@@ -19,7 +19,6 @@ Note:
 """
 
 import logging
-from typing import Optional
 
 from apps.routes.models import SubwayStation
 
@@ -30,7 +29,7 @@ class SubwayStationService:
     """지하철 역 외부코드 조회 서비스 (DB 기반)"""
 
     @staticmethod
-    def get_external_code(station_name: str, line: str) -> Optional[int]:
+    def get_external_code(station_name: str, line: str) -> int | None:
         """
         역명과 호선으로 외부코드 조회
 
@@ -48,7 +47,7 @@ class SubwayStationService:
             return None
 
     @staticmethod
-    def get_direction(start_station: str, end_station: str, line: str) -> Optional[str]:
+    def get_direction(start_station: str, end_station: str, line: str) -> str | None:
         """
         출발역/도착역으로 상행/하행 판단 (기본 버전)
 
@@ -69,7 +68,7 @@ class SubwayStationService:
     @staticmethod
     def get_direction_from_pass_stops(
         pass_stops: list[str], line: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         경유역 목록(pass_stops)을 기반으로 실제 이동 방향 판단
 

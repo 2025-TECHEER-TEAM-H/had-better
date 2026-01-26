@@ -12,8 +12,9 @@ import json
 import logging
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Optional
 
 import redis
 from django.conf import settings
@@ -114,7 +115,7 @@ class RedisClient:
         )
         return result is not None
 
-    def get_bot_state(self, route_id: int) -> Optional[dict]:
+    def get_bot_state(self, route_id: int) -> dict | None:
         """
         봇 상태 조회
 
@@ -220,7 +221,7 @@ class RedisClient:
 
     def update_bot_state(
         self, route_id: int, ttl: int = 3600, **kwargs
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         봇 상태 부분 업데이트
 
@@ -243,7 +244,7 @@ class RedisClient:
 
     def update_bot_state_atomic(
         self, route_id: int, ttl: int = 3600, **kwargs
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         봇 상태 원자적 업데이트 (분산 락 사용)
 
@@ -318,7 +319,7 @@ class RedisClient:
             )
             return False
 
-    def get_last_api_call(self, route_id: int, api_type: str) -> Optional[dict]:
+    def get_last_api_call(self, route_id: int, api_type: str) -> dict | None:
         """
         마지막 API 호출 정보 조회
 
@@ -409,7 +410,7 @@ class RedisClient:
         )
         return result is not None
 
-    def get_public_ids(self, route_id: int) -> Optional[dict]:
+    def get_public_ids(self, route_id: int) -> dict | None:
         """
         공공데이터 ID 조회
 
@@ -478,7 +479,7 @@ class RedisClient:
             logger.warning(f"Task ID 저장 실패: route_id={route_id}, error={e}")
             return False
 
-    def get_task_id(self, route_id: int) -> Optional[str]:
+    def get_task_id(self, route_id: int) -> str | None:
         """
         Celery Task ID 조회
 

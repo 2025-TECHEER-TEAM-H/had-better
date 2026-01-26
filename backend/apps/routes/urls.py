@@ -5,9 +5,8 @@
 from django.urls import path
 
 from .views import (
-    RouteListCreateView,
-    RouteStatusUpdateView,
     RouteResultView,
+    RouteStatusUpdateView,
     SSEStreamView,
 )
 

@@ -3,8 +3,6 @@
 API 응답 형식을 통일하기 위한 예외 처리
 """
 
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 

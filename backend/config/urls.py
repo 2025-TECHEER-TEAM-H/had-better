@@ -8,19 +8,19 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.users.views import UserMeView
 from apps.places.views_saved import SavedPlaceListCreateView
-from apps.routes.views import RouteListCreateView
 from apps.routes.urls import sse_urlpatterns as routes_sse_urlpatterns
+from apps.routes.views import RouteListCreateView
 from apps.routes.views_bus import (
-    BusRouteSearchView,
-    BusRouteStationsView,
-    BusRoutePathView,
+    BusAllPositionsView,
     BusMultipleRoutesView,
     BusRealtimePositionsView,
-    BusAllPositionsView,
+    BusRoutePathView,
+    BusRouteSearchView,
+    BusRouteStationsView,
     BusTrackPositionsView,
 )
+from apps.users.views import UserMeView
 
 urlpatterns = [
     # Admin

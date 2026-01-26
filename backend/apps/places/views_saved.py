@@ -11,13 +11,12 @@ API 엔드포인트:
 from django.db import IntegrityError
 from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes  # 업데이트된 import
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from drf_spectacular.types import OpenApiTypes  # 업데이트된 import
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .models import PoiPlace, SavedPlace
 from .serializers import (

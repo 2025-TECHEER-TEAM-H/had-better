@@ -5,7 +5,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import RouteItinerary, RouteLeg, RouteSegment, SearchItineraryHistory
+from .models import RouteLeg, RouteSegment, SearchItineraryHistory
 
 
 def to_seoul_time(dt):
