@@ -7,6 +7,24 @@ import { useUserDistance } from "@/hooks/useUserDistance";
 import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
 import favoriteStarFilled from "@/assets/favorite-star-filled.png";
 
+// 카테고리별 아이콘 이미지 import
+import iconCafe from "@/assets/icons/cafe_emoji.png";
+import iconRestaurant from "@/assets/icons/restaurant_emoji.png";
+import iconConvenience from "@/assets/icons/convenience.png";
+import iconHospital from "@/assets/icons/hospital_emoji.png";
+import iconPharmacy from "@/assets/icons/pharmacy_emoji.png";
+import iconPark from "@/assets/icons/park_emoji.png";
+import iconSchool from "@/assets/icons/school_emoji.png";
+import iconBank from "@/assets/icons/bank_emoji.png";
+import iconGas from "@/assets/icons/gas_emoji.png";
+import iconParking from "@/assets/icons/parking_emoji.png";
+import iconSubway from "@/assets/icons/subway_emoji.png";
+import iconBus from "@/assets/icons/bus_emoji.png";
+import iconHotel from "@/assets/icons/hotel_emoji.png";
+import iconMarket from "@/assets/icons/market_emoji.png";
+import iconMall from "@/assets/icons/mall_emoji.png";
+import iconDefault from "@/assets/icons/default_emoji.png";
+
 // UI용 검색 결과 타입
 interface SearchResult {
   id: string;
@@ -32,31 +50,61 @@ const getSubjectParticle = (word: string): "이" | "가" => {
   return jong === 0 ? "가" : "이";
 };
 
-// 카테고리별 아이콘 매핑
-const getCategoryIcon = (category: string): string => {
-  const c = (category || "").toLowerCase();
-  const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
-
-  // NOTE: 백엔드 category는 TMap mlClass 기반이라 포맷이 제각각(영문/복합/약어)일 수 있음.
-  // 화면에서 확실히 구분되도록 "결과 이모지"는 고정(요청한 매핑) + 매칭 키워드는 넓게 커버.
-  if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
-  if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
-  if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
-  if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
-  if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
-  if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
-  if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
-  if (hasAny(["은행", "bank", "atm"])) return "🏦";
-  if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
-  if (hasAny(["주차", "parking"])) return "🅿️";
-  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
-  if (hasAny(["버스", "bus"])) return "🚌";
-  if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
-  if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
-  if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
-
-  return "📍"; // 기본 아이콘
+// [현재 사용중 - 알파벳 버전]
+// 인덱스 기반 알파벳 반환 (A, B, C, ...)
+const getAlphabetLabel = (index: number): string => {
+  return String.fromCharCode(65 + index); // A=65, B=66, ...
 };
+
+// [주석처리 - 이모지 버전]
+// const getCategoryIcon = (category: string): string => {
+//   const c = (category || "").toLowerCase();
+//   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+//
+//   // NOTE: 백엔드 category는 TMap mlClass 기반이라 포맷이 제각각(영문/복합/약어)일 수 있음.
+//   if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return "☕";
+//   if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return "🍽️";
+//   if (hasAny(["편의점", "convenience", "cvs"])) return "🏪";
+//   if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return "🏥";
+//   if (hasAny(["약국", "pharmacy", "drugstore"])) return "💊";
+//   if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return "🏞️";
+//   if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return "🏫";
+//   if (hasAny(["은행", "bank", "atm"])) return "🏦";
+//   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
+//   if (hasAny(["주차", "parking"])) return "🅿️";
+//   if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+//   if (hasAny(["버스", "bus"])) return "🚌";
+//   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
+//   if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
+//   if (hasAny(["백화점", "department", "mall", "쇼핑"])) return "🏬";
+//
+//   return "📍"; // 기본 아이콘
+// };
+
+// [주석처리 - 흑백 아이콘 이미지 버전]
+// 카테고리별 아이콘 매핑 (이미지 경로 반환)
+// const getCategoryIcon = (category: string): string => {
+//   const c = (category || "").toLowerCase();
+//   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+//
+//   if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return iconCafe;
+//   if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return iconRestaurant;
+//   if (hasAny(["편의점", "convenience", "cvs"])) return iconConvenience;
+//   if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return iconHospital;
+//   if (hasAny(["약국", "pharmacy", "drugstore"])) return iconPharmacy;
+//   if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return iconPark;
+//   if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return iconSchool;
+//   if (hasAny(["은행", "bank", "atm"])) return iconBank;
+//   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return iconGas;
+//   if (hasAny(["주차", "parking"])) return iconParking;
+//   if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return iconSubway;
+//   if (hasAny(["버스", "bus"])) return iconBus;
+//   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return iconHotel;
+//   if (hasAny(["마트", "market", "grocery", "supermarket"])) return iconMarket;
+//   if (hasAny(["백화점", "department", "mall", "쇼핑"])) return iconMall;
+//
+//   return iconDefault; // 기본 아이콘
+// };
 
 // 카테고리별 배경색 매핑 (글라스모피즘용 단색)
 const getCategoryColor = (_category: string, index: number): string => {
@@ -257,7 +305,7 @@ export function SearchResultsPage({
             return {
               id: uniqueId,
               name: place.name,
-              icon: getCategoryIcon(place.category || ""),
+              icon: getAlphabetLabel(index),
               distance: "",
               status: place.address,
               backgroundColor: getCategoryColor(place.category || "", index),
@@ -535,20 +583,23 @@ export function SearchResultsPage({
         {/* 아이콘 */}
         <div className="bg-white/90 backdrop-blur-lg relative shrink-0 size-[63.996px] rounded-[10px] border border-white/40 shadow-md">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex items-center justify-center relative size-full">
-            <p className="css-ew64yg font-['Inter:Regular',sans-serif] font-normal leading-[45px] text-[#0a0a0a] text-[30px] text-center tracking-[0.3955px]">
+            {/* [현재 사용중 - 알파벳 버전] */}
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[45px] text-[#0a0a0a] text-[30px] text-center">
               {result.icon}
             </p>
+            {/* [주석처리 - 아이콘 이미지 버전] */}
+            {/* <img src={result.icon} alt="" className="w-[32px] h-[32px] object-contain" /> */}
           </div>
         </div>
 
         {/* 장소 이름 */}
         <div className="flex-[1_0_0] min-h-px min-w-px relative">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex flex-col items-start relative w-full">
-            <p className="css-ew64yg font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-extrabold leading-[18px] text-[14px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[18px] text-[16px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
               {result.name}
             </p>
             {buildSubline(result) && (
-              <p className="css-ew64yg font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+              <p className="font-['Pretendard',sans-serif] font-medium leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
                 {buildSubline(result)}
               </p>
             )}
@@ -593,7 +644,7 @@ export function SearchResultsPage({
       {error && !isLoading && (
         <div className="text-center py-8">
           <div className="inline-block bg-red-100/90 backdrop-blur-lg border border-red-300 rounded-[10px] px-4 py-2 shadow-lg">
-            <p className="text-red-600 font-bold drop-shadow-sm">{error}</p>
+            <p className="font-['Pretendard',sans-serif] font-bold text-red-600 drop-shadow-sm">{error}</p>
           </div>
         </div>
       )}
@@ -602,7 +653,7 @@ export function SearchResultsPage({
       {!isLoading && !error && searchResults.length === 0 && searchQuery && (
         <div className="text-center py-8">
           <div className="inline-block bg-white/90 backdrop-blur-lg border border-black/20 rounded-[10px] px-4 py-2 shadow-lg">
-            <p className="text-gray-600 drop-shadow-sm">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
+            <p className="font-['Pretendard',sans-serif] font-medium text-gray-600 drop-shadow-sm">"{searchQuery}"에 대한 검색 결과가 없습니다.</p>
           </div>
         </div>
       )}
@@ -618,7 +669,7 @@ export function SearchResultsPage({
           onClick={() => setVisibleCount((prev) => prev + 10)}
           className="w-full py-4 text-black font-bold rounded-[10px] border border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
         >
-          <span className="font-['Press_Start_2P:Regular',sans-serif] text-[12px] drop-shadow-md">
+          <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] drop-shadow-md">
             정보 더보기 ({searchResults.length - visibleCount}개 남음)
           </span>
         </button>
@@ -677,11 +728,11 @@ export function SearchResultsPage({
             >
               <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
             </button>
-            <p className="css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[30px] text-[16px] text-white text-center drop-shadow-md">
+            <p className="font-['DNFBitBitv2',sans-serif] font-bold leading-[30px] text-[16px] text-white text-center drop-shadow-md">
               검색 결과
             </p>
             {searchQuery && (
-              <p className="css-4hzbpn font-['Wittgenstein:Regular','Noto_Sans_KR:Regular',sans-serif] leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
+              <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
                 "{searchQuery}"
               </p>
             )}

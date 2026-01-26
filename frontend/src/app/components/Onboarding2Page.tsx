@@ -39,7 +39,7 @@ export function Onboarding2Page({
       {/* 건너뛰기 버튼 */}
       <button
         onClick={handleSkip}
-        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] text-[16px]"
+        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Pretendard',sans-serif] font-medium text-[16px]"
       >
         건너뛰기
       </button>
@@ -48,7 +48,7 @@ export function Onboarding2Page({
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
         <motion.h1
-          className="font-['Inter:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[48px] lg:text-[48px]"
+          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -58,7 +58,7 @@ export function Onboarding2Page({
 
         {/* 서브 타이틀 */}
         <motion.div
-          className="font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal text-[#767676] text-center mb-8 text-[20px] md:text-[40px] lg:text-[40px]"
+          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -209,7 +209,7 @@ export function Onboarding2Page({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <p className="font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal text-[20px] text-white">
+          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
             다음
           </p>
         </motion.button>

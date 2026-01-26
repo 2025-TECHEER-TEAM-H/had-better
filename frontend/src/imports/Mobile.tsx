@@ -107,7 +107,7 @@ function StartButton() {
   return (
     <div className="relative bg-[#4a9960] content-stretch flex h-[74px] items-center justify-center px-[6px] rounded-[40.5px] w-full max-w-[360px] active:translate-y-[2px] transition-transform">
       <div aria-hidden="true" className="absolute border-6 border-black border-solid inset-0 pointer-events-none rounded-[40.5px] shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
-      <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[28px] not-italic relative shrink-0 text-[20px] text-center text-white tracking-[1.5px]">
+      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[28px] not-italic relative shrink-0 text-[18px] text-center text-white tracking-[1.5px]">
         start
       </p>
     </div>
@@ -253,11 +253,11 @@ export default function Mobile() {
                 <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgGemBlue1} />
               </div>
 
-              <p className="absolute left-0 right-0 top-[46px] px-10 css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-semibold leading-[22px] not-italic text-[15px] text-[#1f4a2f] text-center tracking-[0.2px]">
+              <p className="absolute left-0 right-0 top-[46px] px-10 font-['Pretendard',sans-serif] font-bold leading-[22px] not-italic text-[16px] text-[#1f4a2f] text-center tracking-[0.2px]">
                 선택 경로 실시간 비교
               </p>
 
-              <p className="absolute left-0 right-0 top-[72px] px-10 css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-medium leading-[18px] not-italic text-[12px] text-[#1f4a2f] text-center opacity-70 tracking-[0.2px]">
+              <p className="absolute left-0 right-0 top-[72px] px-10 font-['Pretendard',sans-serif] font-medium leading-[18px] not-italic text-[12px] text-[#1f4a2f] text-center opacity-70 tracking-[0.2px]">
                 더 빠른 길, 지금 바로 확인해요
               </p>
             </div>
@@ -270,7 +270,7 @@ export default function Mobile() {
         <div className="w-full flex justify-center">
           <StartButton />
         </div>
-        <p className="mt-3 px-2 css-4hzbpn font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-medium leading-[18px] not-italic text-[12px] text-[#1f4a2f] text-center opacity-60 tracking-[0.2px]">
+        <p className="mt-3 px-2 font-['Pretendard',sans-serif] font-medium leading-[18px] not-italic text-[12px] text-[#1f4a2f] text-center opacity-60 tracking-[0.2px]">
           start를 눌러 시작하기
         </p>
       </div>

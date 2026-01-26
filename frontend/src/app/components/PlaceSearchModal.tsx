@@ -6,6 +6,24 @@ import imgWindow2 from "@/assets/window.png";
 import placeService from "@/services/placeService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// 카테고리별 아이콘 이미지 import
+import iconCafe from "@/assets/icons/cafe_emoji.png";
+import iconRestaurant from "@/assets/icons/restaurant_emoji.png";
+import iconConvenience from "@/assets/icons/convenience.png";
+import iconHospital from "@/assets/icons/hospital_emoji.png";
+import iconPharmacy from "@/assets/icons/pharmacy_emoji.png";
+import iconPark from "@/assets/icons/park_emoji.png";
+import iconSchool from "@/assets/icons/school_emoji.png";
+import iconBank from "@/assets/icons/bank_emoji.png";
+import iconGas from "@/assets/icons/gas_emoji.png";
+import iconParking from "@/assets/icons/parking_emoji.png";
+import iconSubway from "@/assets/icons/subway_emoji.png";
+import iconBus from "@/assets/icons/bus_emoji.png";
+import iconHotel from "@/assets/icons/hotel_emoji.png";
+import iconMarket from "@/assets/icons/market_emoji.png";
+import iconMall from "@/assets/icons/mall_emoji.png";
+import iconDefault from "@/assets/icons/default_emoji.png";
+
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 interface Place {
@@ -39,7 +57,12 @@ interface PlaceSearchModalProps {
   onOpenDashboard: () => void;
 }
 
-// 카테고리별 아이콘 매핑 (SearchResultsPage와 동일)
+// [주석처리 - 알파벳 버전]
+// const getAlphabetLabel = (index: number): string => {
+//   return String.fromCharCode(65 + index); // A=65, B=66, ...
+// };
+
+// [현재 사용중 - 이모지 버전]
 const getCategoryIcon = (category: string): string => {
   const c = (category || "").toLowerCase();
   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
@@ -54,7 +77,7 @@ const getCategoryIcon = (category: string): string => {
   if (hasAny(["은행", "bank", "atm"])) return "🏦";
   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return "⛽";
   if (hasAny(["주차", "parking"])) return "🅿️";
-  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚇";
+  if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return "🚉";
   if (hasAny(["버스", "bus"])) return "🚌";
   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return "🏨";
   if (hasAny(["마트", "market", "grocery", "supermarket"])) return "🛒";
@@ -62,6 +85,31 @@ const getCategoryIcon = (category: string): string => {
 
   return "📍"; // 기본 아이콘
 };
+
+// [주석처리 - 흑백 아이콘 이미지 버전]
+// 카테고리별 아이콘 매핑 (이미지 경로 반환)
+// const getCategoryIcon = (category: string): string => {
+//   const c = (category || "").toLowerCase();
+//   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
+//
+//   if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return iconCafe;
+//   if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return iconRestaurant;
+//   if (hasAny(["편의점", "convenience", "cvs"])) return iconConvenience;
+//   if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return iconHospital;
+//   if (hasAny(["약국", "pharmacy", "drugstore"])) return iconPharmacy;
+//   if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return iconPark;
+//   if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return iconSchool;
+//   if (hasAny(["은행", "bank", "atm"])) return iconBank;
+//   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return iconGas;
+//   if (hasAny(["주차", "parking"])) return iconParking;
+//   if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return iconSubway;
+//   if (hasAny(["버스", "bus"])) return iconBus;
+//   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return iconHotel;
+//   if (hasAny(["마트", "market", "grocery", "supermarket"])) return iconMarket;
+//   if (hasAny(["백화점", "department", "mall", "쇼핑"])) return iconMall;
+//
+//   return iconDefault; // 기본 아이콘
+// };
 
 // 카테고리별 배경색 매핑
 const getCategoryColor = (_category: string, index: number): string => {
@@ -501,13 +549,13 @@ export function PlaceSearchModal({
           <div className="px-5 pb-6 overflow-y-auto h-[calc(100%-40px)]">
             {!showResults ? (
               <>
-                <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-black mb-3">
+                <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black mb-3">
                   등록된 {titleText} 장소
                 </p>
 
                 {isLoadingSaved ? (
                   <div className="text-center py-4">
-                    <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-[rgba(0,0,0,0.35)]">
+                    <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[rgba(0,0,0,0.35)]">
                       로딩 중...
                     </p>
                   </div>
@@ -549,7 +597,7 @@ export function PlaceSearchModal({
                             <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black truncate w-full">
                               {saved.name}
                             </p>
-                            <p className="mt-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium text-[11px] leading-[14px] text-black/60 truncate w-full">
+                            <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[12px] leading-[14px] text-black/60 truncate w-full">
                               {saved.detail?.trim() ? saved.detail : "상세 장소 정보 없음"}
                             </p>
                           </div>
@@ -588,7 +636,7 @@ export function PlaceSearchModal({
                               e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)";
                             }}
                           >
-                            <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-black">
+                            <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-black">
                               등록취소
                             </span>
                           </button>
@@ -611,7 +659,7 @@ export function PlaceSearchModal({
                               e.currentTarget.style.background = "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)";
                             }}
                           >
-                            <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[12px] text-white">
+                            <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
                               경로 안내
                             </span>
                           </button>
@@ -630,10 +678,10 @@ export function PlaceSearchModal({
                       WebkitBackdropFilter: "blur(16px) saturate(155%)",
                     }}
                   >
-                    <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black">
+                    <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black">
                       아직 등록되지 않았어요
                     </p>
-                    <p className="mt-1 css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium text-[12px] text-black/60">
+                    <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[12px] text-black/60">
                       위 검색창에 입력하면 검색 결과(카드 목록)가 나와요.
                     </p>
                   </div>
@@ -650,7 +698,7 @@ export function PlaceSearchModal({
 
                 {/* 에러 상태 */}
                 {searchError && !isSearching && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-red-600">
+                  <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-red-600">
                     {searchError}
                   </p>
                 )}
@@ -691,7 +739,10 @@ export function PlaceSearchModal({
                             WebkitBackdropFilter: "blur(12px) saturate(150%)",
                           }}
                         >
-                          <p className="text-[32px]">{place.icon}</p>
+                          {/* [현재 사용중 - 이모지 버전] */}
+                          <p className="text-[40px]">{place.icon}</p>
+                          {/* [주석처리 - 아이콘 이미지 버전] */}
+                          {/* <img src={place.icon} alt="" className="w-[32px] h-[32px] object-contain" /> */}
                         </div>
 
                         {/* 정보 */}
@@ -699,7 +750,7 @@ export function PlaceSearchModal({
                           <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black">
                             {place.name}
                           </p>
-                          <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[11px] text-black/60 truncate w-full">
+                          <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-black/60 truncate w-full">
                             {place.detail || "상세 주소 정보 없음"}
                           </p>
                         </div>
@@ -708,7 +759,7 @@ export function PlaceSearchModal({
                   ))}
 
                 {!isSearching && !searchError && searchResults.length === 0 && (
-                  <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] text-[12px] text-[rgba(0,0,0,0.35)]">
+                  <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[rgba(0,0,0,0.35)]">
                     검색 결과가 없습니다.
                   </p>
                 )}
@@ -738,7 +789,7 @@ export function PlaceSearchModal({
               WebkitBackdropFilter: "blur(18px) saturate(160%)",
             }}
           >
-            <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] text-black leading-[20px]">
+            <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black leading-[20px]">
               {titleText}에 이 장소를 추가하시겠습니까?
             </p>
 
@@ -769,10 +820,10 @@ export function PlaceSearchModal({
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[14px] leading-[18px] text-black truncate">
+                <p className="font-['Pretendard',sans-serif] font-bold text-[16px] leading-[18px] text-black truncate">
                   {pendingPlace.name}
                 </p>
-                <p className="css-4hzbpn font-['Wittgenstein:Medium','Noto_Sans_KR:Medium',sans-serif] font-medium text-[11px] leading-[14px] text-black/60 truncate">
+                <p className="font-['Pretendard',sans-serif] font-medium text-[12px] leading-[14px] text-black/60 truncate">
                   {pendingPlace.detail?.trim()
                     ? pendingPlace.detail
                     : `${pendingPlace.distance} · ${pendingPlace.time}`}
@@ -798,7 +849,7 @@ export function PlaceSearchModal({
                   e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.16) 100%)";
                 }}
               >
-                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] text-black">
+                <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-black">
                   취소
                 </span>
               </button>
@@ -819,7 +870,7 @@ export function PlaceSearchModal({
                   e.currentTarget.style.background = "linear-gradient(135deg, rgba(74,153,96,0.85) 0%, rgba(74,153,96,0.70) 100%)";
                 }}
               >
-                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] font-bold text-[13px] text-white">
+                <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
                   확인
                 </span>
               </button>
