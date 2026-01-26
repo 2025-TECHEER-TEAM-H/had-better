@@ -15,18 +15,19 @@ import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } fro
 import imgBot1Character from "/assets/Double/hud_player_purple.png"; // 보라색 (봇1)
 import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
 import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
+import imgBotEmoji from "@/assets/icons/bot_emoji.png"; // 봇 이모지
 
-// 숫자 이미지 import (1~10)
-import imgNumber10 from "/assets/Double/hud_character_0.png"; // 10은 0 이미지 사용
-import imgNumber1 from "/assets/Double/hud_character_1.png";
-import imgNumber2 from "/assets/Double/hud_character_2.png";
-import imgNumber3 from "/assets/Double/hud_character_3.png";
-import imgNumber4 from "/assets/Double/hud_character_4.png";
-import imgNumber5 from "/assets/Double/hud_character_5.png";
-import imgNumber6 from "/assets/Double/hud_character_6.png";
-import imgNumber7 from "/assets/Double/hud_character_7.png";
-import imgNumber8 from "/assets/Double/hud_character_8.png";
-import imgNumber9 from "/assets/Double/hud_character_9.png";
+// 숫자 이미지 import (0~9)
+import imgDigit0 from "/assets/Double/hud_character_0.png";
+import imgDigit1 from "/assets/Double/hud_character_1.png";
+import imgDigit2 from "/assets/Double/hud_character_2.png";
+import imgDigit3 from "/assets/Double/hud_character_3.png";
+import imgDigit4 from "/assets/Double/hud_character_4.png";
+import imgDigit5 from "/assets/Double/hud_character_5.png";
+import imgDigit6 from "/assets/Double/hud_character_6.png";
+import imgDigit7 from "/assets/Double/hud_character_7.png";
+import imgDigit8 from "/assets/Double/hud_character_8.png";
+import imgDigit9 from "/assets/Double/hud_character_9.png";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
@@ -47,18 +48,18 @@ const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string
   },
 };
 
-// 숫자 이미지 배열 (1~10)
-const NUMBER_IMAGES = [
-  imgNumber1,
-  imgNumber2,
-  imgNumber3,
-  imgNumber4,
-  imgNumber5,
-  imgNumber6,
-  imgNumber7,
-  imgNumber8,
-  imgNumber9,
-  imgNumber10,
+// 숫자 이미지 배열 (0~9)
+const DIGIT_IMAGES = [
+  imgDigit0,
+  imgDigit1,
+  imgDigit2,
+  imgDigit3,
+  imgDigit4,
+  imgDigit5,
+  imgDigit6,
+  imgDigit7,
+  imgDigit8,
+  imgDigit9,
 ];
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
@@ -826,12 +827,25 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                           boxShadow: "0 10px 22px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.35)",
                         }}
                       >
-                        {routeNumber <= 10 ? (
+                        {routeNumber <= 9 ? (
                           <img
-                            src={NUMBER_IMAGES[routeNumber - 1]}
+                            src={DIGIT_IMAGES[routeNumber]}
                             alt={`경로 ${routeNumber}`}
                             className="size-[40px] md:size-[32px] object-contain drop-shadow-sm"
                           />
+                        ) : routeNumber === 10 ? (
+                          <div className="flex items-center justify-center">
+                            <img
+                              src={DIGIT_IMAGES[1]}
+                              alt="1"
+                              className="size-[32px] md:size-[26px] object-contain drop-shadow-sm"
+                            />
+                            <img
+                              src={DIGIT_IMAGES[0]}
+                              alt="0"
+                              className="size-[32px] md:size-[26px] object-contain drop-shadow-sm -ml-3"
+                            />
+                          </div>
                         ) : (
                           <p className="font-['Pretendard',sans-serif] text-[28px] md:text-[24px] text-black/90">
                             {routeNumber}
@@ -1092,12 +1106,25 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   {hasRoute ? (
                     <>
                       <div className={`${colors.badge} text-white rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1 shadow-sm flex items-center justify-center`}>
-                        {routeNumber <= 10 ? (
+                        {routeNumber <= 9 ? (
                           <img
-                            src={NUMBER_IMAGES[routeNumber - 1]}
+                            src={DIGIT_IMAGES[routeNumber]}
                             alt={`경로 ${routeNumber}`}
                             className="size-[20px] md:size-[16px] object-contain drop-shadow-sm"
                           />
+                        ) : routeNumber === 10 ? (
+                          <div className="flex items-center justify-center">
+                            <img
+                              src={DIGIT_IMAGES[1]}
+                              alt="1"
+                              className="size-[18px] md:size-[14px] object-contain drop-shadow-sm"
+                            />
+                            <img
+                              src={DIGIT_IMAGES[0]}
+                              alt="0"
+                              className="size-[18px] md:size-[14px] object-contain drop-shadow-sm -ml-1.5"
+                            />
+                          </div>
                         ) : (
                           <p className="font-['Pretendard',sans-serif] text-[16px] md:text-[14px] font-bold text-white">
                             {routeNumber}
@@ -1669,7 +1696,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
               }`}
               title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
             >
-              <span className="text-[18px]">🤖</span>
+              <img src={imgBotEmoji} alt="봇" className="size-[24px] object-contain" />
             </button>
           </div>
 
@@ -1988,7 +2015,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           }`}
           title={playMode === 'simulation' ? '시뮬레이션 모드 (클릭하여 GPS로 전환)' : 'GPS 모드 (클릭하여 시뮬레이션으로 전환)'}
         >
-          <span className="text-[18px]">🤖</span>
+          <img src={imgBotEmoji} alt="봇" className="size-[24px] object-contain" />
         </button>
       </div>
 
