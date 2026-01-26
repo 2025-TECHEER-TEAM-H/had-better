@@ -5,8 +5,9 @@ TMAP 대중교통 API 서비스
 import logging
 from typing import Any
 
-import requests
 from django.conf import settings
+
+import requests
 
 logger = logging.getLogger(__name__)
 

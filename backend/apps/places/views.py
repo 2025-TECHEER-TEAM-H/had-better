@@ -1,15 +1,16 @@
 from urllib.parse import quote  # noqa: F401
 
-import requests
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
-from drf_spectacular.openapi import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+import requests
+from drf_spectacular.openapi import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from config.responses import success_response
 

@@ -6,7 +6,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
 
-from apps.routes.models import Route
+from apps.routes.models import Route  # noqa: E402
 
 route = Route.objects.get(id=27)
 leg = route.route_leg

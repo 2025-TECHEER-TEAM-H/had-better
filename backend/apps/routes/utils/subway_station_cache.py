@@ -66,9 +66,7 @@ class SubwayStationService:
             return None
 
     @staticmethod
-    def get_direction_from_pass_stops(
-        pass_stops: list[str], line: str
-    ) -> str | None:
+    def get_direction_from_pass_stops(pass_stops: list[str], line: str) -> str | None:
         """
         경유역 목록(pass_stops)을 기반으로 실제 이동 방향 판단
 
