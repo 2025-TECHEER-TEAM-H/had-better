@@ -8,13 +8,25 @@ import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { ROUTE_COLORS } from "@/mocks/routeData";
 import { createRoute, getRouteLegDetail, searchRoutes } from "@/services/routeService";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
-import { PLAYER_LABELS, useRouteStore, type Player, type PlayMode } from "@/stores/routeStore";
+import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
 import imgBot1Character from "/assets/Double/hud_player_purple.png"; // 보라색 (봇1)
 import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
 import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
+
+// 숫자 이미지 import (1~10)
+import imgNumber10 from "/assets/Double/hud_character_0.png"; // 10은 0 이미지 사용
+import imgNumber1 from "/assets/Double/hud_character_1.png";
+import imgNumber2 from "/assets/Double/hud_character_2.png";
+import imgNumber3 from "/assets/Double/hud_character_3.png";
+import imgNumber4 from "/assets/Double/hud_character_4.png";
+import imgNumber5 from "/assets/Double/hud_character_5.png";
+import imgNumber6 from "/assets/Double/hud_character_6.png";
+import imgNumber7 from "/assets/Double/hud_character_7.png";
+import imgNumber8 from "/assets/Double/hud_character_8.png";
+import imgNumber9 from "/assets/Double/hud_character_9.png";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {
@@ -35,8 +47,19 @@ const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string
   },
 };
 
-// 숫자 이모지 배열 (1~10)
-const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+// 숫자 이미지 배열 (1~10)
+const NUMBER_IMAGES = [
+  imgNumber1,
+  imgNumber2,
+  imgNumber3,
+  imgNumber4,
+  imgNumber5,
+  imgNumber6,
+  imgNumber7,
+  imgNumber8,
+  imgNumber9,
+  imgNumber10,
+];
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -715,22 +738,22 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           <div className="flex items-center gap-2 md:gap-3">
             <div className="flex items-center gap-2">
               <img alt="출발지" className="size-[24px] md:size-[20px] object-contain" src={imgGemGreen1} />
-              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-bold leading-tight">
                 {departure.name}
               </p>
             </div>
-            <p className="text-[16px] md:text-[14px]">→</p>
+            <p className="font-['Pretendard',sans-serif] text-[16px] md:text-[14px]">→</p>
             <div className="flex items-center gap-2">
               <img alt="도착지" className="size-[24px] md:size-[20px] object-contain" src={imgGemRed1} />
-              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-bold leading-tight">
                 {arrival.name}
               </p>
             </div>
           </div>
         ) : (
-          <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black text-center font-semibold leading-tight">
+          <h1 className="font-['DNFBitBitv2',sans-serif] text-[18px] md:text-[16px] text-black text-center">
             각 플레이어의 경로를 선택하세요
-          </p>
+          </h1>
         )}
       </div>
 
@@ -738,14 +761,14 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
       {isLoading && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-          <span className="ml-3 font-['Wittgenstein',sans-serif] text-[12px] text-black">경로 검색 중...</span>
+          <span className="ml-3 font-['Pretendard',sans-serif] text-[12px] text-black">경로 검색 중...</span>
         </div>
       )}
 
       {/* 에러 상태 */}
       {error && (
         <div className="bg-red-100/90 backdrop-blur-lg border border-red-300 rounded-[10px] p-4 mb-4 shadow-lg">
-          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-red-700">{error}</p>
+          <p className="font-['Pretendard',sans-serif] text-[12px] text-red-700">{error}</p>
         </div>
       )}
 
@@ -793,37 +816,50 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   <div className="flex flex-col gap-3 md:flex-row md:gap-4">
                     {/* 경로 번호 아이콘 */}
                     <div className="flex items-center gap-3 md:flex-col md:items-start">
-                      <div className="bg-white size-[56px] md:size-[48px] border-[3px] border-black flex items-center justify-center shrink-0 rounded-lg shadow-md">
-                        <p className="text-[28px] md:text-[24px]">
-                          {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
-                        </p>
+                      <div
+                        className="size-[56px] md:size-[48px] flex items-center justify-center shrink-0 rounded-[16px] shadow-[0px_10px_22px_rgba(0,0,0,0.14)]"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.40) 100%)",
+                          backdropFilter: "blur(18px) saturate(160%)",
+                          WebkitBackdropFilter: "blur(18px) saturate(160%)",
+                          border: "1px solid rgba(255,255,255,0.50)",
+                          boxShadow: "0 10px 22px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.35)",
+                        }}
+                      >
+                        {routeNumber <= 10 ? (
+                          <img
+                            src={NUMBER_IMAGES[routeNumber - 1]}
+                            alt={`경로 ${routeNumber}`}
+                            className="size-[40px] md:size-[32px] object-contain drop-shadow-sm"
+                          />
+                        ) : (
+                          <p className="font-['Pretendard',sans-serif] text-[28px] md:text-[24px] text-black/90">
+                            {routeNumber}
+                          </p>
+                        )}
                       </div>
 
                       {/* 경로 이름 - 모바일에서 아이콘 옆에 표시 */}
                       <div className="flex flex-col md:hidden">
                         <div className="flex gap-2 items-center">
-                          <div
-                            className="h-[3px] w-[16px] border-[0.673px] border-black rounded-full"
-                            style={{ backgroundColor: colorScheme.line }}
-                          />
-                          <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-semibold">
-                            경로 {routeNumber} ({pathTypeName})
+                          <p className="font-['Pretendard',sans-serif] text-[16px] md:text-[18px] text-black font-bold">
+                            경로 {routeNumber} <span className="text-[12px] md:text-[14px]">({pathTypeName})</span>
                           </p>
                         </div>
 
                         {/* 모바일 태그 영역 */}
                         <div className="flex flex-wrap gap-1 mt-1">
                           {isFastest && (
-                            <span className="bg-blue-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">⚡ 최단시간</span>
+                            <span className="bg-blue-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">최단시간</span>
                           )}
                           {isTransferHell && (
-                            <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">👣 환승지옥</span>
+                            <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">환승지옥</span>
                           )}
                           {isBusPath && (
-                            <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">🚌 도로정체주의</span>
+                            <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">도로정체주의</span>
                           )}
                           {isWalkingHeavy && (
-                            <span className="bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">👟 유산소코스</span>
+                            <span className="bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">유산소코스</span>
                           )}
                         </div>
                       </div>
@@ -837,27 +873,23 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                           {/* 경로 이름 - 데스크톱에서만 표시 */}
                           <div className="hidden md:flex flex-col gap-1">
                             <div className="flex gap-2 items-center">
-                              <div
-                                className="h-[2px] w-[12px] border-[0.673px] border-black"
-                                style={{ backgroundColor: colorScheme.line }}
-                              />
-                              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black">
-                                경로 {routeNumber} ({pathTypeName})
+                              <p className="font-['Pretendard',sans-serif] text-[18px] text-black font-bold">
+                                경로 {routeNumber} <span className="text-[14px]">({pathTypeName})</span>
                               </p>
                             </div>
                             {/* 데스크탑 태그 영역 */}
                             <div className="flex flex-wrap gap-1">
                               {isFastest && (
-                                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">⚡ 최단시간</span>
+                                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">최단시간</span>
                               )}
                               {isTransferHell && (
-                                <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">👣 환승지옥</span>
+                                <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">환승지옥</span>
                               )}
                               {isBusPath && (
-                                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">🚌 도로정체주의</span>
+                                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">도로정체주의</span>
                               )}
                               {isWalkingHeavy && (
-                                <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">👟 유산소코스</span>
+                                <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">유산소코스</span>
                               )}
                             </div>
                           </div>
@@ -865,20 +897,20 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                           {/* 시간/거리/환승 */}
                         <div className="flex gap-2 flex-wrap">
                           <div
-                            className="bg-[#ffd93d] h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md"
+                            className="bg-[#ffd93d] h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black/40 flex items-center justify-center rounded-md"
                           >
-                            <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                            <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px] text-black leading-tight font-semibold">
                               {timeMinutes}분
                             </p>
                           </div>
-                          <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md">
-                            <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                          <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black/40 flex items-center justify-center rounded-md">
+                            <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px] text-black leading-tight font-semibold">
                               {distanceStr}
                             </p>
                           </div>
                           {leg.transferCount > 0 && (
-                            <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black flex items-center justify-center rounded-md">
-                              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black leading-tight font-semibold">
+                            <div className="bg-white h-[28px] md:h-[20px] px-[12px] md:px-[9px] py-[6px] md:py-[5px] border-[3px] border-black/40 flex items-center justify-center rounded-md">
+                              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px] text-black leading-tight font-semibold">
                                 환승 {leg.transferCount}회
                               </p>
                             </div>
@@ -901,7 +933,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                                   <div className="size-[10px] md:size-[6px] bg-black rounded-sm" />
                                 )}
                               </div>
-                              <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black font-medium">
+                              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black font-medium">
                                 {PLAYER_LABELS[player]}
                               </p>
                             </label>
@@ -921,7 +953,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                           </div>
                         ) : (
                           <div className="bg-gray-100/50 rounded-[12px] p-2 md:p-2.5 border-2 border-dashed border-gray-300">
-                            <p className="font-['Wittgenstein',sans-serif] text-[10px] md:text-[8px] text-gray-400 text-center">
+                            <p className="font-['Pretendard',sans-serif] text-[10px] md:text-[8px] text-gray-400 text-center">
                               선택<br />대기
                             </p>
                           </div>
@@ -935,7 +967,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                         className="mt-3 pt-3 border-t border-black/20"
                         onClick={(e) => e.stopPropagation()} // 클릭 이벤트 버블링 방지
                       >
-                        <p className="font-['Wittgenstein',sans-serif] text-[12px] md:text-[10px] text-black/70 mb-2 font-semibold">
+                        <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[10px] text-black/70 mb-2 font-medium">
                           상세 경로
                         </p>
                         <div className="flex flex-col gap-2">
@@ -955,11 +987,11 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                                 className="flex items-center gap-2 bg-white/50 rounded-md px-3 py-2"
                               >
                                 <span className="text-[16px] md:text-[14px]">{modeIcon}</span>
-                                <span className="font-['Wittgenstein',sans-serif] text-[13px] md:text-[11px] text-black">
+                                <span className="font-['Pretendard',sans-serif] text-[13px] md:text-[11px] text-black font-semibold">
                                   {modeLabel}
                                 </span>
                                 {step.mode !== 'WALK' && step.start?.name && (
-                                  <span className="font-['Wittgenstein',sans-serif] text-[11px] md:text-[9px] text-black/60 ml-auto">
+                                  <span className="font-['Pretendard',sans-serif] text-[11px] md:text-[9px] text-black/60 ml-auto font-semibold">
                                     {step.start.name} → {step.end?.name}
                                   </span>
                                 )}
@@ -980,7 +1012,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
       {/* 선택 현황 */}
       <div className="bg-white/90 backdrop-blur-lg rounded-[10px] border border-black/20 shadow-lg p-4 md:p-5 mt-4 mb-8">
-        <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] text-black mb-4 font-semibold">
+        <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] text-black mb-4 font-medium">
           선택 현황
         </p>
         <div className="flex flex-col gap-3">
@@ -1050,7 +1082,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
                 {/* 플레이어 이름 */}
                 <div className="flex-1">
-                  <p className={`font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] ${colors.text} font-semibold`}>
+                  <p className={`font-['Pretendard',sans-serif] text-[14px] md:text-[12px] ${colors.text} font-semibold`}>
                     {PLAYER_LABELS[player]}
                   </p>
                 </div>
@@ -1059,18 +1091,26 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                 <div className="flex items-center gap-2">
                   {hasRoute ? (
                     <>
-                      <div className={`${colors.badge} text-white rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1 shadow-sm`}>
-                        <p className="font-['Wittgenstein',sans-serif] text-[16px] md:text-[14px] font-bold">
-                          {NUMBER_EMOJIS[routeNumber - 1] || `${routeNumber}`}
-                        </p>
+                      <div className={`${colors.badge} text-white rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1 shadow-sm flex items-center justify-center`}>
+                        {routeNumber <= 10 ? (
+                          <img
+                            src={NUMBER_IMAGES[routeNumber - 1]}
+                            alt={`경로 ${routeNumber}`}
+                            className="size-[20px] md:size-[16px] object-contain drop-shadow-sm"
+                          />
+                        ) : (
+                          <p className="font-['Pretendard',sans-serif] text-[16px] md:text-[14px] font-bold text-white">
+                            {routeNumber}
+                          </p>
+                        )}
                       </div>
-                      <p className="font-['Wittgenstein',sans-serif] text-[12px] md:text-[10px] text-gray-600">
+                      <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[10px] text-gray-600">
                         경로 {routeNumber}
                       </p>
                     </>
                   ) : (
                     <div className="bg-gray-200 text-gray-400 rounded-[8px] px-3 py-1.5 md:px-2.5 md:py-1">
-                      <p className="font-['Wittgenstein',sans-serif] text-[14px] md:text-[12px] font-medium">
+                      <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[12px] font-medium">
                         경로 선택 필요
                       </p>
                     </div>
@@ -1407,7 +1447,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
   // 웹 뷰 (왼쪽 사이드바 + 오른쪽 지도)
   if (isWebView) {
     return (
-      <div className="fixed inset-0 z-50 flex">
+      <div className="fixed inset-0 z-50 flex font-['Pretendard',sans-serif]">
         {/* 왼쪽 사이드바 */}
         <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
           {/* 헤더 */}
@@ -1416,11 +1456,9 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
               onClick={onBack}
               className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
             >
-              <p className="font-['Wittgenstein',sans-serif] leading-[24px] text-[12px] text-white text-center drop-shadow-md">←</p>
+              <p className="font-['Pretendard',sans-serif] leading-[24px] text-[12px] text-white text-center drop-shadow-md">←</p>
             </button>
-            <p className="font-['Wittgenstein',sans-serif] leading-[30px] text-[12px] text-white text-center drop-shadow-md">
-              경로 선택
-            </p>
+            <h1 className="font-['DNFBitBitv2',sans-serif] text-xl text-white text-center drop-shadow-md">경로 선택</h1>
           </div>
 
           {/* 스크롤 가능한 컨텐츠 영역 */}
@@ -1433,15 +1471,15 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             <button
               onClick={handleStartNavigation}
               disabled={!canStartNavigation}
-              className={`w-full h-[60px] rounded-[10px] border transition-all shadow-lg ${
+              className={`w-full h-[56px] md:h-[52px] rounded-[18px] border transition-all flex items-center justify-center ${
                 canStartNavigation
-                  ? "border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 text-black"
-                  : "bg-gray-600 border-gray-500 cursor-not-allowed text-black"
+                  ? "bg-[#4a9960] hover:bg-[#3d7f50] border-white/35 cursor-pointer active:translate-y-[1px] shadow-[0px_12px_26px_rgba(0,0,0,0.16)]"
+                  : "bg-[#9cba9c] border-white/20 cursor-not-allowed shadow-[0px_6px_12px_rgba(0,0,0,0.10)]"
               }`}
             >
-              <p className="font-['Wittgenstein',sans-serif] text-[16px] md:text-[14px] font-bold drop-shadow-md">
-                {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
-              </p>
+              <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[20px] text-white">
+                {isCreatingRoute ? "경주 생성 중..." : "이동 시작"}
+              </span>
             </button>
           </div>
         </div>
@@ -1476,7 +1514,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   onClick={(e) => e.stopPropagation()}
                   className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
                 >
-                  <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                  <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                     지도 스타일
                   </div>
                   <div className="flex flex-col gap-2">
@@ -1491,7 +1529,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                         }`}
                       >
                         <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
-                        <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                        <span className="font-['Pretendard',sans-serif] text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
                         {mapStyle === styleKey && (
                           <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1502,7 +1540,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   </div>
 
                   {/* 레이어 옵션 섹션 */}
-                  <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                  <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
                     레이어 옵션
                   </div>
                   <div className="flex flex-col gap-2">
@@ -1519,7 +1557,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                       }`}
                     >
                       <span className="text-lg">🏢</span>
-                      <span className="text-sm font-medium">3D 건물</span>
+                      <span className="font-['Pretendard',sans-serif] text-sm font-medium">3D 건물</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           is3DBuildingsEnabled
@@ -1550,7 +1588,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                       }`}
                     >
                       <span className="text-lg">🚇</span>
-                      <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                      <span className="font-['Pretendard',sans-serif] text-sm font-medium whitespace-nowrap">지하철 노선</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           isSubwayLinesEnabled
@@ -1581,7 +1619,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                       }`}
                     >
                       <span className="text-lg">🚌</span>
-                      <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                      <span className="font-['Pretendard',sans-serif] text-sm font-medium whitespace-nowrap">초정밀 버스</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           isBusLinesEnabled
@@ -1636,10 +1674,10 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           {showBusInputModal && (
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3 className="font-['Pretendard',sans-serif] text-lg font-bold text-gray-900 mb-2">
                   버스 번호 입력
                 </h3>
-                <p className="text-sm text-gray-700 mb-4">
+                <p className="font-['Pretendard',sans-serif] text-sm text-gray-700 mb-4">
                   추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
                 </p>
                 <input
@@ -1657,12 +1695,12 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                 />
                 {trackedBusNumbers.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                    <p className="font-['Pretendard',sans-serif] text-xs text-gray-700 mb-2">현재 추적 중:</p>
                     <div className="flex flex-wrap gap-2">
                       {trackedBusNumbers.map((num) => (
                         <span
                           key={num}
-                          className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                          className="font-['Pretendard',sans-serif] px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
                         >
                           {num}번
                         </span>
@@ -1673,13 +1711,13 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                 <div className="flex gap-3">
                   <button
                     onClick={handleBusInputCancel}
-                    className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+                    className="font-['Pretendard',sans-serif] flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
                   >
                     취소
                   </button>
                   <button
                     onClick={handleBusInputConfirm}
-                    className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                    className="font-['Pretendard',sans-serif] flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
                   >
                     확인
                   </button>
@@ -1696,7 +1734,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50"
+      className="fixed inset-0 z-50 font-['Pretendard',sans-serif]"
     >
       {/* 백그라운드 지도 */}
       <div className="absolute inset-0">
@@ -1740,15 +1778,15 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           <button
             onClick={handleStartNavigation}
             disabled={!canStartNavigation}
-            className={`w-full h-[60px] rounded-[10px] border transition-all shadow-lg ${
+            className={`w-full h-[56px] rounded-[18px] border transition-all flex items-center justify-center ${
               canStartNavigation
-                ? "border-white/40 backdrop-blur-md bg-gradient-to-r from-green-500/60 to-green-400/60 hover:from-green-500/80 hover:to-green-400/80 cursor-pointer active:scale-95 text-black"
-                : "bg-gray-600 border-gray-500 cursor-not-allowed text-white"
+                ? "bg-[#4a9960] hover:bg-[#3d7f50] border-white/35 cursor-pointer active:translate-y-[1px] shadow-[0px_12px_26px_rgba(0,0,0,0.16)]"
+                : "bg-[#9cba9c] border-white/20 cursor-not-allowed shadow-[0px_6px_12px_rgba(0,0,0,0.10)]"
             }`}
           >
-            <p className="font-['Wittgenstein',sans-serif] text-[12px] drop-shadow-md">
-              {isCreatingRoute ? "경주 생성 중..." : "이동 시작! 🏁"}
-            </p>
+            <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[20px] text-white">
+              {isCreatingRoute ? "경주 생성 중..." : "이동 시작"}
+            </span>git checkout develop
           </button>
         </div>
       </div>
@@ -1759,7 +1797,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
           onClick={onBack}
           className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
         >
-          <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black font-bold">←</p>
+          <p className="font-['Pretendard',sans-serif] text-[12px] text-black font-bold">←</p>
         </button>
       </div>
 
@@ -1789,7 +1827,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
               onClick={(e) => e.stopPropagation()}
               className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
             >
-              <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+              <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                 지도 스타일
               </div>
               <div className="flex flex-col gap-2">
@@ -1804,7 +1842,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                     }`}
                   >
                     <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
-                    <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                    <span className="font-['Pretendard',sans-serif] text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
                     {mapStyle === styleKey && (
                       <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1815,7 +1853,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
               </div>
 
               {/* 레이어 옵션 섹션 */}
-              <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+              <div className="font-['Pretendard',sans-serif] text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
                 레이어 옵션
               </div>
               <div className="flex flex-col gap-2">
@@ -1832,7 +1870,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   }`}
                 >
                   <span className="text-lg">🏢</span>
-                  <span className="text-sm font-medium">3D 건물</span>
+                  <span className="font-['Pretendard',sans-serif] text-sm font-medium">3D 건물</span>
                   {/* 토글 스위치 */}
                   <div
                     className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
@@ -1864,7 +1902,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   }`}
                 >
                   <span className="text-lg">🚇</span>
-                  <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                  <span className="font-['Pretendard',sans-serif] text-sm font-medium whitespace-nowrap">지하철 노선</span>
                   {/* 토글 스위치 */}
                   <div
                     className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
@@ -1896,7 +1934,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                   }`}
                 >
                   <span className="text-lg">🚌</span>
-                  <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                  <span className="font-['Pretendard',sans-serif] text-sm font-medium whitespace-nowrap">초정밀 버스</span>
                   {/* 토글 스위치 */}
                   <div
                     className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
@@ -1952,10 +1990,10 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
       {showBusInputModal && (
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
+            <h3 className="font-['Pretendard',sans-serif] text-lg font-bold text-gray-900 mb-2">
               버스 번호 입력
             </h3>
-            <p className="text-sm text-gray-700 mb-4">
+            <p className="font-['Pretendard',sans-serif] text-sm text-gray-700 mb-4">
               추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
             </p>
             <input
@@ -1973,12 +2011,12 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             />
             {trackedBusNumbers.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                <p className="font-['Pretendard',sans-serif] text-xs text-gray-700 mb-2">현재 추적 중:</p>
                 <div className="flex flex-wrap gap-2">
                   {trackedBusNumbers.map((num) => (
                     <span
                       key={num}
-                      className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                      className="font-['Pretendard',sans-serif] px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
                     >
                       {num}번
                     </span>
@@ -1989,13 +2027,13 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
             <div className="flex gap-3">
               <button
                 onClick={handleBusInputCancel}
-                className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+                className="font-['Pretendard',sans-serif] flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
               >
                 취소
               </button>
               <button
                 onClick={handleBusInputConfirm}
-                className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                className="font-['Pretendard',sans-serif] flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
               >
                 확인
               </button>
