@@ -9,14 +9,15 @@
 import json
 import logging
 
-import requests
 from django.conf import settings
 from django.core.cache import cache
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+import requests
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from .utils.bus_api_client import bus_api_client
 

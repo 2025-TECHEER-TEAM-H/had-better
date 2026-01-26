@@ -6,6 +6,7 @@ REST API 규칙 준수: 모든 URI 끝에 trailing slash 사용하지 않음
 
 from django.contrib import admin
 from django.urls import include, path
+
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.places.views_saved import SavedPlaceListCreateView

@@ -16,8 +16,9 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Optional
 
-import redis
 from django.conf import settings
+
+import redis
 
 logger = logging.getLogger(__name__)
 
