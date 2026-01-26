@@ -477,6 +477,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           color: lineColor,
           width: 8,
           opacity: 1,
+          playerName: player,
         });
       }
     }
@@ -523,6 +524,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             color: lineColor,
             width: 10,
             opacity: 1,
+            playerName: selectedPlayer,
           });
         }
       }

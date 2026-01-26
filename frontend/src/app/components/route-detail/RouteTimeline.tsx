@@ -189,21 +189,21 @@ export function RouteTimeline({
         <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
           {pathType && (
             <div className="flex flex-col gap-1">
-              <span className="text-gray-500 text-[11px] sm:text-[10px]">경로 타입</span>
-              <span className="font-bold text-gray-900 text-[14px] sm:text-[13px]">{PATH_TYPE_NAMES[pathType] || '대중교통'}</span>
+              <span className="font-['Wittgenstein',sans-serif] text-gray-500 text-[11px] sm:text-[10px]">경로 타입</span>
+              <span className="font-['Wittgenstein',sans-serif] font-bold text-gray-900 text-[14px] sm:text-[13px]">{PATH_TYPE_NAMES[pathType] || '대중교통'}</span>
             </div>
           )}
           <div className="flex flex-col gap-1">
-            <span className="text-gray-500 text-[11px] sm:text-[10px]">소요 시간</span>
-            <span className="font-bold text-gray-900 text-[14px] sm:text-[13px]">{secondsToMinutes(totalTime)}분</span>
+            <span className="font-['Wittgenstein',sans-serif] text-gray-500 text-[11px] sm:text-[10px]">소요 시간</span>
+            <span className="font-['Wittgenstein',sans-serif] font-bold text-gray-900 text-[14px] sm:text-[13px]">{secondsToMinutes(totalTime)}분</span>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-gray-500 text-[11px] sm:text-[10px]">총 거리</span>
-            <span className="font-bold text-gray-900 text-[14px] sm:text-[13px]">{metersToKilometers(totalDistance)}</span>
+            <span className="font-['Wittgenstein',sans-serif] text-gray-500 text-[11px] sm:text-[10px]">총 거리</span>
+            <span className="font-['Wittgenstein',sans-serif] font-bold text-gray-900 text-[14px] sm:text-[13px]">{metersToKilometers(totalDistance)}</span>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-gray-500 text-[11px] sm:text-[10px]">환승</span>
-            <span className="font-bold text-gray-900 text-[14px] sm:text-[13px]">{finalTransferCount}회</span>
+            <span className="font-['Wittgenstein',sans-serif] text-gray-500 text-[11px] sm:text-[10px]">환승</span>
+            <span className="font-['Wittgenstein',sans-serif] font-bold text-gray-900 text-[14px] sm:text-[13px]">{finalTransferCount}회</span>
           </div>
         </div>
 
@@ -211,12 +211,12 @@ export function RouteTimeline({
         {transferPoints.length > 0 && (
           <div className="mb-3 pt-3 border-t border-white/20">
             <div className="flex flex-col gap-1.5">
-              <span className="text-gray-500 text-[11px] sm:text-[10px]">환승 지점</span>
+              <span className="font-['Wittgenstein',sans-serif] text-gray-500 text-[11px] sm:text-[10px]">환승 지점</span>
               <div className="flex flex-wrap gap-2">
                 {transferPoints.map((point, index) => (
                   <span
                     key={index}
-                    className="bg-white/40 backdrop-blur-sm px-2.5 py-1.5 rounded-[6px] text-[12px] sm:text-[11px] font-medium text-gray-800 border border-white/30"
+                    className="font-['Wittgenstein',sans-serif] bg-white/40 backdrop-blur-sm px-2.5 py-1.5 rounded-[6px] text-[12px] sm:text-[11px] font-medium text-gray-800 border border-white/30"
                   >
                     {point}
                   </span>
@@ -231,8 +231,8 @@ export function RouteTimeline({
           <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-2 text-[12px] sm:text-[11px]">
             {(subwayStationCount > 0 || busStopCount > 0) && (
               <div className="flex items-center gap-1.5">
-                <span className="text-gray-500">정류장:</span>
-                <span className="font-semibold text-gray-800">
+                <span className="font-['Wittgenstein',sans-serif] text-gray-500">정류장:</span>
+                <span className="font-['Wittgenstein',sans-serif] font-semibold text-gray-800">
                   {subwayStationCount > 0 && `🚇 ${subwayStationCount}개역`}
                   {subwayStationCount > 0 && busStopCount > 0 && ' • '}
                   {busStopCount > 0 && `🚌 ${busStopCount}개 정류장`}
@@ -240,8 +240,8 @@ export function RouteTimeline({
               </div>
             )}
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-500">도보:</span>
-              <span className="font-semibold text-gray-800">
+              <span className="font-['Wittgenstein',sans-serif] text-gray-500">도보:</span>
+              <span className="font-['Wittgenstein',sans-serif] font-semibold text-gray-800">
                 {secondsToMinutes(finalTotalWalkTime)}분 ({metersToKilometers(finalTotalWalkDistance)})
               </span>
             </div>
@@ -423,7 +423,6 @@ export function RouteTimeline({
                   <div className="bg-white/20 backdrop-blur-sm rounded-[12px] p-2.5 sm:p-3 border border-white/30 mb-2">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-['Wittgenstein',sans-serif] text-[14px] sm:text-[13px] font-bold text-gray-900 break-words">{leg.start.name}</p>
-                      <span className="text-gray-400 text-[11px] sm:text-[10px] flex-shrink-0 ml-2">📍</span>
                     </div>
                   </div>
                 )}
@@ -458,7 +457,7 @@ export function RouteTimeline({
                     {/* 교통수단 정보 - 중간 강조 */}
                     <div className="rounded-[8px] p-2.5 sm:p-3 mb-2" style={{ backgroundColor: legColors.light }}>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold" style={{ backgroundColor: legColors.primary }}>
+                        <span className="font-['Wittgenstein',sans-serif] text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold" style={{ backgroundColor: legColors.primary }}>
                           {leg.route || leg.mode}
                         </span>
                         <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-gray-700">
@@ -470,7 +469,7 @@ export function RouteTimeline({
                       {leg.passStopList?.stationList && leg.passStopList.stationList.length > 0 && (
                         <button
                           onClick={() => toggleStopList(index)}
-                          className="w-full mt-2 text-left text-[11px] sm:text-[10px] font-medium flex items-center justify-between py-1.5 min-h-[44px] sm:min-h-0"
+                          className="font-['Wittgenstein',sans-serif] w-full mt-2 text-left text-[11px] sm:text-[10px] font-medium flex items-center justify-between py-1.5 min-h-[44px] sm:min-h-0"
                           style={{
                             color: legColors.primary,
                           }}
@@ -501,10 +500,10 @@ export function RouteTimeline({
                                 key={stationIndex}
                                 className="flex items-center gap-2 text-[11px] sm:text-[10px] text-gray-700 bg-white/60 rounded px-2.5 sm:px-2 py-2 sm:py-1.5"
                               >
-                                <span className="text-gray-400 font-mono w-6 sm:w-6 text-right flex-shrink-0">{stationIndex + 1}</span>
-                                <span className="flex-1 font-medium break-words">{station.stationName || station.stationID}</span>
+                                <span className="font-['Wittgenstein',sans-serif] text-gray-400 font-mono w-6 sm:w-6 text-right flex-shrink-0">{stationIndex + 1}</span>
+                                <span className="font-['Wittgenstein',sans-serif] flex-1 font-medium break-words">{station.stationName || station.stationID}</span>
                                 {station.stationID && (
-                                  <span className="text-gray-400 text-[10px] sm:text-[9px] flex-shrink-0">{station.stationID}</span>
+                                  <span className="font-['Wittgenstein',sans-serif] text-gray-400 text-[10px] sm:text-[9px] flex-shrink-0">{station.stationID}</span>
                                 )}
                               </div>
                             ))}
@@ -537,7 +536,6 @@ export function RouteTimeline({
                   <div className="bg-white/20 backdrop-blur-sm rounded-[12px] p-2.5 sm:p-3 border border-white/30 mt-2">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-['Wittgenstein',sans-serif] text-[14px] sm:text-[13px] font-bold text-gray-900 break-words">{leg.end.name}</p>
-                      <span className="text-gray-400 text-[11px] sm:text-[10px] flex-shrink-0 ml-2">📍</span>
                     </div>
                     <p className="font-['Wittgenstein',sans-serif] text-[11px] sm:text-[10px] text-gray-500 mt-1">상세정보</p>
                   </div>
