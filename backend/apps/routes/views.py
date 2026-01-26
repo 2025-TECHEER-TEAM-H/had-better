@@ -931,9 +931,7 @@ eventSource.addEventListener('bot_status_update', (e) => {
         """SSE 스트림 연결"""
         # route_itinerary 존재 확인
         try:
-            RouteItinerary.objects.get(
-                id=route_itinerary_id, deleted_at__isnull=True
-            )
+            RouteItinerary.objects.get(id=route_itinerary_id, deleted_at__isnull=True)
         except RouteItinerary.DoesNotExist:
             return error_response(
                 code="RESOURCE_NOT_FOUND",

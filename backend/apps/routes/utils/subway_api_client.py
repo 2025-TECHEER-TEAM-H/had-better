@@ -150,9 +150,7 @@ class SeoulSubwayAPIClient:
             logger.error(f"지하철 위치정보 응답 파싱 실패: {e}")
             return []
 
-    def filter_by_train_no(
-        self, positions: list[dict], train_no: str
-    ) -> dict | None:
+    def filter_by_train_no(self, positions: list[dict], train_no: str) -> dict | None:
         """
         열차번호로 필터링
 
