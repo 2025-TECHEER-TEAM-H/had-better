@@ -1066,8 +1066,23 @@ def _handle_riding_bus(
     except (ValueError, TypeError):
         return 30
 
-    # 버스 위치로 봇 위치 업데이트
+    # 버스 위치로 봇 위치 업데이트 (경로 스냅핑 적용)
     if bus_lon and bus_lat:
+        # 경로 스냅핑: 버스 GPS를 pass_shape 경로선에 투영
+        pass_shape = public_leg.get("pass_shape")
+        if pass_shape:
+            coords = _parse_pass_shape(pass_shape)
+            if coords and len(coords) >= 2:
+                snapped_lon, snapped_lat = _snap_to_path(bus_lon, bus_lat, coords)
+                # 스냅핑 거리가 큰 경우에만 로그 (디버깅용)
+                snap_distance = calculate_distance(bus_lat, bus_lon, snapped_lat, snapped_lon)
+                if snap_distance > 100:
+                    logger.info(
+                        f"버스 위치 스냅핑: route_id={route_id}, "
+                        f"보정거리={int(snap_distance)}m"
+                    )
+                bus_lon, bus_lat = snapped_lon, snapped_lat
+
         BotStateManager.update_position(route_id, lon=bus_lon, lat=bus_lat)
 
     # 하차 정류소 도착 확인 (거리 기반만 사용)
@@ -1693,3 +1708,63 @@ def _finish_bot(route_id: int, route_itinerary_id: int, bot_state: dict) -> None
 
     # 봇 상태 정리
     BotStateManager.delete(route_id)
+
+
+def _closest_point_on_segment(lon: float, lat: float, p1: list, p2: list) -> tuple:
+    """
+    선분에서 점까지의 최단 거리 점 계산 (투영)
+
+    Args:
+        lon, lat: 점의 좌표
+        p1, p2: 선분의 양 끝점 [lon, lat]
+
+    Returns:
+        (closest_lon, closest_lat)
+    """
+    # 벡터 계산
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
+
+    # 선분의 길이가 0인 경우
+    if dx == 0 and dy == 0:
+        return (p1[0], p1[1])
+
+    # 투영 비율 계산 (0~1 사이로 클램핑)
+    t = max(0, min(1, ((lon - p1[0]) * dx + (lat - p1[1]) * dy) / (dx * dx + dy * dy)))
+
+    # 최단 거리 점
+    return (p1[0] + t * dx, p1[1] + t * dy)
+
+
+def _snap_to_path(lon: float, lat: float, path_coords: list) -> tuple:
+    """
+    GPS 좌표를 경로선에서 가장 가까운 점으로 스냅핑
+
+    Args:
+        lon: 실제 경도
+        lat: 실제 위도
+        path_coords: 경로 좌표 배열 [[lon, lat], ...]
+
+    Returns:
+        (snapped_lon, snapped_lat)
+    """
+    if not path_coords or len(path_coords) < 2:
+        return (lon, lat)
+
+    min_distance = float('inf')
+    snapped_point = (lon, lat)
+
+    # 각 경로 세그먼트에서 최단 거리 점 찾기
+    for i in range(len(path_coords) - 1):
+        p1 = path_coords[i]
+        p2 = path_coords[i + 1]
+
+        # 점에서 선분까지의 최단 거리 점 계산
+        closest = _closest_point_on_segment(lon, lat, p1, p2)
+        dist = calculate_distance(lat, lon, closest[1], closest[0])
+
+        if dist < min_distance:
+            min_distance = dist
+            snapped_point = closest
+
+    return snapped_point
