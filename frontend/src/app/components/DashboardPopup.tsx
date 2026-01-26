@@ -3,6 +3,8 @@ import routeService from "@/services/routeService";
 import userService, { type UserStats } from "@/services/userService";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
+import { ResultPopup } from "./ResultPopup";
+import type { RouteResultResponse } from "@/types/route";
 
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail";
 
@@ -22,6 +24,9 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
     recent_games: [],
   });
   const [allRoutes, setAllRoutes] = useState<any[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [routeResult, setRouteResult] = useState<RouteResultResponse | null>(null);
+  const [isResultLoading, setIsResultLoading] = useState(false);
   const currentDate = new Date();
 
   useEffect(() => {
@@ -129,6 +134,20 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
   };
 
   const levelInfo = getLevelInfo(stats.total_games);
+
+  // 최근 경주 클릭 핸들러
+  const handleGameClick = async (gameId: number) => {
+    setSelectedRouteId(gameId);
+    setIsResultLoading(true);
+    try {
+      const result = await routeService.getRouteResult(gameId);
+      setRouteResult(result);
+    } catch (error) {
+      console.error("[Dashboard] 경주 결과 로드 실패:", error);
+    } finally {
+      setIsResultLoading(false);
+    }
+  };
 
   return (
     <>
@@ -346,11 +365,15 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
             {/* 3. 최근 게임 섹션 */}
             <div className="space-y-3 animate-fade-up" style={{ animationDelay: '0.3s' }}>
               <h3 className="hb-pixel-font text-[#1a1a2e]">
-                최근 모험
+                최근 경주
               </h3>
               {stats.recent_games.length > 0 ? (
                 stats.recent_games.map((game, idx) => (
-                  <div key={idx} className="hb-dashboard-card hb-dashboard-pressable rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all">
+                  <div
+                    key={idx}
+                    onClick={() => handleGameClick(game.id)}
+                    className="hb-dashboard-card hb-dashboard-pressable rounded-[18px] p-4 flex justify-between items-center group cursor-pointer hover:bg-white/30 transition-all"
+                  >
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-[#1a1a2e]">{game.route_name}</span>
                       <span className="text-[11px] text-[#6b9080]">{game.duration}</span>
@@ -437,6 +460,18 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
           </div>
         </div>
       </div>
+
+      {/* 경주 결과 팝업 */}
+      <ResultPopup
+        isOpen={selectedRouteId !== null}
+        onClose={() => {
+          setSelectedRouteId(null);
+          setRouteResult(null);
+        }}
+        result={routeResult}
+        isLoading={isResultLoading}
+        userNickname={user?.nickname}
+      />
     </>
   );
 }
