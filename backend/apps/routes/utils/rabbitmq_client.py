@@ -200,7 +200,7 @@ class RabbitMQClient:
                     reconnect_attempts = 0
 
                     # 메시지 수신
-                    for method, properties, body in channel.consume(
+                    for _method, _properties, body in channel.consume(
                         queue_name, inactivity_timeout=timeout
                     ):
                         if body:

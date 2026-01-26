@@ -929,9 +929,9 @@ eventSource.addEventListener('bot_status_update', (e) => {
     )
     def get(self, request, route_itinerary_id):
         """SSE 스트림 연결"""
-        # route_itinerary 확인
+        # route_itinerary 존재 확인
         try:
-            route_itinerary = RouteItinerary.objects.get(
+            RouteItinerary.objects.get(
                 id=route_itinerary_id, deleted_at__isnull=True
             )
         except RouteItinerary.DoesNotExist:

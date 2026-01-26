@@ -46,7 +46,6 @@ def get_error_code(exc, status_code):
     }
 
     # 예외 클래스명에서 코드 추출 시도
-    exc_class_name = exc.__class__.__name__
     if hasattr(exc, "default_code"):
         return str(exc.default_code).upper()
 
@@ -62,7 +61,7 @@ def get_error_message(exc, response):
             return exc.detail
         elif isinstance(exc.detail, dict):
             # 첫 번째 에러 메시지 반환
-            for key, value in exc.detail.items():
+            for _key, value in exc.detail.items():
                 if isinstance(value, list):
                     return str(value[0])
                 return str(value)
