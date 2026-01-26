@@ -1,18 +1,17 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { MapView, type MapViewRef, type RouteLineInfo, type EndpointMarker } from "./MapView";
 import { ResultPopup } from "@/app/components/ResultPopup";
-import { useRouteStore, type Player, PLAYER_LABELS, PLAYER_ICONS, type PlayMode } from "@/stores/routeStore";
-import { useMapStore, type MapStyleType } from "@/stores/mapStore";
-import { useAuthStore } from "@/stores/authStore";
-import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
-import { secondsToMinutes, metersToKilometers, MODE_ICONS, type RouteResultResponse, type BotStatusUpdateEvent, type BotColorType, type RouteSegment, type LegStep, type BotStatus } from "@/types/route";
-import { ROUTE_COLORS } from "@/mocks/routeData";
-import * as turf from "@turf/turf";
-import { useRouteSSE } from "@/hooks/useRouteSSE";
 import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
-import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
-import { addBusLayers, removeBusLayers, toggleBusLayers, updateAllBusPositions, clearBusData, getBusRoutePath, addBusRoutePath, clearAllBusRoutePaths } from "@/components/map/busLayer";
-import { trackBusPositions, getBusRoutePath as fetchBusRoutePath } from "@/lib/api";
+import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, updateAllBusPositions } from "@/components/map/busLayer";
+import { addSubwayLayers, removeSubwayLayers } from "@/components/map/subwayLayer";
+import { useRouteSSE } from "@/hooks/useRouteSSE";
+import { getBusRoutePath as fetchBusRoutePath, trackBusPositions } from "@/lib/api";
+import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
+import { useAuthStore } from "@/stores/authStore";
+import { useMapStore, type MapStyleType } from "@/stores/mapStore";
+import { useRouteStore, type Player } from "@/stores/routeStore";
+import { type BotStatus, type BotStatusUpdateEvent, type LegStep, type RouteResultResponse, type RouteSegment } from "@/types/route";
+import * as turf from "@turf/turf";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
 import { HorizontalRanking } from "./route-detail/HorizontalRanking";
 import { RouteTimeline } from "./route-detail/RouteTimeline";
 
@@ -2115,7 +2114,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
           <div className="bg-white rounded-[16px] border-[3px] border-black shadow-[6px_6px_0px_0px_black] px-8 py-6 flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin" />
-            <p className="font-['Wittgenstein',sans-serif] text-[14px] text-black">
+            <p className="font-['Pretendard',sans-serif] text-[14px] font-semibold text-black">
               경로 불러오는 중...
             </p>
           </div>
@@ -2224,7 +2223,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       >
         <span className="text-[12px] font-bold">✕</span>
       </button>
-      <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black text-center leading-[18px] mb-[12px]">
+      <p className="font-['Pretendard',sans-serif] text-[12px] font-bold text-black text-center leading-[18px] mb-[12px]">
         실시간 순위 🏆
       </p>
 
@@ -2242,7 +2241,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           return (
             <div key={player} className="flex gap-[7.995px] items-center">
               <div className="bg-white w-[45px] h-[26px] border-[3px] border-black flex items-center justify-center">
-                <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px]">
+                <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-black leading-[12px]">
                   {index + 1}위
                 </p>
               </div>
@@ -2260,7 +2259,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   style={{ width: `${progressPercent}%`, backgroundColor: progressBarColor }}
                 />
               </div>
-              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-black leading-[12px] w-[35px] text-right">
+              <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-black leading-[12px] w-[35px] text-right">
                 {progressPercent}%
               </p>
             </div>
@@ -2301,14 +2300,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           <div className="relative px-8 pt-6 pb-4 border-b-[3px] border-black bg-[#80cee1]">
             <button
               onClick={handleCancelRoute}
-              className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all z-10"
+              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
               title="경주 취소"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15 18L9 12L15 6" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <p className="font-['Wittgenstein',sans-serif] leading-[30px] text-[12px] text-black text-center">
+            <p className="font-['Pretendard',sans-serif] leading-[30px] text-[12px] font-bold text-black text-center">
               {departure?.name && arrival?.name
                 ? `${departure.name} → ${arrival.name}`
                 : "경로 진행중"}
@@ -2345,9 +2344,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   : 'bg-gray-400 cursor-not-allowed opacity-60'
               }`}
             >
-              <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[21px]">
+              <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] text-[18px] font-bold text-white leading-[21px]">
                 {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
-              </p>
+              </span>
               <p className="text-[14px] text-white leading-[21px]">
                 {allPlayersFinished ? '🚀' : '⏳'}
               </p>
@@ -2365,7 +2364,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             <div className="absolute left-1/2 top-[12px] -translate-x-1/2 z-30">
               <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full border border-white/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                <span className="font-['Wittgenstein',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
+                <span className="font-['Pretendard',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
                   경기 중
                 </span>
               </div>
@@ -2379,15 +2378,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               <button
                 ref={layerButtonRef}
                 onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-                className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all ${
-                  isLayerPopoverOpen ? "bg-white/30" : ""
+                className={`bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all ${
+                  isLayerPopoverOpen ? "bg-white/60" : ""
                 }`}
                 title="레이어"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
 
@@ -2396,9 +2395,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                 <div
                   ref={popoverRef}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
+                  className="absolute right-[56px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20"
                 >
-                  <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
+                  <div className="font-['Pretendard',sans-serif] text-[12px] font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                     지도 스타일
                   </div>
                   <div className="flex flex-col gap-2">
@@ -2413,7 +2412,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                         }`}
                       >
                         <span className="text-lg">{MAP_STYLES[styleKey].icon}</span>
-                        <span className="text-sm font-medium">{MAP_STYLES[styleKey].name}</span>
+                        <span className="font-['Pretendard',sans-serif] text-[12px] font-medium">{MAP_STYLES[styleKey].name}</span>
                         {mapStyle === styleKey && (
                           <svg className="ml-auto w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -2424,7 +2423,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   </div>
 
                   {/* 레이어 옵션 섹션 */}
-                  <div className="text-sm font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
+                  <div className="font-['Pretendard',sans-serif] text-[12px] font-bold text-gray-800 mt-4 mb-3 pt-3 pb-2 border-t border-b border-white/20">
                     레이어 옵션
                   </div>
                   <div className="flex flex-col gap-2">
@@ -2441,7 +2440,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                       }`}
                     >
                       <span className="text-lg">🏢</span>
-                      <span className="text-sm font-medium">3D 건물</span>
+                      <span className="font-['Pretendard',sans-serif] text-[12px] font-medium">3D 건물</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           is3DBuildingsEnabled
@@ -2472,7 +2471,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                       }`}
                     >
                       <span className="text-lg">🚇</span>
-                      <span className="text-sm font-medium whitespace-nowrap">지하철 노선</span>
+                      <span className="font-['Pretendard',sans-serif] text-[12px] font-medium whitespace-nowrap">지하철 노선</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           isSubwayLinesEnabled
@@ -2503,7 +2502,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                       }`}
                     >
                       <span className="text-lg">🚌</span>
-                      <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                      <span className="font-['Pretendard',sans-serif] text-[12px] font-medium whitespace-nowrap">초정밀 버스</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           isBusLinesEnabled
@@ -2528,15 +2527,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             {/* 현재 위치 버튼 */}
             <button
               onClick={handleMyLocation}
-              className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+              className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all"
               title="내 위치로 이동"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
-                <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.7)" strokeWidth="2"/>
+                <path d="M12 2V6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 18V22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M2 12H6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M18 12H22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
@@ -2567,12 +2566,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               />
               {trackedBusNumbers.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-xs text-gray-700 mb-2">현재 추적 중:</p>
+                  <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-gray-700 mb-2">현재 추적 중:</p>
                   <div className="flex flex-wrap gap-2">
                     {trackedBusNumbers.map((num) => (
                       <span
                         key={num}
-                        className="px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-sm rounded-full border border-white/30"
+                        className="font-['Pretendard',sans-serif] px-3 py-1 bg-white/40 backdrop-blur-sm text-gray-900 text-[12px] font-medium rounded-full border border-white/30"
                       >
                         {num}번
                       </span>
@@ -2583,13 +2582,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               <div className="flex gap-3">
                 <button
                   onClick={handleBusInputCancel}
-                  className="flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
+                  className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] flex-1 py-3 bg-white/30 backdrop-blur-sm text-gray-900 text-[18px] font-bold rounded-[12px] hover:bg-white/40 active:bg-white/50 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]"
                 >
                   취소
                 </button>
                 <button
                   onClick={handleBusInputConfirm}
-                  className="flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 font-medium rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
+                  className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] flex-1 py-3 bg-white/40 backdrop-blur-sm text-gray-900 text-[18px] font-bold rounded-[12px] hover:bg-white/50 active:bg-white/60 border border-white/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]"
                 >
                   확인
                 </button>
@@ -2628,7 +2627,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         <div className="absolute left-1/2 top-[16px] -translate-x-1/2 z-30">
           <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full border border-white/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-            <span className="font-['Wittgenstein',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
+            <span className="font-['Pretendard',sans-serif] text-[12px] font-bold text-white whitespace-nowrap">
               경기 중
             </span>
           </div>
@@ -2638,11 +2637,11 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {/* 경주취소 버튼 - 좌상단에 배치 */}
       <button
         onClick={handleCancelRoute}
-        className="absolute left-5 top-5 bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all z-30"
+        className="absolute left-5 top-5 bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-30"
         title="경주 취소"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
 
@@ -2658,20 +2657,20 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               {offRouteLevel === 'warning' ? '⚠️' : '🚨'}
             </span>
             <div className="flex-1">
-              <p className="text-white font-semibold text-sm">
+              <p className="font-['Pretendard',sans-serif] text-white text-[14px] font-semibold">
                 {offRouteLevel === 'warning'
                   ? '경로에서 벗어났습니다'
                   : '경로에서 많이 벗어났습니다'
                 }
               </p>
-              <p className="text-white/80 text-xs">
+              <p className="font-['Pretendard',sans-serif] text-white/80 text-[12px] font-medium">
                 경로까지 {distanceFromRoute}m
               </p>
             </div>
             {offRouteLevel !== 'warning' && (
               <button
                 onClick={() => setShowModeSelectPopup(true)}
-                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-white text-xs font-medium"
+                className="font-['Pretendard',sans-serif] bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-white text-[12px] font-medium"
               >
                 모드 변경
               </button>
@@ -2687,15 +2686,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           <button
             ref={layerButtonRef}
             onClick={() => setIsLayerPopoverOpen(!isLayerPopoverOpen)}
-            className={`bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto ${
-              isLayerPopoverOpen ? "bg-white/30" : ""
+            className={`bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all pointer-events-auto ${
+              isLayerPopoverOpen ? "bg-white/60" : ""
             }`}
             title="레이어"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
 
@@ -2704,7 +2703,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             <div
               ref={popoverRef}
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-[48px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
+              className="absolute right-[56px] top-0 bg-white/20 backdrop-blur-lg rounded-[12px] shadow-xl border border-white/30 p-4 min-w-[200px] z-20 pointer-events-auto"
             >
               <div className="text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-white/20">
                 지도 스타일
@@ -2836,15 +2835,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         {/* 현재 위치 버튼 */}
         <button
           onClick={handleMyLocation}
-          className="bg-white/20 backdrop-blur-md rounded-[14px] size-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all pointer-events-auto"
+          className="bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all pointer-events-auto"
           title="내 위치로 이동"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="black" strokeWidth="2.5"/>
-            <path d="M12 2V6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M12 18V22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M2 12H6" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M18 12H22" stroke="black" strokeWidth="2.5" strokeLinecap="round"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="rgba(0,0,0,0.7)" strokeWidth="2"/>
+            <path d="M12 2V6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M12 18V22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M2 12H6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M18 12H22" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round"/>
           </svg>
         </button>
       </div>
@@ -2930,9 +2929,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             : 'bg-gray-400 cursor-not-allowed opacity-60'
         }`}
       >
-        <p className="font-['Wittgenstein',sans-serif] text-[12px] text-white leading-[21px]">
+        <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] text-[18px] font-bold text-white leading-[21px]">
           {allPlayersFinished ? '도착 완료' : '경주 진행중...'}
-        </p>
+        </span>
         <p className="text-[14px] text-white leading-[21px]">
           {allPlayersFinished ? '🚀' : '⏳'}
         </p>
@@ -2942,10 +2941,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {showBusInputModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white/20 backdrop-blur-lg rounded-[16px] shadow-2xl border border-white/30 p-6 mx-4 max-w-[400px] w-full">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
+            <h3 className="font-['Pretendard',sans-serif] text-[16px] font-bold text-gray-900 mb-2">
               버스 번호 입력
             </h3>
-            <p className="text-sm text-gray-700 mb-4">
+            <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-gray-700 mb-4">
               추적할 버스 번호를 입력하세요 (최대 5개, 쉼표로 구분)
             </p>
             <input
@@ -3020,12 +3019,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             </div>
 
             {/* 제목 */}
-            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+            <h3 className="font-['Pretendard',sans-serif] text-[16px] font-bold text-gray-900 text-center mb-2">
               경로에서 멀리 떨어져 있습니다
             </h3>
 
             {/* 설명 */}
-            <p className="text-sm text-gray-600 text-center mb-6">
+            <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-gray-600 text-center mb-6">
               현재 위치가 경로에서 {distanceFromRoute}m 떨어져 있습니다.
               <br />
               어떻게 진행하시겠습니까?
@@ -3041,7 +3040,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   startUserAutoMove();
                   showToast('시뮬레이션 모드로 전환되었습니다. 🤖');
                 }}
-                className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-[12px] transition-all flex items-center justify-center gap-2"
+                className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] w-full py-3 bg-purple-500 hover:bg-purple-600 text-white text-[18px] font-bold rounded-[12px] transition-all flex items-center justify-center gap-2"
               >
                 <span>🤖</span>
                 <span>시뮬레이션으로 진행</span>
@@ -3052,7 +3051,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   setShowModeSelectPopup(false);
                   // GPS 모드 유지
                 }}
-                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-[12px] transition-all flex items-center justify-center gap-2"
+                className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[18px] font-bold rounded-[12px] transition-all flex items-center justify-center gap-2"
               >
                 <span>📍</span>
                 <span>GPS 계속 사용</span>
@@ -3060,7 +3059,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
             </div>
 
             {/* 안내 문구 */}
-            <p className="text-xs text-gray-400 text-center mt-4">
+            <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-gray-400 text-center mt-4">
               500m 이상 벗어나면 자동으로 시뮬레이션으로 전환됩니다
             </p>
           </div>
@@ -3071,7 +3070,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
       {toastMessage && (
         <div className="absolute bottom-[200px] left-4 right-4 z-50 flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="bg-gray-900/90 backdrop-blur-md text-white px-5 py-3 rounded-[14px] shadow-lg border border-white/10 max-w-[320px]">
-            <p className="text-sm font-medium text-center">{toastMessage}</p>
+            <p className="font-['Pretendard',sans-serif] text-[12px] font-medium text-center">{toastMessage}</p>
           </div>
         </div>
       )}
