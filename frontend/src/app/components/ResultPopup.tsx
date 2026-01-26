@@ -34,12 +34,6 @@ const CARD_GRADIENTS = [
   'from-[#9ae6b4] to-[#68d391]', // 3위: 그린
 ];
 
-// 참가자 타입별 아이콘
-const PARTICIPANT_ICONS: Record<string, string> = {
-  USER: '👤',
-  BOT: '🤖',
-};
-
 export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, result, isLoading }: ResultPopupProps) {
   if (!isOpen) return null;
 

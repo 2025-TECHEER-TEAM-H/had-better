@@ -197,6 +197,7 @@ export interface RouteParticipant {
     route_leg_id: number;
     summary: string;
     total_time: number;
+    segments: RouteSegment[];
   };
 }
 
@@ -459,6 +460,17 @@ export interface ErrorEvent extends SSEEventBase {
   message: string;
 }
 
+// user_bus_arrival 이벤트
+export interface UserBusArrivalEvent extends SSEEventBase {
+  route_id: number;
+  user_id: number;
+  bus_info: {
+    route_name: string;
+    station_name: string;
+    arrival_time: number; // 초
+  };
+}
+
 // 모든 SSE 이벤트 유니온 타입
 export type SSEEvent =
   | { event: 'connected'; data: ConnectedEvent }
@@ -467,6 +479,7 @@ export type SSEEvent =
   | { event: 'bot_alighting'; data: BotAlightingEvent }
   | { event: 'participant_finished'; data: ParticipantFinishedEvent }
   | { event: 'route_ended'; data: RouteEndedEvent }
+  | { event: 'user_bus_arrival'; data: UserBusArrivalEvent }
   | { event: 'heartbeat'; data: HeartbeatEvent }
   | { event: 'error'; data: ErrorEvent };
 

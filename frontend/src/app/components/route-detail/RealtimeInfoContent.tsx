@@ -103,9 +103,9 @@ export function RealtimeInfoContent({
         </div>
 
         {/* 4개 주요 지표 */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="flex flex-row gap-2 mb-3">
           {/* 현재 순위 */}
-          <div className="flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
+          <div className="flex-1 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
             <span className="font-['Wittgenstein',sans-serif] text-[9px] text-gray-600 font-medium mb-0.5">순위</span>
             <div className="flex items-baseline gap-0.5">
               <span className="text-[24px] font-black text-gray-900">{userRank}</span>
@@ -123,7 +123,7 @@ export function RealtimeInfoContent({
           </div>
 
           {/* 진행률 */}
-          <div className="flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
+          <div className="flex-1 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
             <span className="font-['Wittgenstein',sans-serif] text-[9px] text-gray-600 font-medium mb-0.5">진행률</span>
             <div className="relative w-[50px] h-[50px]">
               <svg className="transform -rotate-90 w-full h-full">
@@ -157,7 +157,7 @@ export function RealtimeInfoContent({
           </div>
 
           {/* 남은 거리 */}
-          <div className="flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
+          <div className="flex-1 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
             <span className="font-['Wittgenstein',sans-serif] text-[9px] text-gray-600 font-medium mb-0.5">남은 거리</span>
             <div className="text-[18px] font-black text-gray-900">
               {remainingDistance}
@@ -165,7 +165,7 @@ export function RealtimeInfoContent({
           </div>
 
           {/* 예상 시간 */}
-          <div className="flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
+          <div className="flex-1 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-[10px] p-2 border border-white/20">
             <span className="font-['Wittgenstein',sans-serif] text-[9px] text-gray-600 font-medium mb-0.5">예상 시간</span>
             <div className="text-[18px] font-black text-gray-900">
               {remainingMinutes}

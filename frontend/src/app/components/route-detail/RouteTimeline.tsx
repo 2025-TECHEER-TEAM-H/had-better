@@ -1,6 +1,6 @@
 import { CharacterColor } from "@/components/MovingCharacter";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes } from "@/types/route";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface RouteTimelineProps {
   legs: any[];
@@ -27,6 +27,9 @@ export function RouteTimeline({
 }: RouteTimelineProps) {
   // 각 구간별 정류장 목록 펼침 상태 관리
   const [expandedStops, setExpandedStops] = useState<Set<number>>(new Set());
+  // 각 카드의 승차/하차 위치 저장
+  const cardRefs = useRef<Array<{ boardingRef: HTMLDivElement | null; alightingRef: HTMLDivElement | null; cardRef: HTMLDivElement | null }>>([]);
+  const [cardPositions, setCardPositions] = useState<Array<{ boardingTop: number; alightingTop: number; cardTop: number }>>([]);
 
   const toggleStopList = (legIndex: number) => {
     setExpandedStops(prev => {
@@ -39,6 +42,60 @@ export function RouteTimeline({
       return newSet;
     });
   };
+
+  // cardRefs 초기화
+  useEffect(() => {
+    cardRefs.current = legs.map(() => ({ boardingRef: null, alightingRef: null, cardRef: null }));
+  }, [legs]);
+
+  // 카드 위치 측정
+  useEffect(() => {
+    const updatePositions = () => {
+      const container = document.querySelector('.flex.flex-col.gap-0.relative');
+      if (!container) return;
+
+      const containerTop = container.getBoundingClientRect().top;
+
+      const positions = cardRefs.current.map((refs) => {
+        let boardingTop = 0;
+        let alightingTop = 0;
+
+        if (refs.boardingRef) {
+          boardingTop = refs.boardingRef.getBoundingClientRect().top - containerTop;
+        }
+        if (refs.alightingRef) {
+          alightingTop = refs.alightingRef.getBoundingClientRect().top - containerTop;
+        }
+
+        return { boardingTop, alightingTop, cardTop: 0 };
+      });
+      setCardPositions(positions);
+    };
+
+    // 여러 번 시도해서 위치 측정 (렌더링 완료 대기)
+    const timers = [
+      setTimeout(updatePositions, 50),
+      setTimeout(updatePositions, 150),
+      setTimeout(updatePositions, 300),
+    ];
+    window.addEventListener('resize', updatePositions);
+
+    // IntersectionObserver를 사용해서 컨테이너가 보일 때 위치 측정
+    const observer = new IntersectionObserver(() => {
+      updatePositions();
+    }, { threshold: 0 });
+
+    const container = document.querySelector('.flex.flex-col.gap-0.relative');
+    if (container) {
+      observer.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updatePositions);
+      timers.forEach(timer => clearTimeout(timer));
+      observer.disconnect();
+    };
+  }, [legs, expandedStops]);
 
   // 플레이어 색상에 따른 색상 매핑
   const colorMap = {
@@ -214,7 +271,7 @@ export function RouteTimeline({
               ) : (
                 <>
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`px-2 py-1 rounded ${isTransport ? 'bg-blue-500' : 'bg-gray-300'} text-white text-[10px] font-bold`}>
+                    <div className={`px-2 py-1 rounded ${isTransport ? '' : 'bg-gray-300'} text-white text-[10px] font-bold`} style={isTransport ? { backgroundColor: colors.primary } : {}}>
                       {leg.route || leg.mode}
                     </div>
                     <span className="text-[10px] text-gray-600 font-medium">{timeMinutes}분 ({metersToKilometers(leg.distance || 0)})</span>
@@ -229,8 +286,137 @@ export function RouteTimeline({
 
       {/* 상세 타임라인 */}
       <div className="flex flex-col gap-0 relative">
-        {/* 타임라인 수직 선 - 중앙 정렬 */}
-        <div className="absolute left-[24px] top-0 bottom-0 w-[2px] bg-gray-200 z-0" />
+        {/* 전체 타임라인 수직 선 - 전체 구간 연결 */}
+        <div className="absolute left-[24px] top-0 bottom-0 z-0">
+          {/* 전체 배경 선 (점선) */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-[2px]"
+            style={{
+              background: `repeating-linear-gradient(to bottom, #d1d5db 0px, #d1d5db 4px, transparent 4px, transparent 8px)`,
+              opacity: 0.3
+            }}
+          />
+
+          {/* 각 구간별 실선/점선 */}
+          {legs.map((leg, index) => {
+            const isWalk = leg.mode === 'WALK';
+            const isTransport = leg.mode === 'BUS' || leg.mode === 'SUBWAY';
+            const isFirst = index === 0;
+            const isLast = index === legs.length - 1;
+            const prevLeg = index > 0 ? legs[index - 1] : null;
+            const nextLeg = index < legs.length - 1 ? legs[index + 1] : null;
+            const prevIsTransport = prevLeg && (prevLeg.mode === 'BUS' || prevLeg.mode === 'SUBWAY');
+            const nextIsTransport = nextLeg && (nextLeg.mode === 'BUS' || nextLeg.mode === 'SUBWAY');
+
+            const position = cardPositions[index] || { boardingTop: 0, alightingTop: 0, cardTop: 0 };
+            const boardingTop = position.boardingTop || 0;
+            const alightingTop = position.alightingTop || 0;
+            const lineHeight = alightingTop > boardingTop ? alightingTop - boardingTop : (isTransport ? 180 : 40);
+
+            // 다음 구간의 승차 위치 계산
+            const nextPosition = index < legs.length - 1 ? (cardPositions[index + 1] || { boardingTop: 0, alightingTop: 0, cardTop: 0 }) : null;
+            const nextBoardingTop = nextPosition?.boardingTop || 0;
+
+            // 구간 사이 연결선 높이 계산
+            const connectionHeight = alightingTop > 0 && nextBoardingTop > 0 ? nextBoardingTop - alightingTop : 0;
+
+            return (
+              <>
+                {/* 교통수단 구간 실선 */}
+                {isTransport && lineHeight > 0 && (
+                  <div
+                    key={`line-${index}`}
+                    className="absolute left-0 w-[2px] z-10"
+                    style={{
+                      top: `${boardingTop || 0}px`,
+                      height: `${lineHeight}px`,
+                      backgroundColor: colors.primary,
+                      opacity: 1.0
+                    }}
+                  />
+                )}
+
+                {/* 구간 사이 연결선 (하차 지점에서 다음 승차 지점까지) */}
+                {!isLast && connectionHeight > 0 && (
+                  <div
+                    key={`connection-${index}`}
+                    className="absolute left-0 w-[2px] z-10"
+                    style={{
+                      top: `${alightingTop || 0}px`,
+                      height: `${connectionHeight}px`,
+                      background: `repeating-linear-gradient(to bottom, ${prevIsTransport ? colors.primary : '#d1d5db'} 0px, ${prevIsTransport ? colors.primary : '#d1d5db'} 4px, transparent 4px, transparent 8px)`,
+                      opacity: 0.4
+                    }}
+                  />
+                )}
+
+                {/* 승차 마커 (교통수단 구간 시작) */}
+                {isTransport && (
+                  <div
+                    key={`boarding-marker-${index}`}
+                    className="absolute -translate-y-1/2 z-20"
+                    style={{
+                      left: '1px', // 타임라인 선(2px)의 중앙 = 1px
+                      top: `${boardingTop || 0}px`
+                    }}
+                  >
+                    <div
+                      className="w-[32px] h-[32px] rounded-full flex items-center justify-center border-2 border-white shadow-md -translate-x-1/2"
+                      style={{ backgroundColor: colors.primary }}
+                    >
+                      <span className="text-white text-[12px] font-bold">{isTransport ? '🚌' : '🚇'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 교통수단 정보 - 선 왼쪽 중간에 표시 */}
+                {isTransport && lineHeight > 0 && (
+                  <div
+                    key={`time-${index}`}
+                    className="absolute left-[-70px] -translate-y-1/2 flex items-center gap-1.5 z-20"
+                    style={{ top: `${(boardingTop || 0) + lineHeight / 2}px` }}
+                  >
+                    <span className="font-['Wittgenstein',sans-serif] text-[12px] text-gray-700 font-semibold whitespace-nowrap">
+                      {secondsToMinutes(leg.sectionTime || 0)}분
+                    </span>
+                  </div>
+                )}
+
+                {/* 하차 마커 (교통수단 구간 끝) - 초록색 선과 맞닿도록 */}
+                {isTransport && (!isLast || alightingTop > boardingTop) && (
+                  <div
+                    key={`alighting-marker-${index}`}
+                    className="absolute -translate-y-1/2 z-20"
+                    style={{
+                      left: '1px', // 타임라인 선(2px)의 중앙 = 1px
+                      top: `${alightingTop > boardingTop ? alightingTop : (boardingTop || 0) + lineHeight}px`
+                    }}
+                  >
+                    <div className="w-[32px] h-[32px] bg-gray-300 rounded-full flex items-center justify-center border-2 border-white shadow-md -translate-x-1/2">
+                      <span className="text-[12px]">🚶</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 도보 구간 마커 (이전 구간이 교통수단이 아닐 때만 표시) */}
+                {isWalk && !prevIsTransport && boardingTop > 0 && (
+                  <div
+                    key={`walk-marker-${index}`}
+                    className="absolute -translate-y-1/2 z-20"
+                    style={{
+                      left: '1px', // 타임라인 선(2px)의 중앙 = 1px
+                      top: `${boardingTop}px`
+                    }}
+                  >
+                    <div className="w-[32px] h-[32px] bg-gray-300 rounded-full flex items-center justify-center border-2 border-white shadow-md -translate-x-1/2">
+                      <span className="text-[12px]">🚶</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })}
+        </div>
 
         {legs.map((leg, index) => {
           const isWalk = leg.mode === 'WALK';
@@ -240,8 +426,16 @@ export function RouteTimeline({
           const timeMinutes = secondsToMinutes(leg.sectionTime || 0);
 
           return (
-            <div key={index} className="flex gap-4 relative z-10 mb-6 last:mb-0">
-              {/* 아이콘 - 선 중앙에 정렬 (선이 left-[24px]에 있으므로 아이콘 중심을 24px에 맞춤) */}
+            <div
+              key={index}
+              ref={(el) => {
+                if (cardRefs.current[index]) {
+                  cardRefs.current[index].cardRef = el;
+                }
+              }}
+              className="flex gap-4 relative z-10 mb-6 last:mb-0"
+            >
+              {/* 아이콘 - 선 중앙에 정렬 (출발/도착만 표시, 교통수단 구간은 타임라인 선 위에 마커 표시) */}
               <div className="relative flex-shrink-0 w-[48px] flex items-center justify-center">
                 {isFirst ? (
                   <div className="w-[48px] h-[48px] flex items-center justify-center">
@@ -259,15 +453,7 @@ export function RouteTimeline({
                       className="w-full h-full object-contain drop-shadow-lg"
                     />
                   </div>
-                ) : isWalk ? (
-                  <div className="w-[24px] h-[24px] bg-gray-300 rounded-full flex items-center justify-center border-2 border-white">
-                    <span className="text-[10px]">🚶</span>
-                  </div>
-                ) : (
-                  <div className="w-[24px] h-[24px] bg-blue-500 rounded-full flex items-center justify-center border-2 border-white">
-                    <span className="text-white text-[8px] font-bold">{isTransport ? '🚌' : '🚇'}</span>
-                  </div>
-                )}
+                ) : null}
               </div>
 
               {/* 정보 */}
@@ -290,9 +476,16 @@ export function RouteTimeline({
                     <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-gray-600">도보 {metersToKilometers(leg.distance)}</span>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-0">
-                    {/* 승차 지점 - 상단 연결선 포함 */}
-                    <div className="bg-white/20 backdrop-blur-sm rounded-t-[12px] p-2.5 sm:p-3 border border-white/30 border-b-0">
+                  <div className="bg-white/20 backdrop-blur-sm rounded-[12px] p-2.5 sm:p-3 border border-white/30">
+                    {/* 승차 지점 */}
+                    <div
+                      ref={(el) => {
+                        if (cardRefs.current[index]) {
+                          cardRefs.current[index].boardingRef = el;
+                        }
+                      }}
+                      className="mb-2"
+                    >
                       <p className="font-['Wittgenstein',sans-serif] text-[13px] sm:text-[12px] font-semibold text-gray-800 mb-1 break-words">
                         {leg.start.name} {isTransport ? '승차' : '승차'}
                       </p>
@@ -301,24 +494,36 @@ export function RouteTimeline({
                       )}
                     </div>
 
-                    {/* 교통수단 정보 - 중간 연결 */}
-                    <div className="bg-blue-50 rounded-none p-2.5 sm:p-3 border-x border-blue-200 border-y-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="bg-blue-500 text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold">
-                            {leg.route || leg.mode}
-                          </span>
-                          <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-gray-700">
-                            {timeMinutes}분 ({metersToKilometers(leg.distance || 0)})
-                            {leg.passStopList?.stationList && ` • ${leg.passStopList.stationList.length}정류장`}
-                          </span>
-                        </div>
+                    {/* 교통수단 정보 - 중간 강조 */}
+                    <div className="rounded-[8px] p-2.5 sm:p-3 mb-2" style={{ backgroundColor: colors.light }}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white px-2 py-1 rounded text-[12px] sm:text-[11px] font-bold" style={{ backgroundColor: colors.primary }}>
+                          {leg.route || leg.mode}
+                        </span>
+                        <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-gray-700">
+                          {metersToKilometers(leg.distance || 0)}
+                          {leg.passStopList?.stationList && ` • ${leg.passStopList.stationList.length}정류장`}
+                        </span>
                       </div>
                       {/* 정류장 목록 펼치기 버튼 */}
                       {leg.passStopList?.stationList && leg.passStopList.stationList.length > 0 && (
                         <button
                           onClick={() => toggleStopList(index)}
-                          className="w-full mt-2 text-left text-[11px] sm:text-[10px] text-blue-600 hover:text-blue-700 active:text-blue-800 font-medium flex items-center justify-between py-1.5 min-h-[44px] sm:min-h-0"
+                          className="w-full mt-2 text-left text-[11px] sm:text-[10px] font-medium flex items-center justify-between py-1.5 min-h-[44px] sm:min-h-0"
+                          style={{
+                            color: colors.primary,
+                          }}
+                          onMouseEnter={(e) => {
+                            const rgb = colors.primary.replace('#', '');
+                            const r = parseInt(rgb.substr(0, 2), 16);
+                            const g = parseInt(rgb.substr(2, 2), 16);
+                            const b = parseInt(rgb.substr(4, 2), 16);
+                            const darker = `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`;
+                            e.currentTarget.style.color = darker;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = colors.primary;
+                          }}
                         >
                           <span>{leg.passStopList.stationList.length}개 정류장 {expandedStops.has(index) ? '접기' : '보기'}</span>
                           <span className="transform transition-transform flex-shrink-0 ml-2" style={{ transform: expandedStops.has(index) ? 'rotate(180deg)' : 'rotate(0deg)' }}>
@@ -328,7 +533,7 @@ export function RouteTimeline({
                       )}
                       {/* 정류장 목록 (펼쳐졌을 때) */}
                       {expandedStops.has(index) && leg.passStopList?.stationList && leg.passStopList.stationList.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-blue-200">
+                        <div className="mt-3 pt-3 border-t" style={{ borderColor: colors.badgeBorder }}>
                           <div className="space-y-1.5 max-h-[250px] sm:max-h-[200px] overflow-y-auto">
                             {leg.passStopList.stationList.map((station: any, stationIndex: number) => (
                               <div
@@ -347,8 +552,14 @@ export function RouteTimeline({
                       )}
                     </div>
 
-                    {/* 하차 지점 - 하단 연결선 포함 */}
-                    <div className="bg-white/20 backdrop-blur-sm rounded-b-[12px] p-2.5 sm:p-3 border border-white/30 border-t-0">
+                    {/* 하차 지점 */}
+                    <div
+                      ref={(el) => {
+                        if (cardRefs.current[index]) {
+                          cardRefs.current[index].alightingRef = el;
+                        }
+                      }}
+                    >
                       <p className="font-['Wittgenstein',sans-serif] text-[13px] sm:text-[12px] font-semibold text-gray-800 mb-1 break-words">
                         {leg.end.name} {isTransport ? '하차' : '하차'}
                       </p>

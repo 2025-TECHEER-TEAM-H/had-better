@@ -93,7 +93,6 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
   // SSE 관련 상태
   const activeRouteId = null; // RouteSelectionPage에서는 아직 활성 경로 ID가 없으므로 null 유지
   const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
-  const [prediction, setPrediction] = useState<Player | null>(null); // 승부 예측 상태 추가
 
   // SSE 연결
   const { botStates } = useRouteSSE(
@@ -1379,40 +1378,6 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
           {/* 하단 고정 버튼 */}
           <div className="p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg border-t border-white/30">
-            {/* 승부 예측 섹션 */}
-            {areAllAssigned() && (
-              <div className="mb-4 p-4 bg-white/40 backdrop-blur-md rounded-xl border border-white/50 shadow-inner">
-                <p className="font-['Wittgenstein',sans-serif] text-[13px] font-bold text-black mb-3 text-center">
-                  🏁 누가 1등으로 도착할까요?
-                </p>
-                <div className="flex justify-between gap-2">
-                  {players.map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setPrediction(p)}
-                      className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
-                        prediction === p
-                          ? "border-green-500 bg-green-50/50 scale-105 shadow-md"
-                          : "border-transparent bg-white/30 opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <img
-                        src={p === 'user' ? imgUserCharacter : p === 'bot1' ? imgBot1Character : imgBot2Character}
-                        className="size-8 object-contain"
-                        alt={PLAYER_LABELS[p]}
-                      />
-                      <span className="text-[10px] font-bold text-black">{PLAYER_LABELS[p]}</span>
-                    </button>
-                  ))}
-                </div>
-                {prediction && (
-                  <p className="text-[10px] text-blue-700 mt-3 text-center font-medium animate-bounce">
-                    {prediction === 'user' ? "💪 당신의 승리를 믿어요! 화이팅!" : `🤖 ${PLAYER_LABELS[prediction]}의 실력이 만만치 않겠군요!`}
-                  </p>
-                )}
-              </div>
-            )}
-
             <button
               onClick={handleStartNavigation}
               disabled={!canStartNavigation}
@@ -1707,35 +1672,6 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
 
         {/* 하단 고정 버튼 */}
         <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
-          {/* 모바일 승부 예측 섹션 */}
-          {areAllAssigned() && (
-            <div className="mb-3 p-3 bg-white/40 backdrop-blur-md rounded-xl border border-white/50 shadow-sm">
-              <p className="font-['Wittgenstein',sans-serif] text-[11px] font-bold text-black mb-2 text-center">
-                🏁 승리 예측: 누가 가장 빠를까요?
-              </p>
-              <div className="flex justify-between gap-2">
-                {players.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPrediction(p)}
-                    className={`flex-1 flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${
-                      prediction === p
-                        ? "border-green-500 bg-green-50/50 scale-105 shadow-md"
-                        : "border-transparent bg-white/30 opacity-60"
-                    }`}
-                  >
-                    <img
-                      src={p === 'user' ? imgUserCharacter : p === 'bot1' ? imgBot1Character : imgBot2Character}
-                      className="size-6 object-contain"
-                      alt={PLAYER_LABELS[p]}
-                    />
-                    <span className="text-[9px] font-bold text-black">{PLAYER_LABELS[p]}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <button
             onClick={handleStartNavigation}
             disabled={!canStartNavigation}

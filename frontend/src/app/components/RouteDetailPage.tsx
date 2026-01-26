@@ -50,6 +50,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 현재 어떤 플레이어의 경로를 보고 있는지 관리하는 상태 추가
   const [selectedPlayer, setSelectedPlayer] = useState<Player>('user');
+  const [isRouteInfoExpanded, setIsRouteInfoExpanded] = useState(false);
 
   const handleUserArrived = useCallback(async () => {
     try {
@@ -64,7 +65,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     isUserAutoMoving, playerProgress, finishTimes, startGpsTracking, stopGpsTracking, startGpsTestMode, stopGpsTestMode,
     resetGpsTestMode, startUserAutoMove, updatePlayerProgress,
   } = useRouteSimulation({
-    departure, arrival, assignments, legDetails, userRouteId, onUserArrived: handleUserArrived,
+    departure, arrival, assignments, legDetails, onUserArrived: handleUserArrived,
   });
 
   const {
@@ -158,11 +159,14 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           // 이전 구간과 현재 구간이 다른 경우 환승
           if (prevMode !== currentMode) {
             // 이전 구간의 하차 지점이 환승 지점
+            // status는 기본적으로 'confirmed' (정상 표시)
+            // 실패 시에는 이 마커를 표시하지 않음 (자연스럽게 숨김)
             transferPoints.push({
               coordinates: [prevLeg.end.lon, prevLeg.end.lat],
               fromMode: prevMode, // 이전 교통수단
               toMode: currentMode, // 다음 교통수단
               name: prevLeg.end.name,
+              status: 'confirmed' as const, // 정상 환승 지점 (기본값)
         });
       }
     }
@@ -308,30 +312,11 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           boardingAlightingPoints,
           isSelected,
           walkSegments: walkSegments.length > 0 ? walkSegments : undefined,
-          remainingMinutes: progress < 1 ? remainingMinutes : undefined,
         });
       }
     }
-    // 순위 계산 및 정렬
-    const sortedLines = lines.sort((a, b) => {
-      // 진행률로 정렬 (높은 순)
-      const aPlayer = a.id.replace('route-', '') as Player;
-      const bPlayer = b.id.replace('route-', '') as Player;
-      const aProgress = playerProgress.get(aPlayer) || 0;
-      const bProgress = playerProgress.get(bPlayer) || 0;
-      if (aProgress >= 1 && bProgress >= 1) return 0; // 둘 다 도착
-      if (aProgress >= 1) return -1; // a가 도착
-      if (bProgress >= 1) return 1; // b가 도착
-      return bProgress - aProgress; // 진행률 높은 순
-    });
-
-    // 순위 추가
-    sortedLines.forEach((line, index) => {
-      line.rank = index + 1;
-    });
-
     // 선택된 경로를 마지막에 배치하여 위에 표시되도록 정렬
-    return sortedLines.sort((a, b) => {
+    return lines.sort((a, b) => {
       if (a.isSelected && !b.isSelected) return 1; // 선택된 경로를 뒤로
       if (!a.isSelected && b.isSelected) return -1;
       return 0;
@@ -736,62 +721,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
               >
                 🎉 도착! [결과 보기]
               </button>
-            ) : (
-        <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  isGpsTestMode ? 'bg-purple-500 animate-pulse shadow-lg shadow-purple-500/50' : isGpsTracking ? 'bg-green-500 animate-pulse shadow-lg shadow-green-500/50' : 'bg-gray-400'
-          }`} />
-                <p className="font-['Wittgenstein',sans-serif] text-[11px] text-white drop-shadow-md">
-                  {isGpsTestMode
-                    ? distanceToDestination !== null
-                      ? `🧪 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                      : '🧪 테스트 중'
-                    : isGpsTracking
-                      ? distanceToDestination !== null
-                        ? `🏁 ${distanceToDestination >= 1000 ? `${(distanceToDestination / 1000).toFixed(1)}km` : `${distanceToDestination}m`}`
-                        : 'GPS 추적 중'
-                      : 'GPS 꺼짐'}
-          </p>
+            ) : null}
+          </div>
         </div>
-        )}
-      </div>
-
-          {/* GPS 버튼들 (기존 모양 그대로) */}
-          <div className="flex gap-1 mt-2">
-        <button
-          onClick={isGpsTracking ? stopGpsTracking : startGpsTracking}
-          disabled={isGpsTestMode}
-              className={`flex-1 h-[28px] rounded-[10px] border border-white/40 backdrop-blur-xl flex items-center justify-center gap-1 transition-all hover:scale-[1.02] hover:bg-white/30 active:scale-[0.98] shadow-[0_4px_14px_0_rgba(0,0,0,0.15)] ${
-                isGpsTestMode ? 'bg-white/10 opacity-50' : isGpsTracking ? 'bg-[#ff6b6b]/30' : 'bg-[#4ecdc4]/30'
-              }`}
-            >
-              <span className="text-[10px]">{isGpsTracking ? '📍' : '🛰️'}</span>
-              <span className="font-['Wittgenstein',sans-serif] text-[9px] text-white drop-shadow-md">
-                {isGpsTracking ? '중지' : 'GPS'}
-          </span>
-        </button>
-
-        <button
-          onClick={isGpsTestMode ? stopGpsTestMode : startGpsTestMode}
-          disabled={isGpsTracking}
-              className={`flex-1 h-[28px] rounded-[10px] border border-white/40 backdrop-blur-xl shadow-[0_4px_14px_0_rgba(0,0,0,0.15)] flex items-center justify-center gap-1 transition-all hover:scale-[1.02] hover:bg-white/30 active:scale-[0.98] ${
-                isGpsTracking ? 'bg-white/10 opacity-50' : isGpsTestMode ? 'bg-[#ff6b6b]/30' : 'bg-[#a78bfa]/30'
-          }`}
-        >
-              <span className="text-[10px]">{isGpsTestMode ? '⏹️' : '🧪'}</span>
-              <span className="font-['Wittgenstein',sans-serif] text-[9px] text-white drop-shadow-md">
-            {isGpsTestMode ? '중지' : '테스트'}
-          </span>
-        </button>
-
-        <button
-          onClick={resetGpsTestMode}
-              className="w-[28px] h-[28px] rounded-[10px] border border-white/40 backdrop-blur-xl bg-white/20 flex items-center justify-center transition-all hover:scale-[1.02] hover:bg-white/30 active:scale-[0.98] shadow-[0_4px_14px_0_rgba(0,0,0,0.15)]"
-        >
-              <span className="text-[10px]">🔄</span>
-        </button>
-      </div>
-    </div>
 
         {/* 우측 상단 레이어 컨트롤 */}
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-3">
@@ -857,54 +789,31 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   rankings={rankingsList}
                   playerColors={playerColors}
                   selectedPlayer={selectedPlayer}
-                  onSelect={setSelectedPlayer}
+                  onSelect={(player) => {
+                    setSelectedPlayer(player);
+                    setIsRouteInfoExpanded(false);
+                  }}
+                  isExpanded={isRouteInfoExpanded}
+                  onToggleExpand={() => setIsRouteInfoExpanded(!isRouteInfoExpanded)}
                 />
         </div>
 
-              {/* 경로 정보 */}
-              <div className="mt-6 mb-4 px-1">
-                <div className="mb-3">
-                  <p className="font-['Wittgenstein',sans-serif] text-[14px] font-medium text-gray-800 mb-2">
-                    {selectedPlayer === 'user' ? '내 경로' : `${rankingsList.find(r => r.player === selectedPlayer)?.name}의 경로`}
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[24px] font-black text-gray-900">
-                      {Math.floor((selectedLegData?.totalTime || 0) / 3600) > 0 && (
-                        <>{Math.floor((selectedLegData?.totalTime || 0) / 3600)}<span className="text-[14px] font-bold mr-2 ml-1">시간</span></>
-                      )}
-                      {Math.floor(((selectedLegData?.totalTime || 0) % 3600) / 60)}
-                    </span>
-                    <span className="text-[14px] font-normal text-gray-700">분</span>
-          </div>
-        </div>
-
-                {/* 정보 */}
-                <div className="flex gap-4 text-[13px] text-gray-600">
-                  {(() => {
-                    const progress = playerProgress.get(selectedPlayer) || 0;
-                    const totalTimeSeconds = selectedLegData?.totalTime || 0;
-                    const remainingTimeSeconds = Math.max(0, totalTimeSeconds * (1 - progress));
-                    const remainingMinutes = Math.floor(remainingTimeSeconds / 60);
-    return (
-                      <span>남은 시간: <span className="font-semibold text-gray-900">{remainingMinutes}분</span></span>
-                    );
-                  })()}
-                  <span>총 거리: <span className="font-semibold text-gray-900">{metersToKilometers(selectedLegData?.totalDistance || 0)}</span></span>
-          </div>
-              </div>
-
-              {/* 선택된 플레이어의 타임라인 표시 */}
-              <RouteTimeline
-                legs={selectedLegData?.legs || []}
-                isLoading={isLoadingDetails || !selectedLegData}
-                playerColor={playerColors[selectedPlayer]}
-                totalTime={selectedLegData?.totalTime || 0}
-                totalDistance={selectedLegData?.totalDistance || 0}
-                totalWalkTime={selectedLegData?.totalWalkTime || 0}
-                totalWalkDistance={selectedLegData?.totalWalkDistance || 0}
-                transferCount={selectedLegData?.transferCount || 0}
-                pathType={selectedLegData?.pathType}
-              />
+              {/* 선택된 플레이어의 타임라인 표시 (토글) */}
+              {isRouteInfoExpanded && (
+                <div className="mt-4">
+                  <RouteTimeline
+                    legs={selectedLegData?.legs || []}
+                    isLoading={isLoadingDetails || !selectedLegData}
+                    playerColor={playerColors[selectedPlayer]}
+                    totalTime={selectedLegData?.totalTime || 0}
+                    totalDistance={selectedLegData?.totalDistance || 0}
+                    totalWalkTime={selectedLegData?.totalWalkTime || 0}
+                    totalWalkDistance={selectedLegData?.totalWalkDistance || 0}
+                    transferCount={selectedLegData?.transferCount || 0}
+                    pathType={selectedLegData?.pathType}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <RealtimeInfoContent
@@ -943,7 +852,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         onClick={handleCancelRoute}
               className="flex-1 h-12 rounded-[16px] bg-white/20 backdrop-blur-xl text-gray-800 font-bold text-[14px] border border-white/30 shadow-sm transition-all active:scale-95 hover:bg-white/30"
             >
-              취소
+              경로 취소
       </button>
           <button
               onClick={() => setBottomSheetView('realtime')}

@@ -1,5 +1,4 @@
-import { Player, useRouteStore } from "@/stores/routeStore";
-import { BotStatusUpdateEvent, metersToKilometers, secondsToMinutes } from "@/types/route";
+import { Player } from "@/stores/routeStore";
 import * as turf from "@turf/turf";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -17,7 +16,6 @@ interface UseRouteSimulationProps {
   arrival: { lat: number; lon: number; name: string } | null;
   assignments: Map<Player, number>;
   legDetails: Map<number, any>;
-  userRouteId: number | null;
   onUserArrived: () => Promise<void>;
 }
 
@@ -26,7 +24,6 @@ export function useRouteSimulation({
   arrival,
   assignments,
   legDetails,
-  userRouteId,
   onUserArrived,
 }: UseRouteSimulationProps) {
   // 상태 관리
@@ -49,7 +46,7 @@ export function useRouteSimulation({
   const gpsTestLastUpdate = useRef<number>(0);
   const userAutoMoveRef = useRef<number | null>(null);
   const raceStartTime = useRef<number | null>(null);
-  const [gpsTestProgress, setGpsTestProgress] = useState(0);
+  const [_gpsTestProgress, setGpsTestProgress] = useState(0);
 
   // 상수
   const ARRIVAL_THRESHOLD = 20;

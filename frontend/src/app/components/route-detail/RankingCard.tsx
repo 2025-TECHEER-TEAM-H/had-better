@@ -1,4 +1,4 @@
-import { Player, PLAYER_LABELS } from "@/stores/routeStore";
+import { Player } from "@/stores/routeStore";
 import { CharacterColor } from "@/components/MovingCharacter";
 
 interface RankingCardProps {

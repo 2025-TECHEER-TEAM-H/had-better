@@ -70,7 +70,7 @@ export function MovingCharacter({
   const [currentFrame, setCurrentFrame] = useState(0);
   const [screenPosition, setScreenPosition] = useState<{ x: number; y: number } | null>(null);
   const [displayPosition, setDisplayPosition] = useState<[number, number] | null>(null);
-  const [bearing, setBearing] = useState(0);
+  const [_bearing, setBearing] = useState(0);
 
   // refs
   const previousPositionRef = useRef<Coordinate | null>(null);

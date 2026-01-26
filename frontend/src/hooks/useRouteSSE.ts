@@ -19,6 +19,7 @@ import type {
   ParticipantFinishedEvent,
   RouteEndedEvent,
   ConnectedEvent,
+  UserBusArrivalEvent,
 } from '@/types/route';
 
 // SSE 연결 상태
@@ -37,6 +38,7 @@ export interface SSEEventHandlers {
   onBotAlighting?: (data: BotAlightingEvent) => void;
   onParticipantFinished?: (data: ParticipantFinishedEvent) => void;
   onRouteEnded?: (data: RouteEndedEvent) => void;
+  onUserBusArrival?: (data: UserBusArrivalEvent) => void;
   onError?: (error: Error) => void;
 }
 
@@ -151,7 +153,7 @@ export function useRouteSSE(
       // [추가됨] 유저 버스 도착 정보 (백엔드에서 실시간 전송)
       case 'user_bus_arrival':
         console.log('🚍 유저 탑승 버스 정보:', event.data);
-        // 필요한 경우 여기에 상태 업데이트 로직 추가
+        h.onUserBusArrival?.(event.data);
         break;
 
       case 'heartbeat':

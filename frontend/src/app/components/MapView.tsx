@@ -66,6 +66,7 @@ export interface RouteLineInfo {
     fromMode: string; // 이전 교통수단: 'BUS', 'SUBWAY', 'WALK'
     toMode: string; // 다음 교통수단: 'BUS', 'SUBWAY', 'WALK'
     name: string;
+    status?: 'expected' | 'confirmed' | 'failed'; // 환승 상태 (기본값: expected)
   }>;
   boardingAlightingPoints?: Array<{
     coordinates: [number, number];
@@ -76,8 +77,6 @@ export interface RouteLineInfo {
   walkSegments?: Array<{
     coordinates: [number, number][]; // 도보 구간 좌표
   }>; // 도보 구간 좌표 (점선으로 표시)
-  rank?: number; // 순위
-  remainingMinutes?: number; // 남은 시간 (분)
   playerName?: string; // 플레이어 이름
 }
 
@@ -180,8 +179,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const endpointMarkers = useRef<mapboxgl.Marker[]>([]); // 출발지/도착지 마커
   const transferMarkers = useRef<mapboxgl.Marker[]>([]); // 환승 지점 마커
   const stationMarkersRef = useRef<mapboxgl.Marker[]>([]); // 정류장/역 마커
-  const rankMarkers = useRef<mapboxgl.Marker[]>([]); // 순위 마커 (경로선 시작점)
-  const remainingTimeMarkers = useRef<mapboxgl.Marker[]>([]); // 남은 시간 마커 (경로선 중간)
   const playerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map()); // 플레이어 마커들
   const initialLocationApplied = useRef(false); // 초기 위치 적용 여부
   // SVG <defs> id 충돌 방지: MapView 인스턴스별 고유 prefix (SVG id는 document 전역 namespace)
@@ -817,7 +814,14 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         };
 
         const emoji = getTransferEmoji(tp.toMode);
+        const status = tp.status || 'confirmed'; // 기본값: 정상 (실시간 정보이므로)
 
+        // 실패한 환승 지점은 표시하지 않음 (자연스럽게 숨김)
+        if (status === 'failed') {
+          return; // 마커를 생성하지 않음
+        }
+
+        // 정상 환승 지점만 표시 (항상 정상으로 보이게)
         const el = document.createElement("div");
         el.className = "transfer-marker";
         el.innerHTML = `
@@ -850,107 +854,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     };
   }, [routeLines, isMapLoaded]);
 
-  // 경로선 시작점에 순위 표시 및 중간에 남은 시간 표시
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    // 기존 마커 제거
-    rankMarkers.current.forEach(m => m.remove());
-    rankMarkers.current = [];
-    remainingTimeMarkers.current.forEach(m => m.remove());
-    remainingTimeMarkers.current = [];
-
-    routeLines.forEach((route) => {
-      if (route.coordinates.length === 0) return;
-
-      // 1. 경로선 시작점에 순위 표시
-      if (route.rank !== undefined) {
-        const startCoord = route.coordinates[0];
-        const el = document.createElement("div");
-        el.className = "rank-marker";
-
-        const rankBgColor = route.rank === 1 ? '#FFD700' : route.rank === 2 ? '#C0C0C0' : '#CD7F32'; // 금, 은, 동
-        const rankTextColor = route.rank === 1 ? '#000' : '#fff';
-
-        el.innerHTML = `
-          <div style="
-            background: ${rankBgColor};
-            border: 3px solid white;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            font-size: 18px;
-            color: ${rankTextColor};
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            font-family: 'Wittgenstein', sans-serif;
-          ">${route.rank}</div>
-        `;
-        el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
-
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat(startCoord)
-          .addTo(map.current!);
-        rankMarkers.current.push(marker);
-      }
-
-      // 2. 경로선 중간에 남은 시간 표시
-      if (route.remainingMinutes !== undefined && route.remainingMinutes > 0) {
-        // 경로선의 중간 지점 계산 (50% 지점)
-        const midIndex = Math.floor(route.coordinates.length / 2);
-        const midCoord = route.coordinates[midIndex];
-
-        const el = document.createElement("div");
-        el.className = "remaining-time-marker";
-
-        el.innerHTML = `
-          <div style="
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            border: 2px solid ${route.color};
-            border-radius: 12px;
-            padding: 6px 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            white-space: nowrap;
-          ">
-            <span style="
-              font-size: 14px;
-              font-weight: 900;
-              color: ${route.color};
-              font-family: 'Wittgenstein', sans-serif;
-              text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-            ">⏱️</span>
-            <span style="
-              font-size: 13px;
-              font-weight: 900;
-              color: white;
-              font-family: 'Wittgenstein', sans-serif;
-              text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-            ">${route.remainingMinutes}분</span>
-          </div>
-        `;
-
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat(midCoord)
-          .addTo(map.current!);
-        remainingTimeMarkers.current.push(marker);
-      }
-    });
-
-    return () => {
-      rankMarkers.current.forEach(m => m.remove());
-      rankMarkers.current = [];
-      remainingTimeMarkers.current.forEach(m => m.remove());
-      remainingTimeMarkers.current = [];
-    };
-  }, [routeLines, isMapLoaded]);
 
   // 출발지/도착지 마커 표시
   useEffect(() => {
