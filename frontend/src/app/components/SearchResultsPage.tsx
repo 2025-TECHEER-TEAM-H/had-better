@@ -724,9 +724,12 @@ export function SearchResultsPage({
           <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
             <button
               onClick={onClose}
-              className="absolute top-6 right-8 bg-white/20 backdrop-blur-md rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
+              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
+              title="뒤로가기"
             >
-              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
             <p className="font-['DNFBitBitv2',sans-serif] font-bold leading-[30px] text-[16px] text-white text-center drop-shadow-md">
               검색 결과
@@ -779,9 +782,12 @@ export function SearchResultsPage({
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute bg-white/20 backdrop-blur-md top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10 border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+          className="absolute top-[20px] left-[20px] bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
+          title="뒤로가기"
         >
-          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
 

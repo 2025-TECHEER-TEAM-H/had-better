@@ -501,11 +501,11 @@ export function PlaceDetailPage({
       {/* 경로 안내 시작 버튼 - 하단 고정 */}
       <button
         onClick={handleStartNavigation}
-        className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg flex-shrink-0 mt-auto"
+        className="h-[48px] w-full rounded-[18px] bg-[#4a9960] hover:bg-[#3d7f50] transition-colors border border-white/35 flex items-center justify-center active:translate-y-[1px] flex-shrink-0 mt-auto"
       >
-        <p className="absolute font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[18px] left-[50%] text-[18px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md">
-          경로 안내 시작! 🏁
-        </p>
+        <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+          경로 안내 시작
+        </span>
       </button>
     </div>
   );
@@ -593,9 +593,12 @@ export function PlaceDetailPage({
             {/* 뒤로 가기 버튼 */}
             <button
               onClick={onClose}
-              className="absolute bg-white/20 backdrop-blur-md right-[19px] top-[25px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border border-white/30 shadow-lg hover:bg-white/30 active:scale-95 transition-all z-10"
+              className="absolute right-[19px] top-[25px] bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
+              title="뒤로가기"
             >
-              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-white text-center drop-shadow-md">←</p>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
 
             {/* 장소 이름 입력 필드 스타일 박스 */}
@@ -729,11 +732,11 @@ export function PlaceDetailPage({
           <div className="px-[20px] pb-6 pt-4 border-t border-white/30 bg-gradient-to-t from-white/30 via-white/20 to-transparent backdrop-blur-lg">
             <button
               onClick={handleStartNavigation}
-              className="h-[55.995px] relative rounded-[10px] w-full border border-white/40 backdrop-blur-md bg-gradient-to-r from-pink-500/60 to-pink-400/60 hover:from-pink-500/80 hover:to-pink-400/80 cursor-pointer active:scale-95 transition-all shadow-lg"
+              className="h-[48px] w-full rounded-[18px] bg-[#4a9960] hover:bg-[#3d7f50] transition-colors border border-white/35 flex items-center justify-center active:translate-y-[1px]"
             >
-              <p className="absolute font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[18px] left-[50%] text-[18px] text-center text-white top-[50%] translate-x-[-50%] translate-y-[-50%] drop-shadow-md">
-                경로 안내 시작! 🏁
-              </p>
+              <span className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+                경로 안내 시작
+              </span>
             </button>
           </div>
         </div>
@@ -773,9 +776,12 @@ export function PlaceDetailPage({
         {/* 뒤로 가기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute bg-white/20 backdrop-blur-md top-[20px] left-[20px] rounded-[14px] w-[40px] h-[40px] flex items-center justify-center z-10 border border-white/30 shadow-lg hover:bg-white/30 active:bg-white/25 active:scale-95 transition-all"
+          className="absolute top-[20px] left-[20px] bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
+          title="뒤로가기"
         >
-          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[24px] text-[16px] text-black text-center drop-shadow-sm">←</p>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
 
