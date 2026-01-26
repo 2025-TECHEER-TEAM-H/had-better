@@ -7,18 +7,17 @@
  * - 걷기 애니메이션 재생
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import type mapboxgl from 'mapbox-gl';
-import type { Feature, LineString } from 'geojson';
-import type { Coordinate, BotStatus, RouteSegment } from '@/types/route';
+import type { BotStatus, Coordinate, RouteSegment } from '@/types/route';
 import {
-  createRouteLine,
-  mergeSegmentCoordinates,
-  createInterpolationState,
-  interpolateByTime,
-  calculateBearing,
-  type InterpolationState,
+    calculateBearing,
+    createInterpolationState,
+    createRouteLine,
+    interpolateByTime,
+    mergeSegmentCoordinates,
+    type InterpolationState,
 } from '@/utils/routeInterpolation';
+import type { Feature, LineString } from 'geojson';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // 캐릭터 색상 타입
 export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple';
@@ -46,6 +45,8 @@ interface MovingCharacterProps {
   animationSpeed?: number;
   // 클릭 이벤트
   onClick?: () => void;
+  // 대기 시간 (분) - WAITING_BUS, WAITING_SUBWAY일 때 사용
+  waitingTimeMinutes?: number;
 }
 
 /**
@@ -63,12 +64,13 @@ export function MovingCharacter({
   size = 64,
   animationSpeed = 150,
   onClick,
+  waitingTimeMinutes,
 }: MovingCharacterProps) {
   // 상태
   const [currentFrame, setCurrentFrame] = useState(0);
   const [screenPosition, setScreenPosition] = useState<{ x: number; y: number } | null>(null);
   const [displayPosition, setDisplayPosition] = useState<[number, number] | null>(null);
-  const [bearing, setBearing] = useState(0);
+  const [_bearing, setBearing] = useState(0);
 
   // refs
   const previousPositionRef = useRef<Coordinate | null>(null);
@@ -288,13 +290,85 @@ export function MovingCharacter({
       }}
       onClick={onClick}
     >
-      {/* 상태 표시 (디버그용) */}
-      <div
-        className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black/70 text-white px-2 py-0.5 rounded whitespace-nowrap"
-        style={{ fontSize: '10px' }}
-      >
-        {status}
-      </div>
+      {/* 이동 수단 마커 표시 (경로 위 마커와 동일한 디자인) */}
+      {(() => {
+        const colorMap = {
+          green: '#7ED321',
+          purple: '#A78BFA',
+          yellow: '#FFD93D',
+          pink: '#FF6B9D',
+        };
+        const markerColor = colorMap[color];
+        let emoji = '';
+
+        if (status === 'RIDING_BUS') emoji = '🚌';
+        else if (status === 'RIDING_SUBWAY') emoji = '🚇';
+        else if (status === 'WALKING') emoji = '🚶';
+        else return null; // FINISHED나 다른 상태는 표시 안 함
+
+        return (
+          <div
+            className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+            style={{
+              width: '28px',
+              height: '28px',
+              background: markerColor,
+              border: '3px solid white',
+              borderRadius: '50%',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              lineHeight: '1',
+            }}
+          >
+            {emoji}
+          </div>
+        );
+      })()}
+
+      {/* 대기 중 말풍선 */}
+      {(status === 'WAITING_BUS' || status === 'WAITING_SUBWAY') && (
+        <div
+          className="absolute -top-16 left-1/2 -translate-x-1/2 pointer-events-none"
+          style={{
+            background: 'rgba(0, 0, 0, 0.75)',
+            color: 'white',
+            padding: '6px 10px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: '500',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            zIndex: 10,
+          }}
+        >
+          {status === 'WAITING_BUS' ? '🚌 버스' : '🚇 지하철'}
+          {waitingTimeMinutes !== undefined && waitingTimeMinutes > 0 && (
+            <span style={{ marginLeft: '4px', color: '#FFD93D' }}>
+              {waitingTimeMinutes}분 후 도착
+            </span>
+          )}
+          {(!waitingTimeMinutes || waitingTimeMinutes <= 0) && (
+            <span style={{ marginLeft: '4px' }}>대기 중...</span>
+          )}
+          {/* 말풍선 꼬리 */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-6px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid rgba(0, 0, 0, 0.75)',
+            }}
+          />
+        </div>
+      )}
 
       {/* 캐릭터 이미지 */}
       <img

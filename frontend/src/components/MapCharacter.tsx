@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import type mapboxgl from 'mapbox-gl';
+import { useState, useEffect } from 'react';
 
 // 캐릭터 색상 타입
 export type CharacterColor = 'green' | 'pink' | 'yellow';
@@ -25,7 +24,6 @@ export function MapCharacter({
 }: MapCharacterProps) {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [screenPosition, setScreenPosition] = useState<{ x: number; y: number } | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
 
   // 각 색상별 프레임 이미지 경로
   const frames = [
