@@ -368,13 +368,24 @@ def _handle_walking(
     elapsed = (timezone.now() - leg_started_at).total_seconds()
     section_time = current_leg.get("sectionTime", 0)
 
-    # 현재 leg 내 진행률 (0.0 ~ 1.0)
-    leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
+    # 도보 구간 완료 여부 체크
+    is_leg_complete = elapsed >= section_time
 
-    # 현재 위치 계산 및 업데이트
-    position = _calculate_walking_position(current_leg, leg_progress)
-    if position:
-        BotStateManager.update_position(route_id, lon=position[0], lat=position[1])
+    # 구간 완료 전에만 위치 업데이트 (완료 시 _finish_bot에서 처리)
+    if not is_leg_complete:
+        # 현재 leg 내 진행률 (0.0 ~ 1.0)
+        leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
+
+        # 현재 위치 계산 및 업데이트
+        position = _calculate_walking_position(current_leg, leg_progress)
+        if position:
+            BotStateManager.update_position(route_id, lon=position[0], lat=position[1])
+    else:
+        logger.info(
+            f"WALKING 구간 완료: route_id={route_id}, "
+            f"위치 업데이트 건너뛰기 (순간이동 방지), "
+            f"현재 위치 유지하여 _finish_bot에서 보간 처리"
+        )
 
     # 전체 경로 기준 진행률 계산
     progress_percent = _calculate_total_progress(
@@ -396,7 +407,7 @@ def _handle_walking(
     )
 
     # 도보 구간 완료
-    if elapsed >= section_time:
+    if is_leg_complete:
         next_leg_index = bot_state["current_leg_index"] + 1
 
         if next_leg_index >= len(legs):
