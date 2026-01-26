@@ -759,24 +759,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       <style>
         {`
           /* SearchPage-only styles (scoped) */
-          @font-face {
-            font-family: 'FreesentationVF';
-            src: url('/fonts/FreesentationVF.ttf') format('truetype');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: swap;
-          }
-
-          @font-face {
-            font-family: 'DNFBitBitv2';
-            src:
-              url('/fonts/DNFBitBitv2.otf') format('opentype'),
-              url('/fonts/DNFBitBitv2.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-          }
-
           @keyframes hb-search-sheen {
             0% { transform: translateX(-40%) translateY(-10%) rotate(12deg); opacity: 0; }
             12% { opacity: 0.55; }

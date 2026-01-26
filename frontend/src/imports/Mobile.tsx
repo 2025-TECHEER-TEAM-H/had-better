@@ -119,17 +119,6 @@ export default function Mobile() {
     <div className="bg-gradient-to-b from-[#c5e7f5] relative size-full to-white" data-name="Mobile">
       <style>
         {`
-          @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-          @font-face {
-            font-family: 'DNFBitBitv2';
-            src:
-              url('/fonts/DNFBitBitv2.otf') format('opentype'),
-              url('/fonts/DNFBitBitv2.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-          }
-
           /* Landing-only motion (Mobile.tsx scope) */
           @keyframes hb-float {
             0%, 100% { transform: translateY(0); }

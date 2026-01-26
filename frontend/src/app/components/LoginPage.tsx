@@ -117,16 +117,6 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
     >
       <style>
         {`
-          @font-face {
-            font-family: 'DNFBitBitv2';
-            src:
-              url('/fonts/DNFBitBitv2.otf') format('opentype'),
-              url('/fonts/DNFBitBitv2.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-          }
-
           @keyframes hb-float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-6px); }
