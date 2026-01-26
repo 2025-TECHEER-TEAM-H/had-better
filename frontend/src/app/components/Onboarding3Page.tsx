@@ -156,7 +156,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       {/* 건너뛰기 버튼 */}
       <button
         onClick={handleSkip}
-        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Pretendard',sans-serif] font-medium text-[12px]"
+        className="absolute top-5 right-5 z-10 px-4 py-2 text-[#767676] hover:text-black transition-colors font-['Pretendard',sans-serif] font-medium text-[16px]"
       >
         건너뛰기
       </button>
@@ -165,7 +165,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
         <motion.h1 
-          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[16px]"
+          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -175,7 +175,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
 
         {/* 서브 타이틀 */}
         <motion.div 
-          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[12px]"
+          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -349,7 +349,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
               </div>
             </div>
 
-            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[12px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium">
+            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[18px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium">
               3개의 경로가 동시에 달려요
             </p>
           </div>
