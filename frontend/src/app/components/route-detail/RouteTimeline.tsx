@@ -1,6 +1,6 @@
 import { CharacterColor } from "@/components/MovingCharacter";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes } from "@/types/route";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 interface RouteTimelineProps {
   legs: any[];
@@ -321,11 +321,10 @@ export function RouteTimeline({
             const connectionHeight = alightingTop > 0 && nextBoardingTop > 0 ? nextBoardingTop - alightingTop : 0;
 
             return (
-              <>
+              <Fragment key={`fragment-${index}`}>
                 {/* 교통수단 구간 실선 */}
                 {isTransport && lineHeight > 0 && (
                   <div
-                    key={`line-${index}`}
                     className="absolute left-0 w-[2px] z-10"
                     style={{
                       top: `${boardingTop || 0}px`,
@@ -339,7 +338,6 @@ export function RouteTimeline({
                 {/* 구간 사이 연결선 (하차 지점에서 다음 승차 지점까지) */}
                 {!isLast && connectionHeight > 0 && (
                   <div
-                    key={`connection-${index}`}
                     className="absolute left-0 w-[2px] z-10"
                     style={{
                       top: `${alightingTop || 0}px`,
@@ -353,7 +351,6 @@ export function RouteTimeline({
                 {/* 승차 마커 (교통수단 구간 시작) */}
                 {isTransport && (
                   <div
-                    key={`boarding-marker-${index}`}
                     className="absolute -translate-y-1/2 z-20"
                     style={{
                       left: '1px', // 타임라인 선(2px)의 중앙 = 1px
@@ -372,7 +369,6 @@ export function RouteTimeline({
                 {/* 교통수단 정보 - 선 왼쪽 중간에 표시 */}
                 {isTransport && lineHeight > 0 && (
                   <div
-                    key={`time-${index}`}
                     className="absolute left-[-70px] -translate-y-1/2 flex items-center gap-1.5 z-20"
                     style={{ top: `${(boardingTop || 0) + lineHeight / 2}px` }}
                   >
@@ -385,7 +381,6 @@ export function RouteTimeline({
                 {/* 하차 마커 (교통수단 구간 끝) - 초록색 선과 맞닿도록 */}
                 {isTransport && (!isLast || alightingTop > boardingTop) && (
                   <div
-                    key={`alighting-marker-${index}`}
                     className="absolute -translate-y-1/2 z-20"
                     style={{
                       left: '1px', // 타임라인 선(2px)의 중앙 = 1px
@@ -401,7 +396,6 @@ export function RouteTimeline({
                 {/* 도보 구간 마커 (이전 구간이 교통수단이 아닐 때만 표시) */}
                 {isWalk && !prevIsTransport && boardingTop > 0 && (
                   <div
-                    key={`walk-marker-${index}`}
                     className="absolute -translate-y-1/2 z-20"
                     style={{
                       left: '1px', // 타임라인 선(2px)의 중앙 = 1px
@@ -413,7 +407,7 @@ export function RouteTimeline({
                     </div>
                   </div>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </div>
