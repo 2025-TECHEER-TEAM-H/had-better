@@ -95,5 +95,5 @@ urlpatterns = [
         name="swagger-ui",
     ),
     # Monitoring endpoints
-    path('', include('django_prometheus.urls')),
+    path("", include("django_prometheus.urls")),
 ]
