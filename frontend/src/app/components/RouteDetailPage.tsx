@@ -16,16 +16,24 @@ import { HorizontalRanking } from "./route-detail/HorizontalRanking";
 import { RouteTimeline } from "./route-detail/RouteTimeline";
 
 // 숫자 이미지 import (1~10)
-import imgNumber10 from "/assets/Double/hud_character_0.png"; // 10은 0 이미지 사용
-import imgNumber1 from "/assets/Double/hud_character_1.png";
-import imgNumber2 from "/assets/Double/hud_character_2.png";
-import imgNumber3 from "/assets/Double/hud_character_3.png";
-import imgNumber4 from "/assets/Double/hud_character_4.png";
-import imgNumber5 from "/assets/Double/hud_character_5.png";
-import imgNumber6 from "/assets/Double/hud_character_6.png";
-import imgNumber7 from "/assets/Double/hud_character_7.png";
-import imgNumber8 from "/assets/Double/hud_character_8.png";
-import imgNumber9 from "/assets/Double/hud_character_9.png";
+import imgNumber10 from "@/assets/numbers/hud_character_0.png"; // 10은 0 이미지 사용
+import imgNumber1 from "@/assets/numbers/hud_character_1.png";
+import imgNumber2 from "@/assets/numbers/hud_character_2.png";
+import imgNumber3 from "@/assets/numbers/hud_character_3.png";
+import imgNumber4 from "@/assets/numbers/hud_character_4.png";
+import imgNumber5 from "@/assets/numbers/hud_character_5.png";
+import imgNumber6 from "@/assets/numbers/hud_character_6.png";
+import imgNumber7 from "@/assets/numbers/hud_character_7.png";
+import imgNumber8 from "@/assets/numbers/hud_character_8.png";
+import imgNumber9 from "@/assets/numbers/hud_character_9.png";
+
+// 순위별 캐릭터 helmet 이미지 import
+import helmetGreen from "@/assets/hud-player-helmet-green.png";
+import helmetYellow from "@/assets/hud-player-helmet-yellow.png";
+import helmetPurple from "@/assets/hud-player-helmet-purple.png";
+
+// 순위별 helmet 이미지 배열 (1위 = green, 2위 = yellow, 3위+ = purple)
+const RANK_HELMET_IMAGES = [helmetGreen, helmetYellow, helmetPurple];
 
 // 숫자 이미지 배열 (1~10)
 const NUMBER_IMAGES = [
@@ -2380,27 +2388,13 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   </p>
                 )}
               </div>
-              {/* 캐릭터 얼굴 아이콘 */}
+              {/* 캐릭터 아이콘 */}
               <div className="w-[32px] h-[32px] flex items-center justify-center">
-                {rankNumber === 1 ? (
-                  <img
-                    src="/src/assets/face-gold.png"
-                    alt="1위 얼굴"
-                    className="w-full h-full object-contain"
-                  />
-                ) : rankNumber === 2 ? (
-                  <img
-                    src="/src/assets/face-teal.png"
-                    alt="2위 얼굴"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <img
-                    src="/src/assets/face-purple.png"
-                    alt="3위 얼굴"
-                    className="w-full h-full object-contain"
-                  />
-                )}
+                <img
+                  src={RANK_HELMET_IMAGES[Math.min(rankNumber - 1, 2)]}
+                  alt={`${rankNumber}위 캐릭터`}
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex-1 bg-white h-[18px] rounded-[4px] border-[3px] border-black overflow-hidden">
                 <div

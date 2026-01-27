@@ -2,6 +2,19 @@ import { Player, PLAYER_LABELS } from "@/stores/routeStore";
 import { CharacterColor } from "@/components/MovingCharacter";
 import { MODE_ICONS, secondsToMinutes, metersToKilometers } from "@/types/route";
 
+// Helmet 이미지 import
+import helmetGreen from "@/assets/hud-player-helmet-green.png";
+import helmetPurple from "@/assets/hud-player-helmet-purple.png";
+import helmetYellow from "@/assets/hud-player-helmet-yellow.png";
+
+// 색상별 helmet 이미지 매핑
+const HELMET_IMAGES: Record<CharacterColor, string> = {
+  green: helmetGreen,
+  pink: helmetPurple, // pink는 purple 이미지 사용
+  yellow: helmetYellow,
+  purple: helmetPurple,
+};
+
 interface RouteCardProps {
   player: Player;
   route: {
@@ -41,7 +54,7 @@ export function RouteCard({
       <div className="flex gap-[11.992px] items-center mb-[16px]">
         <div className="bg-white/30 backdrop-blur-md rounded-[12px] w-[48px] h-[48px] border border-white/40 flex items-center justify-center overflow-hidden shadow-sm">
           <img
-            src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
+            src={HELMET_IMAGES[playerColor]}
             alt={`${player} character`}
             className="w-[36px] h-[36px] object-contain drop-shadow-md"
           />
