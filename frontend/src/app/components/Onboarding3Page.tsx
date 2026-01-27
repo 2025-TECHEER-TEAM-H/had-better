@@ -165,23 +165,31 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
         <motion.h1 
-          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]"
+          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[32px] lg:text-[38px]"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          당신의 길은 이제<br />레이싱 트랙입니다
+          당신의 길은 이제 <br className="md:hidden" />레이싱 트랙입니다
         </motion.h1>
 
         {/* 서브 타이틀 */}
         <motion.div 
-          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]"
+          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px] md:text-[22px] lg:text-[26px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <p className="mb-0">평범한 출근길을</p>
-          <p>짜릿한 승부가 펼쳐지는 게임으로<br />바꿔 드릴게요.</p>
+          {/* 앱 화면 (모바일) */}
+          <div className="md:hidden">
+            <p className="mb-0">평범한 출근길을</p>
+            <p>짜릿한 승부가 펼쳐지는 게임으로<br />바꿔 드릴게요.</p>
+          </div>
+          {/* 웹 화면 (태블릿/데스크톱) */}
+          <div className="hidden md:block">
+            <p className="mb-0">평범한 출근길을 짜릿한 승부가</p>
+            <p>펼쳐지는 게임으로 바꿔 드릴게요.</p>
+          </div>
         </motion.div>
 
         {/* 페이지 인디케이터 */}
@@ -349,7 +357,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
               </div>
             </div>
 
-            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[18px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium whitespace-nowrap">
+            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[18px] md:text-[22px] lg:text-[26px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium whitespace-nowrap">
               3개의 경로가 동시에 달려요
             </p>
           </div>
@@ -358,14 +366,14 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
         {/* 다음 버튼 */}
         <motion.button
           onClick={handleNext}
-          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] rounded-[29px] w-[308px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
+          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] md:h-[60px] lg:h-[70px] rounded-[29px] w-[308px] md:w-[380px] lg:w-[450px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.3 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[22px] lg:text-[26px] text-white">
             다음
           </p>
         </motion.button>

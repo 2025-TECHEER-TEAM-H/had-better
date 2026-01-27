@@ -932,22 +932,22 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                         </div>
 
                         {/* 체크박스들 */}
-                        <div className="flex gap-3 md:gap-[8px] items-center flex-wrap">
+                        <div className="flex gap-3 md:gap-2 items-center flex-wrap">
                           {players.map((player) => (
                             <label
                               key={player}
-                              className="flex gap-2 md:gap-1 items-center cursor-pointer py-1 md:py-0"
+                              className="flex gap-2 items-center cursor-pointer py-1 md:py-0"
                               onClick={(e) => {
                                 e.stopPropagation(); // 카드 확장/축소 방지
                                 toggleAssignment(player, leg.route_leg_id);
                               }}
                             >
-                              <div className="size-[18px] md:size-[12px] border-[2px] md:border-[1.5px] border-black bg-white flex items-center justify-center rounded-sm">
+                              <div className="size-[18px] border-[2px] border-black bg-white flex items-center justify-center rounded-sm">
                                 {isAssigned(player, leg.route_leg_id) && (
-                                  <div className="size-[10px] md:size-[6px] bg-black rounded-sm" />
+                                  <div className="size-[10px] bg-black rounded-sm" />
                                 )}
                               </div>
-                              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px] text-black font-medium">
+                              <p className="font-['Pretendard',sans-serif] text-[14px] text-black font-medium">
                                 {PLAYER_LABELS[player]}
                               </p>
                             </label>
@@ -1478,17 +1478,19 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
         {/* 왼쪽 사이드바 */}
         <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
           {/* 헤더 */}
-          <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
-            <button
-              onClick={onBack}
-              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] w-[48px] h-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
-              title="뒤로가기"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-white text-center drop-shadow-md">경로 선택</h1>
+          <div className="px-6 py-5 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="bg-white/40 backdrop-blur-md rounded-[12px] w-[44px] h-[44px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all shrink-0"
+                title="뒤로가기"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-black drop-shadow-md">경로 선택</h1>
+            </div>
           </div>
 
           {/* 스크롤 가능한 컨텐츠 영역 */}

@@ -48,7 +48,7 @@ export function Onboarding2Page({
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
         <motion.h1
-          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]"
+          className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[32px] lg:text-[38px]"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -58,7 +58,7 @@ export function Onboarding2Page({
 
         {/* 서브 타이틀 */}
         <motion.div
-          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]"
+          className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px] md:text-[22px] lg:text-[26px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -202,14 +202,14 @@ export function Onboarding2Page({
         {/* 다음 버튼 */}
         <motion.button
           onClick={handleNext}
-          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] rounded-[29px] w-[308px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
+          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] md:h-[60px] lg:h-[70px] rounded-[29px] w-[308px] md:w-[380px] lg:w-[450px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.3 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[22px] lg:text-[26px] text-white">
             다음
           </p>
         </motion.button>

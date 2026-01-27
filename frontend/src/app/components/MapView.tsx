@@ -1586,8 +1586,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
             </button>
           )}
 
-          {/* 레이어 버튼 - route 페이지에서는 RouteSelectionPage에서 관리하므로 숨김 */}
-          {resolvedCurrentPage !== "route" && (
+          {/* 레이어 버튼 - route/routeDetail 페이지에서는 각 페이지에서 관리하므로 숨김 */}
+          {resolvedCurrentPage !== "route" && resolvedCurrentPage !== "routeDetail" && (
           <div className="relative">
             <button
               ref={layerButtonRef}
@@ -1730,8 +1730,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
           </div>
           )}
 
-          {/* 현재 위치 버튼 - route 페이지에서는 RouteSelectionPage에서 관리하므로 표시하지 않음 */}
-          {resolvedCurrentPage !== "route" && (
+          {/* 현재 위치 버튼 - route/routeDetail 페이지에서는 각 페이지에서 관리하므로 표시하지 않음 */}
+          {resolvedCurrentPage !== "route" && resolvedCurrentPage !== "routeDetail" && (
             <button
               onClick={handleMyLocation}
               className="bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 size-[48px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all"
