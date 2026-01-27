@@ -15,15 +15,31 @@ from apps.places.models import SearchPlaceHistory
 from .models import User
 
 
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     사용자 정보 Serializer
     """
 
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = ["id", "name", "email", "nickname", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id"]
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
+
+    def get_updated_at(self, obj):
+        return to_seoul_time(obj.updated_at)
 
 
 # ============================================
@@ -251,10 +267,15 @@ class SearchPlaceHistorySerializer(serializers.ModelSerializer):
     }
     """
 
+    created_at = serializers.SerializerMethodField()
+
     class Meta:
         model = SearchPlaceHistory
         fields = ["id", "keyword", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id"]
+
+    def get_created_at(self, obj):
+        return to_seoul_time(obj.created_at)
 
 
 # ============================================
@@ -289,7 +310,7 @@ class ItineraryHistorySerializer(serializers.Serializer):
     arrival = serializers.SerializerMethodField()
 
     # source="created_at": DB 필드명은 created_at이지만, API 응답에서는 searched_at으로 표시
-    searched_at = serializers.DateTimeField(source="created_at", read_only=True)
+    searched_at = serializers.SerializerMethodField()
 
     def get_departure(self, obj):
         """
@@ -306,3 +327,7 @@ class ItineraryHistorySerializer(serializers.Serializer):
         반환값: {"name": "홍대입구역"}
         """
         return {"name": obj.arrival_name}
+
+    def get_searched_at(self, obj):
+        """created_at을 한국 시간대로 변환"""
+        return to_seoul_time(obj.created_at)

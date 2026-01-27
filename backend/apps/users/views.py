@@ -3,7 +3,6 @@
 """
 
 from django.utils import timezone
-
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -442,84 +441,119 @@ class ItineraryHistoryDetailView(APIView):
             )
 
 
-# ============================================하드코딩파트========================================================
-# 내 통계 조회 API (2026-01-14)
-# ====================================================================================================================================
-# 1. 현재는 하드코딩된 더미 데이터 반환 ( 테스트용)
-# 2. TODO: Route 모델 구현 후 실제 통계 계산 로직으로 교체 필요
-# 3. 실제 구현 시 필요한 데이터:
-#    - total_routes: 참여한 경주 수
-#    - wins/losses: 1등 vs 그 외 결과
-#    - total_distance/time: 실제 이동 기록 합계
-#    - recent_routes: 최근 경주 기록 (Route 모델에서 조회)
 # ============================================
-# @extend_schema_view(
-#     get=extend_schema(
-#         summary="내 통계 조회",
-#         description="현재 로그인한 사용자의 경주 통계를 조회합니다. (현재 더미 데이터)",
-#         tags=["사용자"],
-#         responses={200: None},
-#     ),
-# )
-# class UserStatsView(APIView):
-#     """
-#     내 통계 조회 API (2026-01-14)
+# 내 통계 조회 API (2026-01-23 실제 DB 연동)
+# ============================================
+@extend_schema_view(
+    get=extend_schema(
+        summary="내 통계 조회",
+        description="현재 로그인한 사용자의 경주 통계를 조회합니다.",
+        tags=["사용자"],
+        responses={200: None},
+    ),
+)
+class UserStatsView(APIView):
+    """
+    내 통계 조회 API
 
-#     GET /api/v1/users/stats - 내 통계 조회
+    GET /api/v1/users/stats - 내 통계 조회
 
-#     TODO: Route 모델 구현 후 실제 통계 계산 로직으로 교체 필요
-#     현재는 프론트엔드 연동 테스트를 위한 하드코딩된 더미 데이터 반환
-#     """
+    실제 Route 모델에서 통계 데이터를 계산하여 반환합니다.
+    """
 
-#     permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-#     def get(self, request):
-#         """
-#         내 통계 조회
+    def get(self, request):
+        """
+        내 통계 조회
 
-#         현재는 하드코딩된 더미 데이터 반환
-#         TODO: Route 모델 구현 후 실제 통계 계산 로직으로 교체
-#         """
-#         # TODO: 실제 구현 시 아래 주석 해제 및 수정 필요
-#         # from apps.routes.models import Route, RouteParticipant
-#         # routes = RouteParticipant.objects.filter(user=request.user)
-#         # total_routes = routes.count()
-#         # wins = routes.filter(rank=1).count()
-#         # ...
+        Route 모델에서 현재 사용자의 통계를 계산합니다.
+        - total_games: 총 게임 수 (participant_type='USER'인 경주)
+        - wins: 승리 횟수 (is_win=True)
+        - win_rate: 승률 (wins / total_games * 100)
+        - recent_games: 최근 게임 3개
+        """
+        from apps.routes.models import Route
 
-#         # 하드코딩된 더미 데이터 (프론트엔드 연동 테스트용)
-#         dummy_stats = {
-#             "total_routes": 50,
-#             "wins": 32,
-#             "losses": 18,
-#             "win_rate": 64.0,
-#             "total_distance": 245600,
-#             "total_time": 86400,
-#             "average_time": 1728,
-#             "recent_routes": [
-#                 {
-#                     "route_itinerary_id": 1,
-#                     "rank": 1,
-#                     "total_participants": 3,
-#                     "route_summary": "강남역 → 홍대입구",
-#                     "end_time": "2026-01-12T15:30:00+09:00",
-#                 },
-#                 {
-#                     "route_itinerary_id": 2,
-#                     "rank": 2,
-#                     "total_participants": 4,
-#                     "route_summary": "서울역 → 잠실역",
-#                     "end_time": "2026-01-11T18:45:00+09:00",
-#                 },
-#                 {
-#                     "route_itinerary_id": 3,
-#                     "rank": 1,
-#                     "total_participants": 2,
-#                     "route_summary": "신촌 → 삼성역",
-#                     "end_time": "2026-01-10T12:00:00+09:00",
-#                 },
-#             ],
-#         }
+        # 현재 사용자의 완료된 경주만 조회 (USER 타입)
+        user_routes = Route.objects.filter(
+            user=request.user,
+            participant_type=Route.ParticipantType.USER,
+            status=Route.Status.FINISHED,
+        )
 
-#         return success_response(data=dummy_stats, status=status.HTTP_200_OK)
-# ============================================하드코딩파트 끝========================================================
+        # 총 게임 수
+        total_games = user_routes.count()
+
+        # 승리 횟수
+        wins = user_routes.filter(is_win=True).count()
+
+        # 승률 계산 (0으로 나누기 방지)
+        win_rate = round((wins / total_games * 100), 1) if total_games > 0 else 0.0
+
+        # 최근 게임 3개 조회 (모든 상태 포함)
+        recent_routes = (
+            Route.objects.filter(
+                user=request.user,
+                participant_type=Route.ParticipantType.USER,
+            )
+            .select_related(
+                "route_leg",
+                "route_leg__route_itinerary",
+            )
+            .prefetch_related(
+                "route_leg__segments",
+            )
+            .order_by("-created_at")[:3]
+        )
+
+        recent_games = []
+        for route in recent_routes:
+            # 출발지/도착지 가져오기 (search_itinerary_history에서)
+            # route → route_leg → route_itinerary → search_itinerary_history
+            route_itinerary = route.route_leg.route_itinerary
+            itinerary_history = SearchItineraryHistory.objects.filter(
+                route_itinerary=route_itinerary
+            ).first()
+
+            if itinerary_history:
+                departure = itinerary_history.departure_name
+                arrival = itinerary_history.arrival_name
+            else:
+                departure = "알 수 없음"
+                arrival = "알 수 없음"
+
+            # duration 처리 (NULL이면 "NULL")
+            if route.duration is not None:
+                minutes = route.duration // 60
+                seconds = route.duration % 60
+                duration_str = f"{minutes}분 {seconds}초"
+            else:
+                duration_str = "NULL"
+
+            # 순위 처리 (없으면 "CANCELED")
+            if route.status == Route.Status.CANCELED:
+                rank_str = "CANCELED"
+            elif route.rank is not None:
+                rank_str = f"{route.rank}위"
+            else:
+                rank_str = "CANCELED"
+
+            recent_games.append(
+                {
+                    "id": route.id,
+                    "route_name": f"{departure} → {arrival}",
+                    "duration": duration_str,
+                    "rank": rank_str,
+                    "created_at": route.created_at.isoformat(),
+                }
+            )
+
+        stats = {
+            "total_games": total_games,
+            "wins": wins,
+            "win_rate": win_rate,
+            "recent_games": recent_games,
+        }
+
+        return success_response(data=stats, status=status.HTTP_200_OK)

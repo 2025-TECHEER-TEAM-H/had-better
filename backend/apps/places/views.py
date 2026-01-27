@@ -1,19 +1,25 @@
 from urllib.parse import quote  # noqa: F401
 
-import requests
 from django.conf import settings
 from django.core.paginator import Paginator
-from drf_spectacular.openapi import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated  # noqa: F401
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+import requests
+from drf_spectacular.openapi import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from config.responses import success_response
 
 from .models import PoiPlace, SearchPlaceHistory
-from .serializers import PoiPlaceDetailSerializer, PoiPlaceSerializer
+from .serializers import (
+    PoiPlaceDetailSerializer,
+    PoiPlaceSerializer,
+    SearchPlaceHistorySerializer,
+)
 
 
 class PlaceSearchView(APIView):
@@ -70,8 +76,8 @@ class PlaceSearchView(APIView):
         검색 키워드로 장소 검색 (TMap API 호출)
         """
         q = request.query_params.get("q")
-        lat = request.query_params.get("lat") #필수가 아닌 선택값
-        lon = request.query_params.get("lon") #필수가 아닌 선택값
+        lat = request.query_params.get("lat")  # 필수가 아닌 선택값
+        lon = request.query_params.get("lon")  # 필수가 아닌 선택값
         page = int(request.query_params.get("page", 1))
         limit = int(request.query_params.get("limit", 20))
 
@@ -91,8 +97,20 @@ class PlaceSearchView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 로그인 사용자인 경우 검색 기록 저장
-        if request.user.is_authenticated:
+        # 로그인 사용자인 경우 검색 기록 저장 (save_history 파라미터로 제어)
+        save_history = (
+            request.query_params.get("save_history", "true").lower() == "true"
+        )
+        if request.user.is_authenticated and save_history:
+            # 동일 키워드에 대한 이전 검색 기록은 soft delete 처리하여
+            # 항상 "가장 최근 검색 1개만" 활성 상태로 남도록 정리
+            SearchPlaceHistory.objects.filter(
+                user=request.user,
+                keyword=q,
+                deleted_at__isnull=True,
+            ).update(deleted_at=timezone.now())
+
+            # 새 기록 생성 (DB에는 개수 제한 없이 누적 저장)
             SearchPlaceHistory.objects.create(user=request.user, keyword=q)
 
         # TMap API 호출
@@ -117,19 +135,36 @@ class PlaceSearchView(APIView):
             if not result.get("lon") or not result.get("lat"):
                 continue
 
-            poi_place, _ = PoiPlace.objects.update_or_create(
-                tmap_poi_id=result.get("id"),
-                defaults={
-                    "name": result.get("name"),
-                    "address": result.get("address"),
-                    "category": result.get("category", ""),
-                    "coordinates": {
-                        "lon": float(result["lon"]),
-                        "lat": float(result["lat"]),
+            # tmap_poi_id와 tmap_pkey 확인
+            tmap_poi_id = result.get("id")
+            tmap_pkey = result.get("pkey") or result.get("id")  # pkey가 없으면 id 사용
+
+            # tmap_poi_id가 없으면 건너뛰기
+            if not tmap_poi_id:
+                continue
+
+            try:
+                poi_place, _ = PoiPlace.objects.update_or_create(
+                    tmap_pkey=tmap_pkey,  # unique 필드로 조회/생성
+                    defaults={
+                        "tmap_poi_id": tmap_poi_id,
+                        "name": result.get("name", ""),
+                        "address": result.get("address", ""),
+                        "category": result.get("category", ""),
+                        "coordinates": {
+                            "lon": float(result["lon"]),
+                            "lat": float(result["lat"]),
+                        },
                     },
-                },
-            )
-            poi_places.append(poi_place)
+                )
+                poi_places.append(poi_place)
+            except Exception as e:
+                # 개별 POI 저장 실패 시 로그만 남기고 계속 진행
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(f"POI 저장 실패: {result.get('name')} - {str(e)}")
+                continue
 
         # 페이지네이션
         paginator = Paginator(poi_places, limit)
@@ -258,9 +293,18 @@ class PlaceSearchView(APIView):
                 results.append(
                     {
                         "id": poi.get("id"),
+                        "pkey": poi.get("pkey")
+                        or poi.get("id"),  # pkey가 없으면 id 사용
                         "name": poi.get("name", ""),
                         "address": address,
-                        "category": poi.get("mlClass", ""),  # mlClass: 분류
+                        "category": (
+                            # 더# TMap 분류는 코드(mlClass)로 오는 경우가 많아 프론트에서 활용이 어려움.
+                            # 가능하면 사람이 읽을 수 있는 bizName 계열을 우선 사용하고, 없으면 mlClass로 fallback. 구체적인 분류가 우선
+                            poi.get("lowerBizName")
+                            or poi.get("middleBizName")
+                            or poi.get("upperBizName")
+                            or poi.get("mlClass", "")
+                        ),
                         "lat": lat,
                         "lon": lon,
                     }
@@ -277,7 +321,31 @@ class PlaceDetailView(APIView):
     @extend_schema(
         operation_id="places_detail",
         summary="장소 상세 조회",
-        description="특정 POI 장소의 상세 정보를 조회합니다. 로그인 사용자인 경우 즐겨찾기 여부(is_saved)도 함께 반환됩니다.",
+        description="""
+특정 POI 장소의 상세 정보를 조회합니다.
+
+**거리 계산:**
+- lat, lon 파라미터를 제공하면 해당 위치에서 장소까지의 거리(미터)를 계산합니다.
+- 거리는 Haversine 공식을 사용하여 계산됩니다.
+- 파라미터를 제공하지 않으면 distance_meters는 null로 반환됩니다.
+
+**즐겨찾기:**
+- 로그인 사용자인 경우 즐겨찾기 여부(is_saved)도 함께 반환됩니다.
+        """,
+        parameters=[
+            OpenApiParameter(
+                name="lat",
+                description="현재 위치 위도 (거리 계산용, 선택)",
+                required=False,
+                type=OpenApiTypes.FLOAT,
+            ),
+            OpenApiParameter(
+                name="lon",
+                description="현재 위치 경도 (거리 계산용, 선택)",
+                required=False,
+                type=OpenApiTypes.FLOAT,
+            ),
+        ],
         responses={
             200: PoiPlaceDetailSerializer(),
             404: {"description": "장소를 찾을 수 없음"},
@@ -286,8 +354,8 @@ class PlaceDetailView(APIView):
     )
     def get(self, request, poi_place_id):
         """
-        GET /api/v1/places/{poi_place_id}
-        장소 상세 조회
+        GET /api/v1/places/{poi_place_id}?lat={lat}&lon={lon}
+        장소 상세 조회 (거리 계산 포함)
         """
         try:
             poi_place = PoiPlace.objects.get(id=poi_place_id)
@@ -303,6 +371,112 @@ class PlaceDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = PoiPlaceDetailSerializer(poi_place, context={"request": request})
+        # 현재 위치 (선택적)
+        current_lat = request.query_params.get("lat")
+        current_lon = request.query_params.get("lon")
+
+        # Serializer context 생성
+        context = {
+            "request": request,
+        }
+
+        # 현재 위치가 제공되면 context에 추가
+        if current_lat and current_lon:
+            try:
+                context["current_lat"] = float(current_lat)
+                context["current_lon"] = float(current_lon)
+            except (ValueError, TypeError):
+                # 잘못된 좌표 형식이면 무시
+                pass
+
+        serializer = PoiPlaceDetailSerializer(poi_place, context=context)
 
         return success_response(serializer.data)
+
+
+class SearchPlaceHistoryListView(APIView):
+    """
+    장소 검색 기록 목록 조회/전체 삭제 API
+
+    - GET /api/v1/places/search-histories
+    - DELETE /api/v1/places/search-histories
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="places_search_history_list",
+        summary="장소 검색 기록 목록 조회",
+        description="로그인한 사용자의 장소 검색 기록을 최신순으로 조회합니다.",
+        responses={200: SearchPlaceHistorySerializer(many=True)},
+        tags=["Places"],
+    )
+    def get(self, request):
+        histories = SearchPlaceHistory.objects.filter(
+            user=request.user,
+            deleted_at__isnull=True,
+        ).order_by("-created_at")
+        serializer = SearchPlaceHistorySerializer(histories, many=True)
+        return success_response(serializer.data)
+
+    @extend_schema(
+        operation_id="places_search_history_clear",
+        summary="장소 검색 기록 전체 삭제",
+        description="로그인한 사용자의 장소 검색 기록을 모두 삭제(soft delete)합니다.",
+        responses={200: {"description": "삭제된 개수 반환"}},
+        tags=["Places"],
+    )
+    def delete(self, request):
+        qs = SearchPlaceHistory.objects.filter(
+            user=request.user,
+            deleted_at__isnull=True,
+        )
+        deleted_count = qs.count()
+        if deleted_count > 0:
+            qs.update(deleted_at=timezone.now())
+
+        return success_response({"deleted_count": deleted_count})
+
+
+class SearchPlaceHistoryDetailView(APIView):
+    """
+    장소 검색 기록 단건 삭제 API
+
+    - DELETE /api/v1/places/search-histories/{history_id}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="places_search_history_delete",
+        summary="장소 검색 기록 단건 삭제",
+        description="로그인한 사용자의 특정 장소 검색 기록을 삭제(soft delete)합니다.",
+        responses={
+            200: {"description": "삭제된 기록의 ID 반환"},
+            404: {"description": "검색 기록을 찾을 수 없음"},
+        },
+        tags=["Places"],
+    )
+    def delete(self, request, history_id: int):
+        try:
+            history = SearchPlaceHistory.objects.get(
+                id=history_id,
+                user=request.user,
+                deleted_at__isnull=True,
+            )
+        except SearchPlaceHistory.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "message": "해당 검색 기록을 찾을 수 없습니다.",
+                    },
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        history.deleted_at = timezone.now()
+        history.save(update_fields=["deleted_at"])
+
+        return success_response({"id": history.id})

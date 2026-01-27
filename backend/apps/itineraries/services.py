@@ -3,10 +3,11 @@ TMAP 대중교통 API 서비스
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict
+
+from django.conf import settings
 
 import requests
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class TmapTransitService:
         count: int = 10,
         lang: int = 0,
         format: str = "json",
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         대중교통 경로 탐색
 
@@ -72,9 +73,7 @@ class TmapTransitService:
             response.raise_for_status()
             data = response.json()
 
-            logger.info(
-                f"TMAP 경로 탐색 성공: {start_y},{start_x} -> {end_y},{end_x}"
-            )
+            logger.info(f"TMAP 경로 탐색 성공: {start_y},{start_x} -> {end_y},{end_x}")
             return data
 
         except requests.exceptions.Timeout:

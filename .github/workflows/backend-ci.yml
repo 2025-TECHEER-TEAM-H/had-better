@@ -1,0 +1,179 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+      - '.github/workflows/backend-cd.yml'
+      - 'docker-compose.*.yml'
+      - '.env.*.example'
+
+jobs:
+  lint-and-check:
+    name: 린트 및 코드 검사
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: 의존성 설치
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Black 포매팅 검사
+        run: |
+          cd backend
+          black --check --diff .
+
+      - name: isort import 정렬 검사
+        run: |
+          cd backend
+          isort --check-only --diff .
+
+      - name: flake8 린트 검사
+        run: |
+          cd backend
+          flake8 .
+
+      - name: Django 설정 검사
+        env:
+          DJANGO_SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'False'
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: test_db
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          cd backend
+          python manage.py check --deploy
+
+  test:
+    name: 테스트 실행
+    runs-on: ubuntu-latest
+    needs: lint-and-check
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: hadbetter_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: 의존성 설치
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 마이그레이션 생성 확인
+        env:
+          DJANGO_SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hadbetter_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend
+          python manage.py makemigrations --check --dry-run
+
+      - name: 마이그레이션 실행
+        env:
+          DJANGO_SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hadbetter_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend
+          python manage.py migrate --no-input
+
+      - name: pytest 테스트 실행 (ASGI 지원)
+        env:
+          DJANGO_SECRET_KEY: test-secret-key-for-ci
+          DEBUG: 'True'
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: hadbetter_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend
+          pytest --verbose --cov=apps --cov-report=term-missing --cov-report=xml
+
+      - name: 커버리지 리포트 업로드
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  summary:
+    name: CI 결과 요약
+    runs-on: ubuntu-latest
+    needs: [lint-and-check, test]
+    if: always()
+
+    steps:
+      - name: CI 결과 출력
+        run: |
+          echo "## 🚀 Backend CI 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 린트 및 코드 검사: ${{ needs.lint-and-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 테스트 실행: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.lint-and-check.result }}" == "success" ] && [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ 모든 검사를 통과했습니다!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ 일부 검사가 실패했습니다. 위 로그를 확인해주세요." >> $GITHUB_STEP_SUMMARY
+          fi

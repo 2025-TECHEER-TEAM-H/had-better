@@ -41,6 +41,7 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_prometheus",
 ]
 
 THIRD_PARTY_APPS = [
@@ -61,6 +62,7 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -69,6 +71,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -96,7 +100,7 @@ ASGI_APPLICATION = "config.asgi.application"
 # PostgreSQL 설정
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "hadbetter"),
         "USER": os.getenv("DB_USER", "postgres"),
         "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
@@ -161,7 +165,7 @@ REST_FRAMEWORK = {
 
 # Simple JWT 설정
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=3),  # 3시간
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -204,10 +208,42 @@ CELERY_TIMEZONE = "Asia/Seoul"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30분
 
+# Celery Beat 스케줄 설정
+# 버스 위치 전체 조회 태스크 비활성화 - 사용자 지정 버스만 추적하는 방식으로 변경
+# API 호출량 절감: 15개 노선 × 60초 = 일 21,600회 → 사용자 지정 5개 × 30초 = 일 14,400회
+CELERY_BEAT_SCHEDULE = {
+    # "fetch-bus-positions-every-60-seconds": {
+    #     "task": "apps.routes.tasks.fetch_all_bus_positions",
+    #     "schedule": 60.0,
+    # },
+}
+
+
+# Redis 설정 (봇 상태 캐시)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+
+# RabbitMQ 설정 (SSE Pub/Sub)
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
+
 
 # External API Keys
 TMAP_API_KEY = os.getenv("TMAP_API_KEY", "")
 MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
+
+# 실시간 대중교통 위치 API
+BUS_API_KEY = os.getenv("BUS_API_KEY", "")
+SUBWAY_API_KEY = os.getenv("SUBWAY_API_KEY", "")
 
 
 # Logging 설정

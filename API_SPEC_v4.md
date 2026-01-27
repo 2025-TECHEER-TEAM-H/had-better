@@ -2,13 +2,13 @@
 
 ## 기본 정보
 
-| 항목 | 값 |
-|------|-----|
-| Base URL | `https://api.hadbetter.com` (Production) |
-| Base URL | `http://localhost:8000` (Development) |
-| API Version | v1 |
-| 인증 방식 | JWT (Bearer Token) |
-| Content-Type | `application/json` |
+| 항목         | 값                                       |
+| ------------ | ---------------------------------------- |
+| Base URL     | `https://api.hadbetter.com` (Production) |
+| Base URL     | `http://localhost:8000` (Development)    |
+| API Version  | v1                                       |
+| 인증 방식    | JWT (Bearer Token)                       |
+| Content-Type | `application/json`                       |
 
 ---
 
@@ -16,13 +16,13 @@
 
 ### RESTful 원칙 준수
 
-| 원칙 | 적용 방식 |
-|------|----------|
-| 리소스 기반 URI | 명사 복수형 사용 (`/routes`, `/itineraries`, `/places`) |
+| 원칙                    | 적용 방식                                                                |
+| ----------------------- | ------------------------------------------------------------------------ |
+| 리소스 기반 URI         | 명사 복수형 사용 (`/routes`, `/itineraries`, `/places`)                  |
 | HTTP 메서드로 행위 표현 | GET(조회), POST(생성/토글), PATCH(부분수정), PUT(전체수정), DELETE(삭제) |
-| Trailing Slash 제거 | URI 끝에 `/` 사용하지 않음 |
-| 상태 코드 | 의미에 맞는 HTTP 상태 코드 사용 |
-| Stateless | 서버는 클라이언트 상태를 저장하지 않음 |
+| Trailing Slash 제거     | URI 끝에 `/` 사용하지 않음                                               |
+| 상태 코드               | 의미에 맞는 HTTP 상태 코드 사용                                          |
+| Stateless               | 서버는 클라이언트 상태를 저장하지 않음                                   |
 
 ### ⚠️ 행위(Action)는 HTTP Method로 표현
 
@@ -37,30 +37,30 @@ URI에는 동사를 사용하지 않습니다. 행위는 HTTP Method로 표현�
 
 ### ERD ↔ API 명칭 매핑
 
-| ERD 테이블 | API 리소스 | 설명 |
-|-----------|-----------|------|
-| `route` | `/routes` | 경주(게임) 인스턴스 |
-| `route_itinerary` | `/itineraries` | 경로 탐색 결과 묶음 (마킹용) |
-| `route_leg` | `/itineraries/{id}/legs` | 개별 경로 (경주에 배정되는 단위) |
-| `search_itinerary_history` | `/users/itinerary-history` | 경로 검색 기록 |
-| `search_place_history` | `/users/place-history` | 장소 검색 기록 |
-| `saved_place` | `/saved-places` | 즐겨찾기 장소 |
-| `poi_place` | `/places` | POI 장소 |
-| `bot` | (routes 하위) | 봇 |
+| ERD 테이블                 | API 리소스                 | 설명                             |
+| -------------------------- | -------------------------- | -------------------------------- |
+| `route`                    | `/routes`                  | 경주(게임) 인스턴스              |
+| `route_itinerary`          | `/itineraries`             | 경로 탐색 결과 묶음 (마킹용)     |
+| `route_leg`                | `/itineraries/{id}/legs`   | 개별 경로 (경주에 배정되는 단위) |
+| `search_itinerary_history` | `/users/itinerary-history` | 경로 검색 기록                   |
+| `search_place_history`     | `/users/place-history`     | 장소 검색 기록                   |
+| `saved_place`              | `/saved-places`            | 즐겨찾기 장소                    |
+| `poi_place`                | `/places`                  | POI 장소                         |
+| `bot`                      | (routes 하위)              | 봇                               |
 
 ### Path Parameter 명명 규칙
 
 모든 Path Parameter는 어떤 리소스의 ID인지 명확하게 표기합니다:
 
-| 표기 | 설명 |
-|------|------|
-| `{route_id}` | 경주(Route) 인스턴스 ID |
-| `{route_itinerary_id}` | 경로 옵션(Itinerary) ID |
-| `{route_leg_id}` | 경로 구간(Leg) ID |
-| `{saved_place_id}` | 즐겨찾기 장소 ID |
-| `{poi_place_id}` | POI 장소 ID |
-| `{search_place_history_id}` | 장소 검색 기록 ID |
-| `{search_itinerary_history_id}` | 경로 검색 기록 ID |
+| 표기                            | 설명                    |
+| ------------------------------- | ----------------------- |
+| `{route_id}`                    | 경주(Route) 인스턴스 ID |
+| `{route_itinerary_id}`          | 경로 옵션(Itinerary) ID |
+| `{route_leg_id}`                | 경로 구간(Leg) ID       |
+| `{saved_place_id}`              | 즐겨찾기 장소 ID        |
+| `{poi_place_id}`                | POI 장소 ID             |
+| `{search_place_history_id}`     | 장소 검색 기록 ID       |
+| `{search_itinerary_history_id}` | 경로 검색 기록 ID       |
 
 ### 사용자 식별 방식
 
@@ -76,7 +76,7 @@ URL에 `user_id`를 포함하지 않습니다. 모든 사용자별 리소스는 
 ```python
 class SavedPlaceView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         # request.user는 JWT 토큰에서 자동으로 추출됨
         user = request.user
@@ -86,10 +86,10 @@ class SavedPlaceView(APIView):
 
 ### 상태값 및 시간 형식 규칙
 
-| 항목 | 규칙 | 예시 |
-|------|------|------|
-| 상태값 | ENUM 고정 | `PENDING`, `RUNNING`, `FINISHED`, `CANCELED` |
-| 시간 필드 | ISO 8601 | `2026-01-12T19:00:00+09:00` |
+| 항목      | 규칙      | 예시                              |
+| --------- | --------- | --------------------------------- |
+| 상태값    | ENUM 고정 | `RUNNING`, `FINISHED`, `CANCELED` |
+| 시간 필드 | ISO 8601  | `2026-01-12T19:00:00+09:00`       |
 
 ---
 
@@ -103,10 +103,10 @@ Authorization: Bearer {access_token}
 
 ### 토큰 정보
 
-| 토큰 종류 | 만료 시간 | 용도 |
-|----------|----------|------|
-| Access Token | 30분 | API 요청 인증 |
-| Refresh Token | 7일 | Access Token 갱신 |
+| 토큰 종류     | 만료 시간 | 용도              |
+| ------------- | --------- | ----------------- |
+| Access Token  | 30분      | API 요청 인증     |
+| Refresh Token | 7일       | Access Token 갱신 |
 
 ### 로그아웃 (Refresh Token 폐기)
 
@@ -172,19 +172,19 @@ def logout(request):
 
 ### HTTP 상태 코드
 
-| 코드 | 설명 | 사용 상황 |
-|------|------|----------|
-| 200 | OK | 조회, 수정 성공 |
-| 201 | Created | 생성 성공 |
-| 204 | No Content | 삭제 성공 |
-| 400 | Bad Request | 잘못된 요청 |
-| 401 | Unauthorized | 인증 필요/실패 |
-| 403 | Forbidden | 권한 없음 |
-| 404 | Not Found | 리소스 없음 |
-| 409 | Conflict | 리소스 충돌 |
-| 422 | Unprocessable Entity | 유효성 검사 실패 |
-| 429 | Too Many Requests | Rate Limit 초과 |
-| 500 | Internal Server Error | 서버 오류 |
+| 코드 | 설명                  | 사용 상황        |
+| ---- | --------------------- | ---------------- |
+| 200  | OK                    | 조회, 수정 성공  |
+| 201  | Created               | 생성 성공        |
+| 204  | No Content            | 삭제 성공        |
+| 400  | Bad Request           | 잘못된 요청      |
+| 401  | Unauthorized          | 인증 필요/실패   |
+| 403  | Forbidden             | 권한 없음        |
+| 404  | Not Found             | 리소스 없음      |
+| 409  | Conflict              | 리소스 충돌      |
+| 422  | Unprocessable Entity  | 유효성 검사 실패 |
+| 429  | Too Many Requests     | Rate Limit 초과  |
+| 500  | Internal Server Error | 서버 오류        |
 
 ---
 
@@ -208,13 +208,13 @@ POST /api/v1/auth/register
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| name | string | ✓ | 유저 ID (고유, 영문/숫자/언더스코어) |
-| email | string | ✓ | 이메일 (로그인용) |
-| password | string | ✓ | 비밀번호 |
-| password_confirm | string | ✓ | 비밀번호 확인 |
-| nickname | string | ✓ | 닉네임 (표시용) |
+| 필드             | 타입   | 필수 | 설명                                 |
+| ---------------- | ------ | :--: | ------------------------------------ |
+| name             | string |  ✓   | 유저 ID (고유, 영문/숫자/언더스코어) |
+| email            | string |  ✓   | 이메일 (로그인용)                    |
+| password         | string |  ✓   | 비밀번호                             |
+| password_confirm | string |  ✓   | 비밀번호 확인                        |
+| nickname         | string |  ✓   | 닉네임 (표시용)                      |
 
 **Response `201 Created`**
 
@@ -254,10 +254,10 @@ POST /api/v1/auth/login
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| name | string | ✓ | 유저 ID |
-| password | string | ✓ | 비밀번호 |
+| 필드     | 타입   | 필수 | 설명     |
+| -------- | ------ | :--: | -------- |
+| name     | string |  ✓   | 유저 ID  |
+| password | string |  ✓   | 비밀번호 |
 
 **Response `200 OK`**
 
@@ -340,6 +340,7 @@ Authorization: Bearer {access_token}
 ```
 
 **수행되는 작업:**
+
 - Refresh Token을 Blacklist에 추가
 - 해당 토큰으로 더 이상 Access Token 갱신 불가
 
@@ -468,9 +469,9 @@ Authorization: Bearer {access_token}
 
 **Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|:----:|-------|------|
-| limit | integer | | 10 | 최근 N개 |
+| 파라미터 | 타입    | 필수 | 기본값 | 설명     |
+| -------- | ------- | :--: | ------ | -------- |
+| limit    | integer |      | 10     | 최근 N개 |
 
 **Response `200 OK`**
 
@@ -524,9 +525,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| search_place_history_id | integer | ✓ | 장소 검색 기록 ID |
+| 파라미터                | 타입    | 필수 | 설명              |
+| ----------------------- | ------- | :--: | ----------------- |
+| search_place_history_id | integer |  ✓   | 장소 검색 기록 ID |
 
 **Response `204 No Content`**
 
@@ -546,9 +547,9 @@ Authorization: Bearer {access_token}
 
 **Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|:----:|-------|------|
-| limit | integer | | 10 | 최근 N개 |
+| 파라미터 | 타입    | 필수 | 기본값 | 설명     |
+| -------- | ------- | :--: | ------ | -------- |
+| limit    | integer |      | 10     | 최근 N개 |
 
 **Response `200 OK`**
 
@@ -598,9 +599,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| search_itinerary_history_id | integer | ✓ | 경로 검색 기록 ID |
+| 파라미터                    | 타입    | 필수 | 설명              |
+| --------------------------- | ------- | :--: | ----------------- |
+| search_itinerary_history_id | integer |  ✓   | 경로 검색 기록 ID |
 
 **Response `204 No Content`**
 
@@ -618,13 +619,13 @@ GET /api/v1/places/search
 
 **Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|:----:|-------|------|
-| q | string | ✓ | - | 검색 키워드 |
-| lat | number | | - | 현재 위치 위도 (정렬용) |
-| lon | number | | - | 현재 위치 경도 (정렬용) |
-| page | integer | | 1 | 페이지 번호 |
-| limit | integer | | 20 | 결과 수 (최대 50) |
+| 파라미터 | 타입    | 필수 | 기본값 | 설명                    |
+| -------- | ------- | :--: | ------ | ----------------------- |
+| q        | string  |  ✓   | -      | 검색 키워드             |
+| lat      | number  |      | -      | 현재 위치 위도 (정렬용) |
+| lon      | number  |      | -      | 현재 위치 경도 (정렬용) |
+| page     | integer |      | 1      | 페이지 번호             |
+| limit    | integer |      | 20     | 결과 수 (최대 50)       |
 
 **Response `200 OK`**
 
@@ -656,6 +657,7 @@ GET /api/v1/places/search
 ```
 
 **내부 동작:**
+
 - 외부 API (Tmap) 호출하여 검색
 - 결과를 `poi_place` 테이블에 upsert
 - 로그인 유저인 경우 `search_place_history`에 기록
@@ -670,9 +672,9 @@ GET /api/v1/places/{poi_place_id}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| poi_place_id | integer | ✓ | POI 장소 ID |
+| 파라미터     | 타입    | 필수 | 설명        |
+| ------------ | ------- | :--: | ----------- |
+| poi_place_id | integer |  ✓   | POI 장소 ID |
 
 **Response `200 OK`**
 
@@ -715,11 +717,12 @@ Authorization: Bearer {access_token}
 
 **Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|:----:|-------|------|
-| category | string | | - | 카테고리 필터 (콤마 구분: `home,work,school`) |
+| 파라미터 | 타입   | 필수 | 기본값 | 설명                                          |
+| -------- | ------ | :--: | ------ | --------------------------------------------- |
+| category | string |      | -      | 카테고리 필터 (콤마 구분: `home,work,school`) |
 
 **예시**
+
 ```
 GET /api/v1/saved-places                        # 전체 (home/work/school 상단 정렬)
 GET /api/v1/saved-places?category=home          # 집만
@@ -782,6 +785,7 @@ GET /api/v1/saved-places?category=home,work,school  # 집/회사/학교만
 ```
 
 **정렬 순서:**
+
 1. `home` (집)
 2. `work` (회사)
 3. `school` (학교)
@@ -792,8 +796,9 @@ GET /api/v1/saved-places?category=home,work,school  # 집/회사/학교만
 ### 4.2 즐겨찾기 추가
 
 > 💡 **Soft Delete 방식**: 삭제 시 `deleted_at` 기록, 재추가 시 `deleted_at = null`로 복원
-> 
+>
 > **집/회사/학교 규칙:**
+>
 > - 각 카테고리당 1개만 존재 가능
 > - 이미 선점된 카테고리는 추가 불가 (409 Conflict)
 > - 전용 버튼으로만 추가 가능
@@ -827,11 +832,11 @@ Authorization: Bearer {access_token}
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| poi_place_id | integer | ✓ | POI 장소 ID |
-| category | string | | 카테고리 (`home`, `work`, `school`) - 없으면 일반 즐겨찾기 |
-| name | string | | 사용자 지정 이름 |
+| 필드         | 타입    | 필수 | 설명                                                       |
+| ------------ | ------- | :--: | ---------------------------------------------------------- |
+| poi_place_id | integer |  ✓   | POI 장소 ID                                                |
+| category     | string  |      | 카테고리 (`home`, `work`, `school`) - 없으면 일반 즐겨찾기 |
+| name         | string  |      | 사용자 지정 이름                                           |
 
 **Response `201 Created` (신규 추가)**
 
@@ -900,9 +905,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| saved_place_id | integer | ✓ | 즐겨찾기 장소 ID |
+| 파라미터       | 타입    | 필수 | 설명             |
+| -------------- | ------- | :--: | ---------------- |
+| saved_place_id | integer |  ✓   | 즐겨찾기 장소 ID |
 
 **Response `200 OK`**
 
@@ -932,9 +937,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| saved_place_id | integer | ✓ | 즐겨찾기 장소 ID |
+| 파라미터       | 타입    | 필수 | 설명             |
+| -------------- | ------- | :--: | ---------------- |
+| saved_place_id | integer |  ✓   | 즐겨찾기 장소 ID |
 
 **Request Body**
 
@@ -945,10 +950,10 @@ Authorization: Bearer {access_token}
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| category | string | | 카테고리 (`home`, `work`, `school`, 또는 null) |
-| name | string | | 사용자 지정 이름 |
+| 필드     | 타입   | 필수 | 설명                                           |
+| -------- | ------ | :--: | ---------------------------------------------- |
+| category | string |      | 카테고리 (`home`, `work`, `school`, 또는 null) |
+| name     | string |      | 사용자 지정 이름                               |
 
 **Response `200 OK`**
 
@@ -998,17 +1003,17 @@ Authorization: Bearer {access_token}
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| startX | string | ✓ | 출발지 경도 (lon) |
-| startY | string | ✓ | 출발지 위도 (lat) |
-| endX | string | ✓ | 도착지 경도 (lon) |
-| endY | string | ✓ | 도착지 위도 (lat) |
-| count | integer | | 경로 개수 (기본값: 10, 최대: 20) |
-| lang | integer | | 언어 (0: 한국어, 1: 영어) |
-| format | string | | 응답 형식 (기본값: "json") |
-| departure_name | string | | 출발지명 (검색 기록 저장용) |
-| arrival_name | string | | 도착지명 (검색 기록 저장용) |
+| 필드           | 타입    | 필수 | 설명                             |
+| -------------- | ------- | :--: | -------------------------------- |
+| startX         | string  |  ✓   | 출발지 경도 (lon)                |
+| startY         | string  |  ✓   | 출발지 위도 (lat)                |
+| endX           | string  |  ✓   | 도착지 경도 (lon)                |
+| endY           | string  |  ✓   | 도착지 위도 (lat)                |
+| count          | integer |      | 경로 개수 (기본값: 10, 최대: 20) |
+| lang           | integer |      | 언어 (0: 한국어, 1: 영어)        |
+| format         | string  |      | 응답 형식 (기본값: "json")       |
+| departure_name | string  |      | 출발지명 (검색 기록 저장용)      |
+| arrival_name   | string  |      | 도착지명 (검색 기록 저장용)      |
 
 **Response `201 Created`**
 
@@ -1072,15 +1077,15 @@ Authorization: Bearer {access_token}
 
 **Response 필드 설명**
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| pathType | int | 경로 종류 (1:지하철, 2:버스, 3:버스+지하철, 4:고속/시외버스, 5:기차, 6:항공, 7:해운) |
-| totalTime | int | 총 소요시간 (초) |
-| totalDistance | int | 총 이동거리 (m) |
-| totalWalkTime | int | 총 도보 소요시간 (초) |
-| totalWalkDistance | int | 총 도보 이동거리 (m) |
-| transferCount | int | 환승 횟수 |
-| fare.regular.totalFare | int | 대중교통 요금 |
+| 필드                   | 타입 | 설명                                                                                 |
+| ---------------------- | ---- | ------------------------------------------------------------------------------------ |
+| pathType               | int  | 경로 종류 (1:지하철, 2:버스, 3:버스+지하철, 4:고속/시외버스, 5:기차, 6:항공, 7:해운) |
+| totalTime              | int  | 총 소요시간 (초)                                                                     |
+| totalDistance          | int  | 총 이동거리 (m)                                                                      |
+| totalWalkTime          | int  | 총 도보 소요시간 (초)                                                                |
+| totalWalkDistance      | int  | 총 도보 이동거리 (m)                                                                 |
+| transferCount          | int  | 환승 횟수                                                                            |
+| fare.regular.totalFare | int  | 대중교통 요금                                                                        |
 
 ---
 
@@ -1098,9 +1103,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| search_itinerary_history_id | integer | ✓ | 경로 검색 기록 ID |
+| 파라미터                    | 타입    | 필수 | 설명              |
+| --------------------------- | ------- | :--: | ----------------- |
+| search_itinerary_history_id | integer |  ✓   | 경로 검색 기록 ID |
 
 **Response `200 OK`**
 
@@ -1159,16 +1164,16 @@ Authorization: Bearer {access_token}
 
 **Response 필드 설명 (legs 배열)**
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| route_leg_id | int | 개별 경로 ID (5.3 상세 조회용) |
-| pathType | int | 경로 종류 (1:지하철, 2:버스, 3:버스+지하철, 4:고속/시외버스, 5:기차, 6:항공, 7:해운) |
-| totalTime | int | 총 소요시간 (초) |
-| totalDistance | int | 총 이동거리 (m) |
-| totalWalkTime | int | 총 도보 소요시간 (초) |
-| totalWalkDistance | int | 총 도보 이동거리 (m) |
-| transferCount | int | 환승 횟수 |
-| fare | object | 요금 정보 |
+| 필드              | 타입   | 설명                                                                                 |
+| ----------------- | ------ | ------------------------------------------------------------------------------------ |
+| route_leg_id      | int    | 개별 경로 ID (5.3 상세 조회용)                                                       |
+| pathType          | int    | 경로 종류 (1:지하철, 2:버스, 3:버스+지하철, 4:고속/시외버스, 5:기차, 6:항공, 7:해운) |
+| totalTime         | int    | 총 소요시간 (초)                                                                     |
+| totalDistance     | int    | 총 이동거리 (m)                                                                      |
+| totalWalkTime     | int    | 총 도보 소요시간 (초)                                                                |
+| totalWalkDistance | int    | 총 도보 이동거리 (m)                                                                 |
+| transferCount     | int    | 환승 횟수                                                                            |
+| fare              | object | 요금 정보                                                                            |
 
 ---
 
@@ -1186,9 +1191,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| route_leg_id | integer | ✓ | 개별 경로 ID |
+| 파라미터     | 타입    | 필수 | 설명         |
+| ------------ | ------- | :--: | ------------ |
+| route_leg_id | integer |  ✓   | 개별 경로 ID |
 
 **Response `200 OK`**
 
@@ -1367,22 +1372,22 @@ Authorization: Bearer {access_token}
 
 **legs 배열 내 필드 설명**
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| mode | string | 이동수단 (`WALK`, `BUS`, `SUBWAY`, `EXPRESSBUS`, `TRAIN`, `AIRPLANE`, `FERRY`) |
-| sectionTime | int | 구간별 소요시간 (초) |
-| distance | int | 구간별 이동거리 (m) |
-| route | string | 노선 명칭 |
-| routeId | string | 노선 ID |
-| routeColor | string | 노선 색상 (HEX) |
-| type | int | 이동수단별 노선코드 |
-| service | int | 운행 여부 (1:운행중, 0:운행종료) |
-| start | object | 구간 출발 정보 (name, lat, lon) |
-| end | object | 구간 도착 정보 (name, lat, lon) |
-| steps | array | 도보 상세 정보 (WALK일 때) |
-| passStopList | object | 정류장 목록 (BUS, SUBWAY일 때) |
-| passShape | object | 구간 좌표 (linestring) |
-| Lane | array | 다중 노선 정보 (여러 노선이 가능한 경우) |
+| 필드         | 타입   | 설명                                                                           |
+| ------------ | ------ | ------------------------------------------------------------------------------ |
+| mode         | string | 이동수단 (`WALK`, `BUS`, `SUBWAY`, `EXPRESSBUS`, `TRAIN`, `AIRPLANE`, `FERRY`) |
+| sectionTime  | int    | 구간별 소요시간 (초)                                                           |
+| distance     | int    | 구간별 이동거리 (m)                                                            |
+| route        | string | 노선 명칭                                                                      |
+| routeId      | string | 노선 ID                                                                        |
+| routeColor   | string | 노선 색상 (HEX)                                                                |
+| type         | int    | 이동수단별 노선코드                                                            |
+| service      | int    | 운행 여부 (1:운행중, 0:운행종료)                                               |
+| start        | object | 구간 출발 정보 (name, lat, lon)                                                |
+| end          | object | 구간 도착 정보 (name, lat, lon)                                                |
+| steps        | array  | 도보 상세 정보 (WALK일 때)                                                     |
+| passStopList | object | 정류장 목록 (BUS, SUBWAY일 때)                                                 |
+| passShape    | object | 구간 좌표 (linestring)                                                         |
+| Lane         | array  | 다중 노선 정보 (여러 노선이 가능한 경우)                                       |
 
 ---
 
@@ -1415,11 +1420,11 @@ Authorization: Bearer {access_token}
 }
 ```
 
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|:----:|------|
-| route_itinerary_id | integer | ✓ | 경로 탐색 결과 묶음 ID |
-| user_leg_id | integer | ✓ | 유저가 선택한 경로 (route_leg) ID |
-| bot_leg_ids | array | ✓ | 봇에게 배정할 경로 ID 목록 (최대 2개) |
+| 필드               | 타입    | 필수 | 설명                                  |
+| ------------------ | ------- | :--: | ------------------------------------- |
+| route_itinerary_id | integer |  ✓   | 경로 탐색 결과 묶음 ID                |
+| user_leg_id        | integer |  ✓   | 유저가 선택한 경로 (route_leg) ID     |
+| bot_leg_ids        | array   |  ✓   | 봇에게 배정할 경로 ID 목록 (최대 2개) |
 
 **Response `201 Created`**
 
@@ -1487,11 +1492,11 @@ Authorization: Bearer {access_token}
 
 **Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|:----:|-------|------|
-| status | string | | - | 상태 필터 (`PENDING`, `RUNNING`, `FINISHED`, `CANCELED`) |
-| limit | integer | | 20 | 결과 수 |
-| page | integer | | 1 | 페이지 번호 |
+| 파라미터 | 타입    | 필수 | 기본값 | 설명                                                     |
+| -------- | ------- | :--: | ------ | -------------------------------------------------------- |
+| status   | string  |      | -      | 상태 필터 (`PENDING`, `RUNNING`, `FINISHED`, `CANCELED`) |
+| limit    | integer |      | 20     | 결과 수                                                  |
+| page     | integer |      | 1      | 페이지 번호                                              |
 
 **Response `200 OK`**
 
@@ -1521,10 +1526,10 @@ Authorization: Bearer {access_token}
 
 ---
 
-### 6.3 경주 상태 변경 (시작/종료/취소)
+### 6.3 경주 상태 변경 (종료/취소)
 
 > ⚠️ **통합**: 기존 actions/start, actions/finish, actions/cancel → PATCH로 통일
-> 
+>
 > 💡 **순위 결정**: `duration` (소요시간) 짧은 순서대로 순위 결정
 
 ```
@@ -1539,33 +1544,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| route_id | integer | ✓ | 경주 참가자 ID (route 테이블의 PK) |
-
-#### 시작 요청
-
-> `start_time`에 현재 시간 기록
-
-```json
-{
-  "status": "RUNNING"
-}
-```
-
-**Response `200 OK`**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "route_id": 100,
-    "status": "RUNNING",
-    "start_time": "2026-01-12T10:05:00+09:00",
-    "sse_endpoint": "/sse/routes/100"
-  }
-}
-```
+| 파라미터 | 타입    | 필수 | 설명                               |
+| -------- | ------- | :--: | ---------------------------------- |
+| route_id | integer |  ✓   | 경주 참가자 ID (route 테이블의 PK) |
 
 #### 종료 요청
 
@@ -1631,9 +1612,9 @@ Authorization: Bearer {access_token}
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| route_id | integer | ✓ | 경주 참가자 ID (route 테이블의 PK) |
+| 파라미터 | 타입    | 필수 | 설명                               |
+| -------- | ------- | :--: | ---------------------------------- |
+| route_id | integer |  ✓   | 경주 참가자 ID (route 테이블의 PK) |
 
 **Response `200 OK`**
 
@@ -1698,16 +1679,17 @@ Authorization: Bearer {access_token}
 
 **Response 필드 설명**
 
-| 필드 | 설명 |
-|------|------|
-| rankings | `duration` 오름차순 정렬 (짧은 시간 = 높은 순위) |
-| user_result | 현재 유저의 결과 요약 |
+| 필드        | 설명                                             |
+| ----------- | ------------------------------------------------ |
+| rankings    | `duration` 오름차순 정렬 (짧은 시간 = 높은 순위) |
+| user_result | 현재 유저의 결과 요약                            |
 
 ---
 
 ## 7. SSE (Server-Sent Events)
 
 > 💡 **프론트 애니메이션 방식 채택**
+>
 > - 백엔드: 봇의 "상태"만 전송 (어떤 버스/지하철에 탑승했는지)
 > - 프론트: turf.js 등으로 경로 위 애니메이션 처리
 > - 장점: 백엔드 부하 감소, 부드러운 UX
@@ -1729,9 +1711,9 @@ Connection: keep-alive
 
 **Path Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|:----:|------|
-| route_id | integer | ✓ | 경주 참가자 ID (route 테이블의 PK) |
+| 파라미터 | 타입    | 필수 | 설명                               |
+| -------- | ------- | :--: | ---------------------------------- |
+| route_id | integer |  ✓   | 경주 참가자 ID (route 테이블의 PK) |
 
 ### Event Types
 
@@ -1786,12 +1768,12 @@ data: {
 
 **bot status 값:**
 
-| status | 설명 |
-|--------|------|
-| `WAITING` | 정류장/역에서 대기 중 |
-| `ON_VEHICLE` | 버스/지하철 탑승 중 |
-| `WALKING` | 도보 이동 중 |
-| `FINISHED` | 도착 완료 |
+| status       | 설명                  |
+| ------------ | --------------------- |
+| `WAITING`    | 정류장/역에서 대기 중 |
+| `ON_VEHICLE` | 버스/지하철 탑승 중   |
+| `WALKING`    | 도보 이동 중          |
+| `FINISHED`   | 도착 완료             |
 
 #### `bot_boarding` - 봇 탑승 이벤트
 
@@ -1873,13 +1855,16 @@ data: {"code": "ROUTE_CANCELED", "message": "경주가 취소되었습니다."}
 ### 프론트엔드 구현 가이드
 
 **1. 경로 라인 그리기**
+
 - 경로 검색 시 받은 `passShape.linestring`으로 지도에 경로 표시
 
 **2. 봇 위치 계산**
+
 - `current_station_index`와 `passStopList.stations`를 이용
 - turf.js `along()` 함수로 정류장 간 보간(interpolation)
 
 **3. 애니메이션 처리**
+
 - `bot_status_update` 이벤트 수신 시 목표 위치 계산
 - requestAnimationFrame으로 부드럽게 이동
 
@@ -1903,127 +1888,127 @@ const interpolated = turf.along(line, progress * turf.length(line));
 
 ### 인증 (Auth)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| POST | `/api/v1/auth/register` | 회원가입 | X |
-| POST | `/api/v1/auth/login` | 로그인 | X |
-| POST | `/api/v1/auth/refresh` | 토큰 갱신 | X |
-| POST | `/api/v1/auth/logout` | 로그아웃 | ✓ |
+| 메서드 | 엔드포인트              | 설명      | 토큰 |
+| ------ | ----------------------- | --------- | :--: |
+| POST   | `/api/v1/auth/register` | 회원가입  |  X   |
+| POST   | `/api/v1/auth/login`    | 로그인    |  X   |
+| POST   | `/api/v1/auth/refresh`  | 토큰 갱신 |  X   |
+| POST   | `/api/v1/auth/logout`   | 로그아웃  |  ✓   |
 
 ### 사용자 (Users)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| GET | `/api/v1/users` | 내 정보 조회 | ✓ |
-| PATCH | `/api/v1/users` | 내 정보 수정 | ✓ |
-| GET | `/api/v1/users/stats` | 내 통계 조회 | ✓ |
-| GET | `/api/v1/users/place-history` | 장소 검색 기록 조회 | ✓ |
-| DELETE | `/api/v1/users/place-history` | 장소 검색 기록 전체 삭제 | ✓ |
-| DELETE | `/api/v1/users/place-history/{search_place_history_id}` | 장소 검색 기록 개별 삭제 | ✓ |
-| GET | `/api/v1/users/itinerary-history` | 경로 검색 기록 조회 | ✓ |
-| DELETE | `/api/v1/users/itinerary-history` | 경로 검색 기록 전체 삭제 | ✓ |
-| DELETE | `/api/v1/users/itinerary-history/{search_itinerary_history_id}` | 경로 검색 기록 개별 삭제 | ✓ |
+| 메서드 | 엔드포인트                                                      | 설명                     | 토큰 |
+| ------ | --------------------------------------------------------------- | ------------------------ | :--: |
+| GET    | `/api/v1/users`                                                 | 내 정보 조회             |  ✓   |
+| PATCH  | `/api/v1/users`                                                 | 내 정보 수정             |  ✓   |
+| GET    | `/api/v1/users/stats`                                           | 내 통계 조회             |  ✓   |
+| GET    | `/api/v1/users/place-history`                                   | 장소 검색 기록 조회      |  ✓   |
+| DELETE | `/api/v1/users/place-history`                                   | 장소 검색 기록 전체 삭제 |  ✓   |
+| DELETE | `/api/v1/users/place-history/{search_place_history_id}`         | 장소 검색 기록 개별 삭제 |  ✓   |
+| GET    | `/api/v1/users/itinerary-history`                               | 경로 검색 기록 조회      |  ✓   |
+| DELETE | `/api/v1/users/itinerary-history`                               | 경로 검색 기록 전체 삭제 |  ✓   |
+| DELETE | `/api/v1/users/itinerary-history/{search_itinerary_history_id}` | 경로 검색 기록 개별 삭제 |  ✓   |
 
 ### 장소 (Places)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| GET | `/api/v1/places/search` | 장소 검색 | X |
-| GET | `/api/v1/places/{poi_place_id}` | 장소 상세 조회 | X |
+| 메서드 | 엔드포인트                      | 설명           | 토큰 |
+| ------ | ------------------------------- | -------------- | :--: |
+| GET    | `/api/v1/places/search`         | 장소 검색      |  X   |
+| GET    | `/api/v1/places/{poi_place_id}` | 장소 상세 조회 |  X   |
 
 ### 즐겨찾기 (Saved Places)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| GET | `/api/v1/saved-places` | 즐겨찾기 목록 (category 필터 가능) | ✓ |
-| POST | `/api/v1/saved-places` | 즐겨찾기 추가 | ✓ |
-| DELETE | `/api/v1/saved-places/{saved_place_id}` | 즐겨찾기 삭제 (Soft Delete) | ✓ |
-| PATCH | `/api/v1/saved-places/{saved_place_id}` | 즐겨찾기 수정 | ✓ |
+| 메서드 | 엔드포인트                              | 설명                               | 토큰 |
+| ------ | --------------------------------------- | ---------------------------------- | :--: |
+| GET    | `/api/v1/saved-places`                  | 즐겨찾기 목록 (category 필터 가능) |  ✓   |
+| POST   | `/api/v1/saved-places`                  | 즐겨찾기 추가                      |  ✓   |
+| DELETE | `/api/v1/saved-places/{saved_place_id}` | 즐겨찾기 삭제 (Soft Delete)        |  ✓   |
+| PATCH  | `/api/v1/saved-places/{saved_place_id}` | 즐겨찾기 수정                      |  ✓   |
 
 ### 경로 검색 (Itineraries)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| POST | `/api/v1/itineraries/search` | 경로 검색 | ✓ |
-| GET | `/api/v1/itineraries/search/{search_itinerary_history_id}` | 경로 검색 결과 조회 | ✓ |
-| GET | `/api/v1/itineraries/legs/{route_leg_id}` | 개별 경로 상세 조회 | ✓ |
+| 메서드 | 엔드포인트                                                 | 설명                | 토큰 |
+| ------ | ---------------------------------------------------------- | ------------------- | :--: |
+| POST   | `/api/v1/itineraries/search`                               | 경로 검색           |  ✓   |
+| GET    | `/api/v1/itineraries/search/{search_itinerary_history_id}` | 경로 검색 결과 조회 |  ✓   |
+| GET    | `/api/v1/itineraries/legs/{route_leg_id}`                  | 개별 경로 상세 조회 |  ✓   |
 
 ### 경주 (Routes)
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| POST | `/api/v1/routes` | 경주 생성 | ✓ |
-| GET | `/api/v1/routes` | 경주 목록 조회 (JWT에서 user_id 추출) | ✓ |
-| PATCH | `/api/v1/routes/{route_id}` | 경주 상태 변경 (시작/종료/취소) | ✓ |
-| GET | `/api/v1/routes/{route_id}/result` | 경주 결과 조회 | ✓ |
+| 메서드 | 엔드포인트                         | 설명                                  | 토큰 |
+| ------ | ---------------------------------- | ------------------------------------- | :--: |
+| POST   | `/api/v1/routes`                   | 경주 생성                             |  ✓   |
+| GET    | `/api/v1/routes`                   | 경주 목록 조회 (JWT에서 user_id 추출) |  ✓   |
+| PATCH  | `/api/v1/routes/{route_id}`        | 경주 상태 변경 (시작/종료/취소)       |  ✓   |
+| GET    | `/api/v1/routes/{route_id}/result` | 경주 결과 조회                        |  ✓   |
 
 ### SSE
 
-| 메서드 | 엔드포인트 | 설명 | 토큰 |
-|--------|-----------|------|:----:|
-| GET | `/sse/routes/{route_id}` | 실시간 스트림 | ✓ |
+| 메서드 | 엔드포인트               | 설명          | 토큰 |
+| ------ | ------------------------ | ------------- | :--: |
+| GET    | `/sse/routes/{route_id}` | 실시간 스트림 |  ✓   |
 
 ---
 
 ## 9. 에러 코드
 
-### 인증 (AUTH_*)
+### 인증 (AUTH\_\*)
 
-| 코드 | HTTP | 설명 |
-|------|------|------|
-| AUTH_REQUIRED | 401 | 인증이 필요합니다 |
-| AUTH_INVALID_TOKEN | 401 | 유효하지 않은 토큰 |
-| AUTH_TOKEN_EXPIRED | 401 | 만료된 토큰 |
-| AUTH_TOKEN_BLACKLISTED | 401 | 폐기된 토큰 (로그아웃됨) |
-| AUTH_INVALID_CREDENTIALS | 401 | 잘못된 이메일/비밀번호 |
-| AUTH_EMAIL_EXISTS | 400 | 이미 등록된 이메일 |
-| AUTH_NAME_EXISTS | 400 | 이미 등록된 유저 ID |
+| 코드                     | HTTP | 설명                     |
+| ------------------------ | ---- | ------------------------ |
+| AUTH_REQUIRED            | 401  | 인증이 필요합니다        |
+| AUTH_INVALID_TOKEN       | 401  | 유효하지 않은 토큰       |
+| AUTH_TOKEN_EXPIRED       | 401  | 만료된 토큰              |
+| AUTH_TOKEN_BLACKLISTED   | 401  | 폐기된 토큰 (로그아웃됨) |
+| AUTH_INVALID_CREDENTIALS | 401  | 잘못된 이메일/비밀번호   |
+| AUTH_EMAIL_EXISTS        | 400  | 이미 등록된 이메일       |
+| AUTH_NAME_EXISTS         | 400  | 이미 등록된 유저 ID      |
 
-### 리소스 (RESOURCE_*)
+### 리소스 (RESOURCE\_\*)
 
-| 코드 | HTTP | 설명 |
-|------|------|------|
-| RESOURCE_NOT_FOUND | 404 | 리소스를 찾을 수 없음 |
-| RESOURCE_FORBIDDEN | 403 | 접근 권한 없음 |
-| RESOURCE_CONFLICT | 409 | 리소스 충돌 |
+| 코드               | HTTP | 설명                  |
+| ------------------ | ---- | --------------------- |
+| RESOURCE_NOT_FOUND | 404  | 리소스를 찾을 수 없음 |
+| RESOURCE_FORBIDDEN | 403  | 접근 권한 없음        |
+| RESOURCE_CONFLICT  | 409  | 리소스 충돌           |
 
-### 경주 (ROUTE_*)
+### 경주 (ROUTE\_\*)
 
-| 코드 | HTTP | 설명 |
-|------|------|------|
-| ROUTE_NOT_FOUND | 404 | 경주를 찾을 수 없음 |
-| ROUTE_INVALID_STATUS_TRANSITION | 400 | 유효하지 않은 상태 전이 |
-| ROUTE_ALREADY_RUNNING | 409 | 이미 진행 중인 경주 |
-| ROUTE_ALREADY_FINISHED | 409 | 이미 종료된 경주 |
-| ROUTE_TOO_MANY_BOTS | 400 | 봇 수 초과 (최대 2) |
-| ROUTE_INVALID_LOCATION | 400 | 유효하지 않은 위치 |
+| 코드                            | HTTP | 설명                    |
+| ------------------------------- | ---- | ----------------------- |
+| ROUTE_NOT_FOUND                 | 404  | 경주를 찾을 수 없음     |
+| ROUTE_INVALID_STATUS_TRANSITION | 400  | 유효하지 않은 상태 전이 |
+| ROUTE_ALREADY_RUNNING           | 409  | 이미 진행 중인 경주     |
+| ROUTE_ALREADY_FINISHED          | 409  | 이미 종료된 경주        |
+| ROUTE_TOO_MANY_BOTS             | 400  | 봇 수 초과 (최대 2)     |
+| ROUTE_INVALID_LOCATION          | 400  | 유효하지 않은 위치      |
 
-### 유효성 (VALIDATION_*)
+### 유효성 (VALIDATION\_\*)
 
-| 코드 | HTTP | 설명 |
-|------|------|------|
-| VALIDATION_FAILED | 422 | 유효성 검사 실패 |
-| VALIDATION_REQUIRED_FIELD | 422 | 필수 필드 누락 |
-| VALIDATION_INVALID_FORMAT | 422 | 잘못된 형식 |
+| 코드                      | HTTP | 설명             |
+| ------------------------- | ---- | ---------------- |
+| VALIDATION_FAILED         | 422  | 유효성 검사 실패 |
+| VALIDATION_REQUIRED_FIELD | 422  | 필수 필드 누락   |
+| VALIDATION_INVALID_FORMAT | 422  | 잘못된 형식      |
 
-### 서버 (SERVER_*)
+### 서버 (SERVER\_\*)
 
-| 코드 | HTTP | 설명 |
-|------|------|------|
-| SERVER_ERROR | 500 | 내부 서버 오류 |
-| SERVER_EXTERNAL_API | 502 | 외부 API 오류 |
-| SERVER_UNAVAILABLE | 503 | 서비스 이용 불가 |
+| 코드                | HTTP | 설명             |
+| ------------------- | ---- | ---------------- |
+| SERVER_ERROR        | 500  | 내부 서버 오류   |
+| SERVER_EXTERNAL_API | 502  | 외부 API 오류    |
+| SERVER_UNAVAILABLE  | 503  | 서비스 이용 불가 |
 
 ---
 
 ## 10. Rate Limiting
 
-| 카테고리 | 제한 | 대상 |
-|---------|------|------|
-| 인증 | 10 req/min | `/api/v1/auth/*` |
-| 검색 | 30 req/min | `/api/v1/places/search` |
-| 경로 검색 | 20 req/min | `POST /api/v1/itineraries/search` |
-| 일반 | 100 req/min | 기타 모든 엔드포인트 |
+| 카테고리  | 제한        | 대상                              |
+| --------- | ----------- | --------------------------------- |
+| 인증      | 10 req/min  | `/api/v1/auth/*`                  |
+| 검색      | 30 req/min  | `/api/v1/places/search`           |
+| 경로 검색 | 20 req/min  | `POST /api/v1/itineraries/search` |
+| 일반      | 100 req/min | 기타 모든 엔드포인트              |
 
 ---
 
@@ -2031,26 +2016,26 @@ const interpolated = turf.along(line, progress * turf.length(line));
 
 ### v4 (Current)
 
-| 변경 사항 | 상세 |
-|----------|------|
-| ERD 명칭 통일 | `races` → `routes` (경주), `routes` → `itineraries` (경로 검색) |
-| 즐겨찾기 API 분리 | `/api/v1/saved-places` |
-| 로그아웃 API 추가 | `POST /api/v1/auth/logout` (Refresh Token Blacklist) |
-| 장소 상세 조회 추가 | `GET /api/v1/places/{poi_place_id}` |
-| 즐겨찾기 수정 추가 | `PATCH /api/v1/saved-places/{saved_place_id}` |
-| 검색 기록 API 추가 | 장소/경로 검색 기록 조회 및 삭제 |
-| 경주 상태 변경 통합 | actions → `PATCH /api/v1/routes/{route_itinerary_id}` |
-| 경주 목록 조회 추가 | `GET /api/v1/routes` (전적 조회용) |
-| 위치 저장 안 함 | SSE로만 실시간 처리 (A안 채택) |
-| 상태값 통일 | `PENDING`, `RUNNING`, `FINISHED`, `CANCELED` |
-| 시간 형식 통일 | ISO 8601 (`2026-01-12T19:00:00+09:00`) |
-| Path Parameter 명확화 | 모든 ID에 리소스명 접두사 추가 |
+| 변경 사항             | 상세                                                            |
+| --------------------- | --------------------------------------------------------------- |
+| ERD 명칭 통일         | `races` → `routes` (경주), `routes` → `itineraries` (경로 검색) |
+| 즐겨찾기 API 분리     | `/api/v1/saved-places`                                          |
+| 로그아웃 API 추가     | `POST /api/v1/auth/logout` (Refresh Token Blacklist)            |
+| 장소 상세 조회 추가   | `GET /api/v1/places/{poi_place_id}`                             |
+| 즐겨찾기 수정 추가    | `PATCH /api/v1/saved-places/{saved_place_id}`                   |
+| 검색 기록 API 추가    | 장소/경로 검색 기록 조회 및 삭제                                |
+| 경주 상태 변경 통합   | actions → `PATCH /api/v1/routes/{route_itinerary_id}`           |
+| 경주 목록 조회 추가   | `GET /api/v1/routes` (전적 조회용)                              |
+| 위치 저장 안 함       | SSE로만 실시간 처리 (A안 채택)                                  |
+| 상태값 통일           | `PENDING`, `RUNNING`, `FINISHED`, `CANCELED`                    |
+| 시간 형식 통일        | ISO 8601 (`2026-01-12T19:00:00+09:00`)                          |
+| Path Parameter 명확화 | 모든 ID에 리소스명 접두사 추가                                  |
 
 ### v3
 
-| 변경 사항 | 상세 |
-|----------|------|
-| Trailing Slash 제거 | 모든 URI 끝에서 `/` 제거 |
-| 행위는 HTTP Method로 | URI에 동사 사용 금지 |
-| `/me` 제거 | JWT에서 사용자 추출 |
-| 즐겨찾기 토글 | POST 토글 방식 통합 |
+| 변경 사항            | 상세                     |
+| -------------------- | ------------------------ |
+| Trailing Slash 제거  | 모든 URI 끝에서 `/` 제거 |
+| 행위는 HTTP Method로 | URI에 동사 사용 금지     |
+| `/me` 제거           | JWT에서 사용자 추출      |
+| 즐겨찾기 토글        | POST 토글 방식 통합      |

@@ -2,9 +2,17 @@
 경주 관련 Serializer
 """
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import Bot, Route
+
+
+def to_seoul_time(dt):
+    """datetime을 서울 시간대로 변환하여 ISO 형식 반환"""
+    if dt is None:
+        return None
+    return timezone.localtime(dt).isoformat()
 
 
 class RouteCreateSerializer(serializers.Serializer):
@@ -19,16 +27,14 @@ class RouteCreateSerializer(serializers.Serializer):
     }
     """
 
-    route_itinerary_id = serializers.IntegerField(
-        help_text="경로 탐색 결과 묶음 ID"
-    )
+    route_itinerary_id = serializers.IntegerField(help_text="경로 탐색 결과 묶음 ID")
     user_leg_id = serializers.IntegerField(
         help_text="유저가 선택한 경로 (route_leg) ID"
     )
     bot_leg_ids = serializers.ListField(
         child=serializers.IntegerField(),
         max_length=2,
-        help_text="봇에게 배정할 경로 ID 목록 (최대 2개)"
+        help_text="봇에게 배정할 경로 ID 목록 (최대 2개)",
     )
 
 
@@ -68,8 +74,15 @@ class ParticipantSerializer(serializers.Serializer):
     type = serializers.CharField(source="participant_type")
     user_id = serializers.IntegerField(source="user.id", allow_null=True)
     bot_id = serializers.IntegerField(source="bot.id", allow_null=True)
+    bot_type = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     leg = serializers.SerializerMethodField()
+
+    def get_bot_type(self, obj):
+        """봇 타입 (색깔) 반환"""
+        if obj.participant_type == Route.ParticipantType.BOT and obj.bot:
+            return obj.bot.type
+        return None
 
     def get_name(self, obj):
         """참가자 이름 반환"""
@@ -106,7 +119,12 @@ class RouteCreateResponseSerializer(serializers.Serializer):
     route_itinerary_id = serializers.IntegerField()
     participants = ParticipantSerializer(many=True)
     status = serializers.CharField()
-    created_at = serializers.DateTimeField()
+    created_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get("created_at"))
+        return to_seoul_time(getattr(obj, "created_at", None))
 
 
 class RouteStatusUpdateSerializer(serializers.Serializer):
@@ -115,13 +133,21 @@ class RouteStatusUpdateSerializer(serializers.Serializer):
 
     Request:
     {
-        "status": "FINISHED"  # 또는 "CANCELED"
+        "status": "FINISHED",  # 또는 "CANCELED"
+        "progress_percent": 50  # CANCELED 시 유저의 현재 진행률 (선택)
     }
     """
 
     status = serializers.ChoiceField(
         choices=[Route.Status.FINISHED, Route.Status.CANCELED],
-        help_text="변경할 상태 (FINISHED 또는 CANCELED)"
+        help_text="변경할 상태 (FINISHED 또는 CANCELED)",
+    )
+    progress_percent = serializers.IntegerField(
+        required=False,
+        default=0,
+        min_value=0,
+        max_value=100,
+        help_text="CANCELED 시 유저의 현재 진행률 (0~100)",
     )
 
 
@@ -130,6 +156,16 @@ class RouteStatusUpdateResponseSerializer(serializers.Serializer):
 
     route_id = serializers.IntegerField()
     status = serializers.CharField()
-    start_time = serializers.DateTimeField(allow_null=True)
-    end_time = serializers.DateTimeField(allow_null=True)
+    start_time = serializers.SerializerMethodField()
+    end_time = serializers.SerializerMethodField()
     duration = serializers.IntegerField(allow_null=True)
+
+    def get_start_time(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get("start_time"))
+        return to_seoul_time(getattr(obj, "start_time", None))
+
+    def get_end_time(self, obj):
+        if isinstance(obj, dict):
+            return to_seoul_time(obj.get("end_time"))
+        return to_seoul_time(getattr(obj, "end_time", None))

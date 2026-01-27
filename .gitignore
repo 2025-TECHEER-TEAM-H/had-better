@@ -9,6 +9,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+.env.django
+.env.celery
 .venv/*
 .venv/
 
@@ -44,6 +46,7 @@ media/
 
 # Testing
 .coverage
+coverage.xml
 htmlcov/
 .pytest_cache/
 .tox/
@@ -62,6 +65,8 @@ tmpclaude-*
 
 # Windows
 nul
+.bat
 
-# 더미 데이터 생성 커맨드 (테스트용)
-backend/apps/*/management/
+# Docs 내 제외 폴더
+backend/docs/api-specs/
+backend/docs/daily-work-log/
