@@ -113,10 +113,10 @@
 </br>
 
 # API
-<img width="1451" height="772" alt="API Image" src="https://github.com/user-attachments/assets/7cc78e4f-d145-4610-b0f2-39af7a0e4ad0" />
-<img width="1457" height="762" alt="API Image" src="https://github.com/user-attachments/assets/823730c6-ec36-48da-9890-b05d76d8149a" />
-<img width="1460" height="655" alt="API Image" src="https://github.com/user-attachments/assets/6f09ea9b-7306-4f83-9cdc-dcf5b53f5175" />
-<img width="1471" height="604" alt="API Image" src="https://github.com/user-attachments/assets/ca245159-abeb-469d-9483-c8d55220a4cd" />
+<img width="1450" height="770" alt="API Image" src="https://github.com/user-attachments/assets/7cc78e4f-d145-4610-b0f2-39af7a0e4ad0" />
+<img width="1450" height="770" alt="API Image" src="https://github.com/user-attachments/assets/823730c6-ec36-48da-9890-b05d76d8149a" />
+<img width="1450" height="770" alt="API Image" src="https://github.com/user-attachments/assets/6f09ea9b-7306-4f83-9cdc-dcf5b53f5175" />
+<img width="1450" height="770" alt="API Image" src="https://github.com/user-attachments/assets/ca245159-abeb-469d-9483-c8d55220a4cd" />
 </br>
 </br>
 
@@ -227,7 +227,7 @@
         <th>Celery Worker Metrics</th>
     </tr>
     <tr>
-        <td><img width="1905" height="816" alt="Celery Worker Metrics" src="https://github.com/user-attachments/assets/7e6c7f67-721c-4e52-a94c-c4b072974f78" /></td>
+        <td><img width="1915" height="887" alt="Celery Worker Metrics" src="https://github.com/user-attachments/assets/7e6c7f67-721c-4e52-a94c-c4b072974f78" /></td>
     </tr>
 </table>
 
@@ -238,8 +238,9 @@
 ## Member
 | Name | 김민규 | 이현영 | 강동원 | 한동혁 | 이초은 | 조재문 |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Profile | <img src="https://github.com/user-attachments/assets/a855eabd-fa97-46f9-873c-735f112ffbd8" />
- | 현영님 프사 | <img src="https://github.com/user-attachments/assets/4d17cc9a-3e19-421e-808a-cdd0c1983261"/> | <img src="https://github.com/user-attachments/assets/75dd4ab1-bb3d-4b9f-bbf0-eebd7db0589c" /> | <img src="https://github.com/user-attachments/assets/92d58fb5-cc69-488d-8a38-d8b3824b074f" />
- | <img src="https://github.com/user-attachments/assets/aa1c300b-7c92-466a-a946-56be21e46fe3" /> |
+| Profile | <img src="https://github.com/user-attachments/assets/a855eabd-fa97-46f9-873c-735f112ffbd8" style="width:100px;height:100px;" />
+ | <img src="https://github.com/user-attachments/assets/432fa256-584d-45ba-9047-95b4a7c1ae7d" style="width:100px;height:100px;" />
+ | <img src="https://github.com/user-attachments/assets/4d17cc9a-3e19-421e-808a-cdd0c1983261" style="width:100px;height:100px;" /> | <img src="https://github.com/user-attachments/assets/75dd4ab1-bb3d-4b9f-bbf0-eebd7db0589c" style="width:100px;height:100px;" /> | <img src="https://github.com/user-attachments/assets/92d58fb5-cc69-488d-8a38-d8b3824b074f" style="width:100px;height:100px;" />
+ | <img src="https://github.com/user-attachments/assets/aa1c300b-7c92-466a-a946-56be21e46fe3" style="width:100px;height:100px;" /> |
 | Role | Team Leader, <br>Fullstack | Fullstack, <br>DevOps | Backend, <br>DevOps | Backend, <br>Design | Frontend, <br>Design | Frontend, <br>Design |
-| GitHub | <a href="https://github.com/sincereQK"> @sincereQK | <a href="https://github.com/hyl1115"> @hyl1115 | <a href="https://github.com/k-dong1"> @k-dong1 | <a href="https://github.com/Asterisk0707"> @Asterisk0707 | <a href="https://github.com/b94848774-svg"> @b94848774-svg | <a href="https://github.com/whwoans"> @whwoans |
+| GitHub | <a href="https://github.com/sincereQK"><img src="https://img.shields.io/badge/@sincereQK-green?style=social&logo=github"/></a> | <a href="https://github.com/hyl1115"><img src="https://img.shields.io/badge/@hyl1115-green?style=social&logo=github"/></a> | <a href="https://github.com/k-dong1"><img src="https://img.shields.io/badge/@k-dong1-green?style=social&logo=github"/></a> | <a href="https://github.com/Asterisk0707"><img src="https://img.shields.io/badge/@Asterisk0707-green?style=social&logo=github"/></a> | <a href="https://github.com/b94848774-svg"><img src="https://img.shields.io/badge/@b94848774-svg-green?style=social&logo=github"/></a> | <a href="https://github.com/whwoans"><img src="https://img.shields.io/badge/@whwoans-green?style=social&logo=github"/></a> |
