@@ -170,9 +170,9 @@ export const SUBWAY_LINE_COLORS: Record<string, string> = {
   '7호선': '#747F00',
   '8호선': '#E6186C',
   '9호선': '#BDB092',
-  '경의중앙선': '#77C4A3',
-  '공항철도': '#0090D2',
-  '신분당선': '#D4003B',
+  경의중앙선: '#77C4A3',
+  공항철도: '#0090D2',
+  신분당선: '#D4003B',
 };
 
 // 경주 생성 요청
@@ -197,6 +197,7 @@ export interface RouteParticipant {
     route_leg_id: number;
     summary: string;
     total_time: number;
+    segments: RouteSegment[];
   };
 }
 
@@ -464,8 +465,8 @@ export interface ErrorEvent extends SSEEventBase {
 export interface UserBusArrivalEvent extends SSEEventBase {
   bus_name: string;
   station_name: string;
-  station_lon: number;  // 정류장 경도
-  station_lat: number;  // 정류장 위도
+  station_lon: number; // 정류장 경도
+  station_lat: number; // 정류장 위도
   arrival_message: string;
   remaining_time: number;
   vehicle_id: string;
