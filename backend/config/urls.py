@@ -94,4 +94,6 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
+    # Monitoring endpoints
+    path("", include("django_prometheus.urls")),
 ]

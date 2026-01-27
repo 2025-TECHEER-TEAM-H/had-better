@@ -1,0 +1,100 @@
+# Django EC2 서버용 (Traefik + Backend + RabbitMQ)
+# 사용법: docker compose -f docker-compose.django.yml up -d
+
+services:
+  # Traefik 리버스 프록시
+  traefik:
+    image: traefik:v3.2
+    container_name: hadbetter-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
+
+  # Django 백엔드 (API 서버)
+  backend:
+    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    container_name: hadbetter-backend
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
+      # AWS RDS 연결
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_URL=${REDIS_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - DEBUG=False
+    volumes:
+      - static_volume:/app/staticfiles
+    labels:
+      - "traefik.enable=true"
+      # API 라우팅
+      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-api.entrypoints=web"
+      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
+      # SSE 라우팅
+      - "traefik.http.routers.backend-sse.rule=PathPrefix(`/sse`)"
+      - "traefik.http.routers.backend-sse.entrypoints=web"
+      - "traefik.http.services.backend-sse.loadbalancer.server.port=8000"
+      # Admin 라우팅
+      - "traefik.http.routers.backend-admin.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.backend-admin.entrypoints=web"
+      - "traefik.http.services.backend-admin.loadbalancer.server.port=8000"
+      # Static 파일 라우팅
+      - "traefik.http.routers.backend-static.rule=PathPrefix(`/static`)"
+      - "traefik.http.routers.backend-static.entrypoints=web"
+      - "traefik.http.services.backend-static.loadbalancer.server.port=8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
+
+  # RabbitMQ 메시지 브로커 (Celery EC2와 통신)
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: hadbetter-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      # Celery EC2에서 접근할 수 있도록 포트 노출
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
+
+networks:
+  hadbetter-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  static_volume:
