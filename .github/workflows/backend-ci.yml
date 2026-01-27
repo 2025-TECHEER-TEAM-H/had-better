@@ -6,6 +6,9 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+      - '.github/workflows/backend-cd.yml'
+      - 'docker-compose.*.yml'
+      - '.env.*.example'
 
 jobs:
   lint-and-check:

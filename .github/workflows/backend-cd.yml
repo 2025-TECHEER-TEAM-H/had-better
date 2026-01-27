@@ -1,0 +1,191 @@
+name: Backend CD (Deploy)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.django.yml'
+      - 'docker-compose.celery.yml'
+      - '.github/workflows/backend-cd.yml'
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  ECR_REPOSITORY: hadbetter-backend
+
+jobs:
+  build-and-push:
+    name: ECR 이미지 빌드 및 푸시
+    runs-on: ubuntu-latest
+
+    outputs:
+      image-tag: ${{ steps.image-info.outputs.image-tag }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR 로그인
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 이미지 태그 생성
+        id: image-info
+        run: |
+          IMAGE_TAG="${GITHUB_SHA::7}-$(date +%Y%m%d-%H%M%S)"
+          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+
+      - name: Docker 이미지 빌드
+        working-directory: ./backend
+        run: |
+          docker build \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+            .
+
+      - name: ECR에 이미지 푸시
+        run: |
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: 배포 정보 출력
+        run: |
+          echo "## 🐳 Docker 이미지 빌드 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: ${{ env.ECR_REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ env.ECR_REPOSITORY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  deploy-django:
+    name: Django EC2 배포
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Django EC2에 배포
+        uses: appleboy/ssh-action@master
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+        with:
+          host: ${{ secrets.EC2_DJANGO_HOST }}
+          username: ${{ secrets.EC2_DJANGO_USER }}
+          key: ${{ secrets.EC2_DJANGO_SSH_KEY }}
+          port: 22
+          envs: IMAGE_TAG
+          script: |
+            # 작업 디렉토리로 이동
+            cd ~/hadbetter
+
+            # ECR 로그인
+            aws ecr get-login-password --region ap-northeast-2 | \
+              docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+            # 최신 이미지 Pull
+            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
+            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:latest
+
+            # 환경 변수 설정
+            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            export IMAGE_TAG=${IMAGE_TAG}
+
+            # Docker Compose로 재시작 (무중단 배포)
+            docker-compose -f docker-compose.django.yml pull
+            docker-compose -f docker-compose.django.yml up -d --no-build
+
+            # 이전 이미지 정리
+            docker image prune -f
+
+            # 배포 확인
+            echo "Django 서버 배포 완료: ${IMAGE_TAG}"
+            docker-compose -f docker-compose.django.yml ps
+
+      - name: 헬스 체크
+        run: |
+          sleep 10
+          # 추후 헬스체크 엔드포인트 추가 시 활성화
+          # curl -f http://${{ secrets.EC2_DJANGO_HOST }}/api/health || exit 1
+
+  deploy-celery:
+    name: Celery EC2 배포
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Celery EC2에 배포
+        uses: appleboy/ssh-action@master
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+        with:
+          host: ${{ secrets.EC2_CELERY_HOST }}
+          username: ${{ secrets.EC2_CELERY_USER }}
+          key: ${{ secrets.EC2_CELERY_SSH_KEY }}
+          port: 22
+          envs: IMAGE_TAG
+          script: |
+            # 작업 디렉토리로 이동
+            cd ~/hadbetter
+
+            # ECR 로그인
+            aws ecr get-login-password --region ap-northeast-2 | \
+              docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+            # 최신 이미지 Pull
+            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
+            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:latest
+
+            # 환경 변수 설정
+            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            export IMAGE_TAG=${IMAGE_TAG}
+
+            # Docker Compose로 재시작
+            docker-compose -f docker-compose.celery.yml pull
+            docker-compose -f docker-compose.celery.yml up -d --no-build
+
+            # 이전 이미지 정리
+            docker image prune -f
+
+            # 배포 확인
+            echo "Celery 서버 배포 완료: ${IMAGE_TAG}"
+            docker-compose -f docker-compose.celery.yml ps
+
+  deployment-summary:
+    name: 배포 결과 요약
+    needs: [build-and-push, deploy-django, deploy-celery]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 배포 결과 출력
+        run: |
+          echo "## 🚀 Backend 배포 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **이미지 빌드**: ${{ needs.build-and-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Django EC2 배포**: ${{ needs.deploy-django.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Celery EC2 배포**: ${{ needs.deploy-celery.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.build-and-push.result }}" == "success" ] && \
+             [ "${{ needs.deploy-django.result }}" == "success" ] && \
+             [ "${{ needs.deploy-celery.result }}" == "success" ]; then
+            echo "✅ 모든 서버 배포 성공!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**이미지 태그**: \`${{ needs.build-and-push.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ 일부 배포 실패. 로그를 확인하세요." >> $GITHUB_STEP_SUMMARY
+          fi
