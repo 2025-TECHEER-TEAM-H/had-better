@@ -38,10 +38,18 @@
 
 # Demo
 ### 메인페이지
+https://github.com/user-attachments/assets/c608c83c-b990-4e46-8444-e05c8465f43e
+
+
+https://github.com/user-attachments/assets/9e8a48ad-efef-4741-9c4a-29d1eb917f75
+
 
 <br><br>
 
 ### 경로 검색
+<img width="393" height="852" alt="스크린샷 2026-01-27 172830" src="https://github.com/user-attachments/assets/cf24f35b-ca76-44b3-93ec-a0d80d16541a" />
+
+https://github.com/user-attachments/assets/35be4c6b-619c-4c28-b90f-14ee3bb471c6
 
 <br><br>
 
@@ -54,11 +62,19 @@
 <br><br>
 
 ### 결과 화면
+<img width="393" height="850" alt="스크린샷 2026-01-27 173853" src="https://github.com/user-attachments/assets/eee57fc2-5e0c-4e1a-826f-bb9ee0649bd6" />
+
+### 사용자 대시보드 화면
+<img width="394" height="853" alt="스크린샷 2026-01-27 172640" src="https://github.com/user-attachments/assets/c36df19a-909a-43a1-bacd-8d30c67526ee" />
 
 <br><br>
 
 # API
-/여기 swagger 사진
+<img width="1451" height="772" alt="스크린샷 2026-01-27 201406" src="https://github.com/user-attachments/assets/7cc78e4f-d145-4610-b0f2-39af7a0e4ad0" />
+<img width="1457" height="762" alt="스크린샷 2026-01-27 201416" src="https://github.com/user-attachments/assets/823730c6-ec36-48da-9890-b05d76d8149a" />
+<img width="1460" height="655" alt="스크린샷 2026-01-27 201427" src="https://github.com/user-attachments/assets/6f09ea9b-7306-4f83-9cdc-dcf5b53f5175" />
+<img width="1471" height="604" alt="스크린샷 2026-01-27 201436" src="https://github.com/user-attachments/assets/ca245159-abeb-469d-9483-c8d55220a4cd" />
+
 
 ### 주요 엔드포인트
 
@@ -221,13 +237,13 @@
         <th>Django Metrics</th>
     </tr>
     <tr>
-        <td>장고 Monitoring 사진</td>
+        <td><img width="1915" height="887" alt="스크린샷 2026-01-27 173456" src="https://github.com/user-attachments/assets/4fbac803-23aa-48b5-8c61-52f4b44921a8" /></td>
     </tr>
     <tr>
         <th>Celery Worker Metrics</th>
     </tr>
     <tr>
-        <td>샐러리 Monitoring 사진</td>
+        <td><img width="1905" height="816" alt="스크린샷 2026-01-27 173811" src="https://github.com/user-attachments/assets/7e6c7f67-721c-4e52-a94c-c4b072974f78" /></td>
     </tr>
 </table>
 
