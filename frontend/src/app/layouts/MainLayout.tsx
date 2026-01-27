@@ -11,7 +11,7 @@ import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 // [로그인 API 작업] 로그아웃 기능을 위해 추가 - feature/front-login-api 브랜치
-import subwayMapImage from "@/assets/subway-map-image.png";
+import { SubwayMap } from "@/components/SubwayMap";
 import authService from "@/services/authService";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -45,12 +45,6 @@ export function MainLayout() {
     coordinates?: { lon: number; lat: number };
     _poiPlaceId?: number; // POI Place ID (즐겨찾기 토글용)
   } | null>(null);
-
-  // 노선도 줌/드래그 상태
-  const [subwayZoom, setSubwayZoom] = useState(1);
-  const [subwayPosition, setSubwayPosition] = useState({ x: 0, y: 0 });
-  const [isSubwayDragging, setIsSubwayDragging] = useState(false);
-  const [subwayDragStart, setSubwayDragStart] = useState({ x: 0, y: 0 });
 
   // 현재 페이지 확인
   const currentPath = location.pathname;
@@ -170,55 +164,6 @@ export function MainLayout() {
     setSelectedPlace(null);
   };
 
-  // 노선도 이벤트 핸들러들
-  const handleSubwayMouseDown = (e: React.MouseEvent) => {
-    setIsSubwayDragging(true);
-    setSubwayDragStart({
-      x: e.clientX - subwayPosition.x,
-      y: e.clientY - subwayPosition.y,
-    });
-  };
-
-  const handleSubwayMouseMove = (e: React.MouseEvent) => {
-    if (!isSubwayDragging) return;
-    setSubwayPosition({
-      x: e.clientX - subwayDragStart.x,
-      y: e.clientY - subwayDragStart.y,
-    });
-  };
-
-  const handleSubwayMouseUp = () => {
-    setIsSubwayDragging(false);
-  };
-
-  const handleSubwayTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setIsSubwayDragging(true);
-    setSubwayDragStart({
-      x: touch.clientX - subwayPosition.x,
-      y: touch.clientY - subwayPosition.y,
-    });
-  };
-
-  const handleSubwayTouchMove = (e: React.TouchEvent) => {
-    if (!isSubwayDragging) return;
-    const touch = e.touches[0];
-    setSubwayPosition({
-      x: touch.clientX - subwayDragStart.x,
-      y: touch.clientY - subwayDragStart.y,
-    });
-  };
-
-  const handleSubwayTouchEnd = () => {
-    setIsSubwayDragging(false);
-  };
-
-  const handleSubwayWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setSubwayZoom((prev) => Math.max(0.5, Math.min(3, prev + delta)));
-  };
-
   return (
     <div className="size-full bg-white flex">
       {/* 앱 화면 - 모바일에서는 전체 화면, 데스크톱에서는 왼쪽 고정 */}
@@ -252,26 +197,9 @@ export function MainLayout() {
       {/* 데스크톱: 오른쪽 지도 또는 노선도 영역 */}
       <div className="hidden lg:block flex-1 h-full relative">
         {isSubwayPage ? (
-          // 노선도 표시
-          <div className="w-full h-full bg-white flex items-center justify-center overflow-hidden">
-            <img
-              src={subwayMapImage}
-              alt="지하철 노선도"
-              className={`w-full h-full object-contain ${isSubwayDragging ? "cursor-grabbing" : "cursor-grab"}`}
-              style={{
-                transform: `scale(${subwayZoom}) translate(${subwayPosition.x / subwayZoom}px, ${subwayPosition.y / subwayZoom}px)`,
-                transition: isSubwayDragging ? "none" : "transform 0.3s ease-out",
-              }}
-              onMouseDown={handleSubwayMouseDown}
-              onMouseMove={handleSubwayMouseMove}
-              onMouseUp={handleSubwayMouseUp}
-              onMouseLeave={handleSubwayMouseUp}
-              onWheel={handleSubwayWheel}
-              onTouchStart={handleSubwayTouchStart}
-              onTouchMove={handleSubwayTouchMove}
-              onTouchEnd={handleSubwayTouchEnd}
-              draggable={false}
-            />
+          // 인터랙티브 노선도 표시
+          <div className="absolute inset-0 bg-white overflow-hidden">
+            <SubwayMap key="desktop-subway-map" />
           </div>
         ) : (
           // 지도 표시
@@ -383,25 +311,8 @@ export function MainLayout() {
                   ✕
                 </p>
               </button>
-              <div className="w-full h-full bg-white flex items-center justify-center overflow-hidden">
-                <img
-                  src={subwayMapImage}
-                  alt="지하철 노선도"
-                  className={`w-full h-full object-contain ${isSubwayDragging ? "cursor-grabbing" : "cursor-grab"}`}
-                  style={{
-                    transform: `scale(${subwayZoom}) translate(${subwayPosition.x / subwayZoom}px, ${subwayPosition.y / subwayZoom}px)`,
-                    transition: isSubwayDragging ? "none" : "transform 0.3s ease-out",
-                  }}
-                  onMouseDown={handleSubwayMouseDown}
-                  onMouseMove={handleSubwayMouseMove}
-                  onMouseUp={handleSubwayMouseUp}
-                  onMouseLeave={handleSubwayMouseUp}
-                  onWheel={handleSubwayWheel}
-                  onTouchStart={handleSubwayTouchStart}
-                  onTouchMove={handleSubwayTouchMove}
-                  onTouchEnd={handleSubwayTouchEnd}
-                  draggable={false}
-                />
+              <div className="w-full h-full bg-white overflow-hidden">
+                <SubwayMap />
               </div>
             </div>
           </div>

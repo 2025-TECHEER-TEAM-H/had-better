@@ -7,7 +7,7 @@ import imgGemGreen1 from "@/assets/gem-green.png";
 import imgGemRed1 from "@/assets/gem-red.png";
 import imgSaw1 from "@/assets/saw.png";
 import imgStar1 from "@/assets/star.png";
-import subwayMapImage from "@/assets/subway-map-image.png";
+import { SubwayMap } from "@/components/SubwayMap";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import placeService, { type SavedPlace, type SearchPlaceHistory } from "@/services/placeService";
@@ -175,44 +175,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     window.addEventListener('resize', checkViewport);
     return () => window.removeEventListener('resize', checkViewport);
   }, []);
-
-  // 노선도 줌/드래그 상태
-  const [subwayZoom, setSubwayZoom] = useState(1.5);
-  const [subwayPosition, setSubwayPosition] = useState({ x: 0, y: 0 });
-  const [isSubwayDragging, setIsSubwayDragging] = useState(false);
-  const [subwayDragStart, setSubwayDragStart] = useState({ x: 0, y: 0 });
-
-  // 노선도 위치 제한 함수 (이미지가 화면 밖으로 너무 많이 나가지 않도록)
-  const constrainSubwayPosition = (x: number, y: number, zoom: number) => {
-    // 뷰포트 크기 (대략적인 값, 실제로는 노선도 컨테이너 크기)
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight - 100; // 헤더 높이 제외 (줄임)
-
-    // 확대된 이미지의 실제 크기
-    const imageWidth = viewportWidth * zoom;
-    const imageHeight = viewportHeight * zoom;
-
-    // 이미지가 뷰포트보다 작으면 중앙 고정
-    if (imageWidth <= viewportWidth && imageHeight <= viewportHeight) {
-      return { x: 0, y: 0 };
-    }
-
-    // 드래그 제한 범위 계산
-    // 이미지의 가장자리가 뷰포트 가장자리를 넘지 않도록
-    const maxX = (imageWidth - viewportWidth) / 2;
-    const maxY = (imageHeight - viewportHeight) / 2;
-
-    // 줌 레벨에 따라 위쪽 드래그 제한을 동적으로 조정
-    // 줌이 작을 때(1.0): 위쪽 드래그 거의 없음 (5%)
-    // 줌이 클 때(3.0): 위쪽 드래그 충분히 허용 (85%)
-    const zoomFactor = Math.min(1, Math.max(0, (zoom - 1.0) / 2.0)); // 0 ~ 1 사이 값
-    const topDragRatio = 0.05 + (zoomFactor * 0.80); // 5% ~ 85%
-
-    return {
-      x: Math.max(-maxX, Math.min(maxX, x)),
-      y: Math.max(-maxY, Math.min(maxY * topDragRatio, y)), // 줌에 따라 위쪽 드래그 허용
-    };
-  };
 
   // 시간대 선택 상태
   const [timeOfDay, setTimeOfDay] = useState<"day" | "evening" | "night">("day");
@@ -430,64 +392,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
     } finally {
       setIsSavingNickname(false);
     }
-  };
-
-  // 노선도 마우스 드래그 시작
-  const handleSubwayMouseDown = (e: React.MouseEvent) => {
-    setIsSubwayDragging(true);
-    setSubwayDragStart({
-      x: e.clientX - subwayPosition.x,
-      y: e.clientY - subwayPosition.y,
-    });
-  };
-
-  // 노선도 마우스 이동
-  const handleSubwayMouseMove = (e: React.MouseEvent) => {
-    if (!isSubwayDragging) return;
-    const newX = e.clientX - subwayDragStart.x;
-    const newY = e.clientY - subwayDragStart.y;
-    const constrained = constrainSubwayPosition(newX, newY, subwayZoom);
-    setSubwayPosition(constrained);
-  };
-
-  // 노선도 마우스 드래그 종료
-  const handleSubwayMouseUp = () => {
-    setIsSubwayDragging(false);
-  };
-
-  // 노선도 터치 드래그 시작
-  const handleSubwayTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setIsSubwayDragging(true);
-    setSubwayDragStart({
-      x: touch.clientX - subwayPosition.x,
-      y: touch.clientY - subwayPosition.y,
-    });
-  };
-
-  // 노선도 터치 이동
-  const handleSubwayTouchMove = (e: React.TouchEvent) => {
-    if (!isSubwayDragging) return;
-    const touch = e.touches[0];
-    const newX = touch.clientX - subwayDragStart.x;
-    const newY = touch.clientY - subwayDragStart.y;
-    const constrained = constrainSubwayPosition(newX, newY, subwayZoom);
-    setSubwayPosition(constrained);
-  };
-
-  // 노선도 터치 종료
-  const handleSubwayTouchEnd = () => {
-    setIsSubwayDragging(false);
-  };
-
-  // 노선도 마우스 휠로 줌
-  const handleSubwayWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    const newZoom = Math.max(1.0, Math.min(3, subwayZoom + delta)); // 최소 줌 1.0으로 조정 (빈공간 방지)
-    setSubwayZoom(newZoom);
-    // 줌 변경 시 위치도 제한 범위 내로 조정
-    const constrained = constrainSubwayPosition(subwayPosition.x, subwayPosition.y, newZoom);
-    setSubwayPosition(constrained);
   };
 
   // 최근 기록 항목 클릭 시: 검색어 입력 + 검색 실행
@@ -1424,36 +1328,21 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               HAD BETTER
             </div>
           </div>
-          {isWebView ? (
-            // 웹 화면: 텍스트 표시
-            <div className="absolute inset-0 flex items-center justify-center p-5 z-0" style={{ paddingTop: '140px' }}>
-              <p className="css-ew64yg font-['Press_Start_2P:Regular','Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f]">
-                노선도 이미지가 나왔습니다
-              </p>
-            </div>
-          ) : (
-            // 앱 화면: 노선도 이미지 표시
-            <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0" style={{ paddingTop: '140px' }}>
-              <img
-                src={subwayMapImage}
-                alt="지하철 노선도"
-                className={`w-full h-full object-contain ${isSubwayDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                style={{
-                  transform: `scale(${subwayZoom}) translate(${subwayPosition.x / subwayZoom}px, ${subwayPosition.y / subwayZoom}px)`,
-                  transition: isSubwayDragging ? 'none' : 'transform 0.3s ease-out',
-                }}
-                onMouseDown={handleSubwayMouseDown}
-                onMouseMove={handleSubwayMouseMove}
-                onMouseUp={handleSubwayMouseUp}
-                onMouseLeave={handleSubwayMouseUp}
-                onWheel={handleSubwayWheel}
-                onTouchStart={handleSubwayTouchStart}
-                onTouchMove={handleSubwayTouchMove}
-                onTouchEnd={handleSubwayTouchEnd}
-                draggable={false}
-              />
-            </div>
-          )}
+          {/* 모바일: 인터랙티브 노선도 표시, 데스크톱: 오른쪽 패널(MainLayout)에서 표시 */}
+          <div className="absolute inset-0 overflow-hidden z-0 bg-white lg:hidden" style={{ paddingTop: '140px' }}>
+            <SubwayMap
+              onStationSelect={(stationName) => {
+                // 역 선택 시 검색어로 설정
+                setSearchQuery(stationName);
+              }}
+            />
+          </div>
+          {/* 데스크톱: 검색 페이지 배경 + 안내 텍스트 (노선도는 MainLayout 오른쪽 패널에서 표시) */}
+          <div className="hidden lg:flex absolute inset-0 items-center justify-center" style={{ paddingTop: '140px' }}>
+            <p className="font-['Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f]">
+              노선도 이미지가 나왔습니다
+            </p>
+          </div>
         </>
       ) : (
         <>
