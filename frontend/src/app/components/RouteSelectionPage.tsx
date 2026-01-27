@@ -12,22 +12,22 @@ import { PLAYER_LABELS, useRouteStore, type Player } from "@/stores/routeStore";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, type BotStatusUpdateEvent } from "@/types/route";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView, type EndpointMarker, type MapViewRef, type RouteLineInfo } from "./MapView";
-import imgBot1Character from "/assets/Double/hud_player_purple.png"; // 보라색 (봇1)
-import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
-import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
+import imgBot1Character from "@/assets/players/hud_player_purple.png"; // 보라색 (봇1)
+import imgUserCharacter from "@/assets/players/hud_player_green.png"; // 초록색 (유저)
+import imgBot2Character from "@/assets/players/hud_player_yellow.png"; // 노란색 (봇2)
 import imgBotEmoji from "@/assets/icons/bot_emoji.png"; // 봇 이모지
 
 // 숫자 이미지 import (0~9)
-import imgDigit0 from "/assets/Double/hud_character_0.png";
-import imgDigit1 from "/assets/Double/hud_character_1.png";
-import imgDigit2 from "/assets/Double/hud_character_2.png";
-import imgDigit3 from "/assets/Double/hud_character_3.png";
-import imgDigit4 from "/assets/Double/hud_character_4.png";
-import imgDigit5 from "/assets/Double/hud_character_5.png";
-import imgDigit6 from "/assets/Double/hud_character_6.png";
-import imgDigit7 from "/assets/Double/hud_character_7.png";
-import imgDigit8 from "/assets/Double/hud_character_8.png";
-import imgDigit9 from "/assets/Double/hud_character_9.png";
+import imgDigit0 from "@/assets/numbers/hud_character_0.png";
+import imgDigit1 from "@/assets/numbers/hud_character_1.png";
+import imgDigit2 from "@/assets/numbers/hud_character_2.png";
+import imgDigit3 from "@/assets/numbers/hud_character_3.png";
+import imgDigit4 from "@/assets/numbers/hud_character_4.png";
+import imgDigit5 from "@/assets/numbers/hud_character_5.png";
+import imgDigit6 from "@/assets/numbers/hud_character_6.png";
+import imgDigit7 from "@/assets/numbers/hud_character_7.png";
+import imgDigit8 from "@/assets/numbers/hud_character_8.png";
+import imgDigit9 from "@/assets/numbers/hud_character_9.png";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {

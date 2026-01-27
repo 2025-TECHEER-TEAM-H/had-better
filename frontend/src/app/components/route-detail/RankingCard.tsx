@@ -1,6 +1,19 @@
 import { Player } from "@/stores/routeStore";
 import { CharacterColor } from "@/components/MovingCharacter";
 
+// Helmet 이미지 import
+import helmetGreen from "@/assets/hud-player-helmet-green.png";
+import helmetPurple from "@/assets/hud-player-helmet-purple.png";
+import helmetYellow from "@/assets/hud-player-helmet-yellow.png";
+
+// 색상별 helmet 이미지 매핑
+const HELMET_IMAGES: Record<CharacterColor, string> = {
+  green: helmetGreen,
+  pink: helmetPurple, // pink는 purple 이미지 사용
+  yellow: helmetYellow,
+  purple: helmetPurple,
+};
+
 interface RankingCardProps {
   rankings: Array<{
     player: Player;
@@ -50,7 +63,7 @@ export function RankingCard({
               </div>
               <div className="w-[32px] h-[32px] flex items-center justify-center">
                 <img
-                  src={`/src/assets/hud-player-helmet-${playerColor === 'pink' ? 'purple' : playerColor}.png`}
+                  src={HELMET_IMAGES[playerColor]}
                   alt={`${player} character`}
                   className="w-full h-full object-contain drop-shadow-md"
                 />

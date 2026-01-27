@@ -19,8 +19,44 @@ import {
 import type { Feature, LineString } from 'geojson';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+// 캐릭터 프레임 이미지 import - Green
+import greenIdle from '@/assets/green/character_green_idle.png';
+import greenWalkA from '@/assets/green/character_green_walk_a.png';
+import greenFront from '@/assets/green/character_green_front.png';
+import greenWalkB from '@/assets/green/character_green_walk_b.png';
+import greenJump from '@/assets/green/character_green_jump.png';
+
+// 캐릭터 프레임 이미지 import - Pink
+import pinkIdle from '@/assets/pink/character_pink_idle.png';
+import pinkWalkA from '@/assets/pink/character_pink_walk_a.png';
+import pinkFront from '@/assets/pink/character_pink_front.png';
+import pinkWalkB from '@/assets/pink/character_pink_walk_b.png';
+import pinkJump from '@/assets/pink/character_pink_jump.png';
+
+// 캐릭터 프레임 이미지 import - Yellow
+import yellowIdle from '@/assets/yellow/character_yellow_idle.png';
+import yellowWalkA from '@/assets/yellow/character_yellow_walk_a.png';
+import yellowFront from '@/assets/yellow/character_yellow_front.png';
+import yellowWalkB from '@/assets/yellow/character_yellow_walk_b.png';
+import yellowJump from '@/assets/yellow/character_yellow_jump.png';
+
+// 캐릭터 프레임 이미지 import - Purple
+import purpleIdle from '@/assets/purple/character_purple_idle.png';
+import purpleWalkA from '@/assets/purple/character_purple_walk_a.png';
+import purpleFront from '@/assets/purple/character_purple_front.png';
+import purpleWalkB from '@/assets/purple/character_purple_walk_b.png';
+import purpleJump from '@/assets/purple/character_purple_jump.png';
+
 // 캐릭터 색상 타입
 export type CharacterColor = 'green' | 'pink' | 'yellow' | 'purple';
+
+// 색상별 프레임 이미지 매핑
+const CHARACTER_FRAMES: Record<CharacterColor, string[]> = {
+  green: [greenIdle, greenWalkA, greenFront, greenWalkB, greenJump],
+  pink: [pinkIdle, pinkWalkA, pinkFront, pinkWalkB, pinkJump],
+  yellow: [yellowIdle, yellowWalkA, yellowFront, yellowWalkB, yellowJump],
+  purple: [purpleIdle, purpleWalkA, purpleFront, purpleWalkB, purpleJump],
+};
 
 interface MovingCharacterProps {
   // Mapbox 지도 인스턴스
@@ -79,14 +115,8 @@ export function MovingCharacter({
   const interpolationStateRef = useRef<InterpolationState | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // 프레임 이미지 경로 (메모이제이션)
-  const frames = useMemo(() => [
-    `/src/assets/${color}/character_${color}_idle.png`,
-    `/src/assets/${color}/character_${color}_walk_a.png`,
-    `/src/assets/${color}/character_${color}_front.png`,
-    `/src/assets/${color}/character_${color}_walk_b.png`,
-    `/src/assets/${color}/character_${color}_jump.png`,
-  ], [color]);
+  // 색상별 프레임 이미지 (메모이제이션)
+  const frames = useMemo(() => CHARACTER_FRAMES[color], [color]);
 
   // 상태에 따른 프레임 선택
   const getFrameByStatus = useCallback((status: BotStatus, frameIndex: number): number => {

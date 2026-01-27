@@ -7,6 +7,10 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
+// 마커 이미지 import
+import departureMarkerImg from "@/assets/markers/departure-marker.png";
+import arrivalMarkerImg from "@/assets/markers/arrival-marker.png";
+
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 // 지도 스타일 정보
@@ -830,8 +834,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       el.className = "endpoint-marker";
 
       const markerImageSrc = endpoint.type === 'departure'
-        ? '/assets/markers/departure-marker.png'
-        : '/assets/markers/arrival-marker.png';
+        ? departureMarkerImg
+        : arrivalMarkerImg;
 
       el.innerHTML = `
         <div style="
