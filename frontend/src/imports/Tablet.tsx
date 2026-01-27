@@ -84,7 +84,7 @@ function Frame2() {
   return (
     <div className="absolute bg-[#4a9960] content-stretch flex h-[83px] items-center justify-center left-1/2 p-[6px] rounded-[40.5px] top-[350px] translate-x-[-50%] w-[602px]">
       <div aria-hidden="true" className="absolute border-6 border-black border-solid inset-0 pointer-events-none rounded-[40.5px] shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
-      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[90px] not-italic relative shrink-0 text-[18px] text-center text-white tracking-[3.6px]">start</p>
+      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[90px] not-italic relative shrink-0 text-[42px] text-center text-white tracking-[3.6px]">start</p>
     </div>
   );
 }
@@ -92,7 +92,7 @@ function Frame2() {
 export default function Tablet() {
   return (
     <div className="bg-gradient-to-b from-[#c5e7f5] relative size-full to-white" data-name="Tablet">
-      <p className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] leading-[110px] left-1/2 not-italic text-[#1f4a2f] text-[72px] text-center top-[100px] tracking-[3.6px] translate-x-[-50%] w-[800px]">
+      <p className="absolute css-4hzbpn font-['DNFBitBitv2','Press_Start_2P:Regular',sans-serif] leading-[110px] left-1/2 not-italic text-[#1f4a2f] text-[72px] text-center top-[100px] tracking-[3.6px] translate-x-[-50%] w-[800px]">
         HAD
         <br aria-hidden="true" />
         BETTER

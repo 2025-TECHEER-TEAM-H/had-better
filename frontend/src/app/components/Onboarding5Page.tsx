@@ -49,12 +49,12 @@ export function Onboarding5Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
       {/* 상단 컨텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 pt-20">
         {/* 타이틀 */}
-        <h1 className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px]">
+        <h1 className="font-['DNFBitBitv2',sans-serif] font-bold text-black text-center mb-8 text-[24px] md:text-[32px] lg:text-[38px]">
           자, 오늘의 승자는 누가 될까요
         </h1>
 
         {/* 서브 타이틀 */}
-        <div className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px]">
+        <div className="font-['Pretendard',sans-serif] font-medium text-[#767676] text-center mb-8 text-[18px] md:text-[22px] lg:text-[26px]">
           <p className="mb-0">준비가 됐다면 엔진을 켜고</p>
           <p>첫 번째 레이스를 시작해보세요!</p>
         </div>
@@ -154,9 +154,9 @@ export function Onboarding5Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
         {/* 시작 버튼 */}
         <button
           onClick={handleNext}
-          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] rounded-[29px] w-[308px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
+          className="bg-[#212121] hover:bg-[#333333] active:bg-[#000000] transition-colors h-[50px] md:h-[60px] lg:h-[70px] rounded-[29px] w-[308px] md:w-[380px] lg:w-[450px] max-w-[calc(100%-40px)] flex items-center justify-center cursor-pointer"
         >
-          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] text-white">
+          <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[18px] md:text-[22px] lg:text-[26px] text-white">
             시작
           </p>
         </button>

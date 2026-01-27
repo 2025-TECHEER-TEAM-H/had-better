@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import imgCharacterGreenFront1 from "@/assets/character-green-front.png";
 import imgCharacterYellowFront1 from "@/assets/character-yellow-front.png";
 import imgCharacterPurpleFront1 from "@/assets/character-purple-front.png";
@@ -105,11 +104,8 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
   };
 
   return (
-    <motion.div
+    <div
       className="fixed inset-0 z-50 bg-gradient-to-b from-[#c5e7f5] to-white overflow-y-auto"
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.4, ease: "easeInOut" }}
     >
       <style>
         {`
@@ -369,7 +365,7 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
       <form onSubmit={handleSignup} className="contents">
         {/* 에러 메시지 */}
         {error && (
-          <div className="absolute left-1/2 translate-x-[-50%] top-[120px] md:top-[140px] z-30">
+          <div className="absolute left-1/2 translate-x-[-50%] top-[120px] md:top-[80px] z-30">
             <p className="font-['Pretendard',sans-serif] font-medium text-red-500 text-[12px] bg-white/90 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg border border-red-200 shadow-sm">
               {error}
             </p>
@@ -377,8 +373,8 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
         )}
 
         {/* 이메일 입력 */}
-        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] top-[180px] md:top-[240px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] z-20">
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
+        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] top-[180px] md:top-[150px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] z-20">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
           <input
             type="email"
             name="email"
@@ -387,13 +383,13 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
             onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일"
             disabled={isLoading}
-            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] relative shrink-0 text-[#767676] text-[14px] md:text-[24px] text-center tracking-[1.5px] md:tracking-[3.6px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
+            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] relative shrink-0 text-[#767676] text-[14px] md:text-[16px] text-center tracking-[1.5px] md:tracking-[2.2px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
           />
         </div>
 
         {/* 아이디 입력 */}
-        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] top-[250px] md:top-[358px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] z-20">
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
+        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] top-[250px] md:top-[230px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] z-20">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
           <input
             type="text"
             name="username"
@@ -402,13 +398,13 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
             onChange={(e) => setUserId(e.target.value)}
             placeholder="아이디 (4자 이상)"
             disabled={isLoading}
-            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] relative shrink-0 text-[#767676] text-[14px] md:text-[24px] text-center tracking-[1.5px] md:tracking-[3.6px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
+            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] relative shrink-0 text-[#767676] text-[14px] md:text-[16px] text-center tracking-[1.5px] md:tracking-[2.2px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
           />
         </div>
 
         {/* 비밀번호 입력 */}
-        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] top-[320px] md:top-[476px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] z-20">
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
+        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] top-[320px] md:top-[310px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] z-20">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
           <input
             type="password"
             name="new-password"
@@ -417,13 +413,13 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
             onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호 (8자 이상)"
             disabled={isLoading}
-            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] relative shrink-0 text-[#767676] text-[14px] md:text-[24px] text-center tracking-[1.5px] md:tracking-[3.6px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
+            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] relative shrink-0 text-[#767676] text-[14px] md:text-[16px] text-center tracking-[1.5px] md:tracking-[2.2px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
           />
         </div>
 
         {/* 비밀번호 확인 입력 */}
-        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] top-[390px] md:top-[594px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] z-20">
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
+        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] top-[390px] md:top-[390px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] z-20">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
           <input
             type="password"
             name="confirm-password"
@@ -432,13 +428,13 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
             onChange={(e) => setPasswordConfirm(e.target.value)}
             placeholder="비밀번호 확인"
             disabled={isLoading}
-            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] relative shrink-0 text-[#767676] text-[14px] md:text-[24px] text-center tracking-[1.5px] md:tracking-[3.6px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
+            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] relative shrink-0 text-[#767676] text-[14px] md:text-[16px] text-center tracking-[1.5px] md:tracking-[2.2px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
           />
         </div>
 
         {/* 닉네임 입력 */}
-        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] top-[460px] md:top-[712px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] z-20">
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
+        <div className="absolute bg-white content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] top-[460px] md:top-[470px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] z-20">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
           <input
             type="text"
             name="nickname"
@@ -447,7 +443,7 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
             onChange={(e) => setNickname(e.target.value)}
             placeholder="닉네임 (선택)"
             disabled={isLoading}
-            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] relative shrink-0 text-[#767676] text-[14px] md:text-[24px] text-center tracking-[1.5px] md:tracking-[3.6px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
+            className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] relative shrink-0 text-[#767676] text-[14px] md:text-[16px] text-center tracking-[1.5px] md:tracking-[2.2px] bg-transparent outline-none w-full placeholder:text-[#767676] disabled:opacity-50"
           />
         </div>
 
@@ -455,17 +451,17 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
         <button
           type="submit"
           disabled={isLoading}
-          className="absolute bg-[#4a9960] top-[540px] md:top-[830px] content-stretch flex h-[56px] md:h-[83px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[40.5px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[602px] hover:bg-[#3d8050] active:translate-y-[1px] md:active:translate-y-[2px] transition-all z-20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute bg-[#4a9960] top-[540px] md:top-[550px] content-stretch flex h-[56px] md:h-[60px] items-center justify-center left-1/2 p-[4px] md:p-[6px] rounded-[28px] md:rounded-[30px] translate-x-[-50%] w-[calc(100%-48px)] max-w-[340px] md:w-[420px] hover:bg-[#3d8050] active:translate-y-[1px] md:active:translate-y-[2px] transition-all z-20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div aria-hidden="true" className="absolute border-[3px] md:border-6 border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[40.5px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
-          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[90px] not-italic relative shrink-0 text-[14px] md:text-[24px] text-center text-white tracking-[1.5px] md:tracking-[3.6px]">
+          <div aria-hidden="true" className="absolute border-[3px] md:border-[5px] border-black border-solid inset-0 pointer-events-none rounded-[28px] md:rounded-[34px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.25)] md:shadow-[0px_5px_3px_0px_rgba(0,0,0,0.25)]" />
+          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] leading-[56px] md:leading-[48px] not-italic relative shrink-0 text-[14px] md:text-[16px] text-center text-white tracking-[1.5px] md:tracking-[2.2px]">
             {isLoading ? "Loading..." : "sign up"}
           </p>
         </button>
       </form>
 
       {/* 이미 계정이 있으신가요? 로그인 */}
-      <div className="absolute left-1/2 translate-x-[-50%] top-[620px] md:top-[920px] flex flex-col items-center gap-[8px] z-20 pb-8">
+      <div className="absolute left-1/2 translate-x-[-50%] top-[620px] md:top-[620px] flex flex-col items-center gap-[8px] z-20 pb-8">
         <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center opacity-60 tracking-[0.2px] whitespace-nowrap">
           이미 계정이 있으신가요?{" "}
           <button
@@ -477,6 +473,6 @@ export function SignupPage({ isOpen = true, onSignup, onLogin }: SignupPageProps
           </button>
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

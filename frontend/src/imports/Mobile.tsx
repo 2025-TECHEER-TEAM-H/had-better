@@ -107,7 +107,7 @@ function StartButton() {
   return (
     <div className="relative bg-[#4a9960] content-stretch flex h-[74px] items-center justify-center px-[6px] rounded-[40.5px] w-full max-w-[360px] active:translate-y-[2px] transition-transform">
       <div aria-hidden="true" className="absolute border-6 border-black border-solid inset-0 pointer-events-none rounded-[40.5px] shadow-[0px_6px_4px_0px_rgba(0,0,0,0.25)]" />
-      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[34px] not-italic relative shrink-0 text-[26px] text-center text-white tracking-[2px]">
+      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold leading-[42px] not-italic relative shrink-0 text-[34px] text-center text-white tracking-[2px]">
         start
       </p>
     </div>
