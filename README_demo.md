@@ -1,4 +1,4 @@
-<img width="390" height="842" alt="스크린샷 2026-01-27 220220" src="https://github.com/user-attachments/assets/4a2bbc22-ac1b-4f65-b44d-65c1acaf7d53" /><p align="center">
+<p align="center">
   <a href="https://github.com/2025-TECHEER-TEAM-H/had-better">2025-TEECHER-WINTER-BOOTCAMP-TEAM-H
   </br>HAD - BETTER
   </a>
@@ -239,6 +239,7 @@
 | Name | 김민규 | 이현영 | 강동원 | 한동혁 | 이초은 | 조재문 |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Profile | <img src="https://github.com/user-attachments/assets/a855eabd-fa97-46f9-873c-735f112ffbd8" />
- | 현영님 프사 | <img src="https://github.com/user-attachments/assets/4d17cc9a-3e19-421e-808a-cdd0c1983261"/> | <img src="https://github.com/user-attachments/assets/75dd4ab1-bb3d-4b9f-bbf0-eebd7db0589c" /> | 초은님 프사 | <img src="https://github.com/user-attachments/assets/aa1c300b-7c92-466a-a946-56be21e46fe3" /> |
+ | 현영님 프사 | <img src="https://github.com/user-attachments/assets/4d17cc9a-3e19-421e-808a-cdd0c1983261"/> | <img src="https://github.com/user-attachments/assets/75dd4ab1-bb3d-4b9f-bbf0-eebd7db0589c" /> | <img src="https://github.com/user-attachments/assets/92d58fb5-cc69-488d-8a38-d8b3824b074f" />
+ | <img src="https://github.com/user-attachments/assets/aa1c300b-7c92-466a-a946-56be21e46fe3" /> |
 | Role | Team Leader, <br>Fullstack, DevOps | Fullstack, <br>DevOps | Backend, <br>DevOps | Backend, <br>Design | Frontend, <br>Design | Frontend, <br>Design |
 | GitHub | <a href="https://github.com/sincereQK"> @sincereQK | <a href="https://github.com/hyl1115"> @hyl1115 | <a href="https://github.com/k-dong1"> @k-dong1 | <a href="https://github.com/Asterisk0707"> @Asterisk0707 | <a href="https://github.com/b94848774-svg"> @b94848774-svg | <a href="https://github.com/whwoans"> @whwoans |
