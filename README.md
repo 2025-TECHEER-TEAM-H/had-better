@@ -1,206 +1,242 @@
-# HAD BETTER
+<p align="center">
+  <a href="https://github.com/2025-TECHEER-TEAM-H/had-better">
+  </a>
+</p>
 
-대중교통 경로 레이싱 서비스
+# Index
+- [Introduction](#-Introduction)
+- [Demo](#-Demo)
+- [System Architecture](#-System-Architecture)
+- [Tech Stack](#-Tech-Stack)
+- [ERD](#-ERD)
+- [API](#-API)
+- [Monitoring](#-Monitoring)
+- [Directory Structure](#-Directory-Structure)
+- [Member](#-Member)
+<br>
 
-> "이 길로 갔으면 더 좋았을 텐데 (Had better take this route)"
+# Introduction
+### URL
+<blockquote>[배포 URL을 여기에 입력]</blockquote>
+
+### 프로젝트 소개
+**HAD BETTER** - 대중교통 경로 레이싱 서비스
 
 사용자가 실제 이동 경로와 가상 봇(실시간 대중교통 데이터 기반)이 경쟁하여 도착 순위를 겨루는 지도 기반 게임화 서비스입니다.
 
-## 개발 환경 버전
+### 핵심 기능
+- 참가자(봇) 생성 및 경로 시뮬레이션
+- 실시간 대중교통 위치 기반 경로 이동
+- 실시간 순위 변경 및 결과 리포트
+- TMap API 기반 대중교통 경로 탐색
+- SSE를 활용한 실시간 위치 업데이트
 
-| 도구 | 버전 |
-|------|------|
-| Python | 3.12.8 |
-| Node.js | 24.12.0 |
-| Django | 6.0 |
-| Docker Desktop | 최신 버전 |
+### Medium
+>  [HAD-BETTER-Medium]
 
-## 빠른 시작 가이드
+<br>
 
-### 1. 저장소 클론
+# Demo
+### 메인페이지
 
-```bash
-git clone https://github.com/2025-TECHEER-TEAM-H/had-better.git
-cd had-better
-```
+<br><br>
 
-### 2. Docker 서비스 실행 (DB, RabbitMQ, Celery)
+### 경로 검색
 
-```bash
-docker-compose up -d
-```
+<br><br>
 
-> Docker Desktop이 실행 중이어야 합니다.
+### 경주 시작
 
-### 3. Backend 설정 및 실행
+<br><br>
 
-#### Windows
+### 실시간 경주
 
-```bash
-cd backend
+<br><br>
 
-# 가상환경 생성 (최초 1회)
-python -m venv venv
+### 결과 화면
 
-# 가상환경 활성화
-.\venv\Scripts\activate
+<br><br>
 
-# 패키지 설치
-pip install -r requirements.txt
+# API
+/여기 swagger 사진
 
-# 환경 변수 설정 (최초 1회)
-cp .env.example .env
+### 주요 엔드포인트
 
-# 마이그레이션
-python manage.py migrate
+#### 인증 (Auth)
+- `POST /api/v1/auth/register` - 회원가입
+- `POST /api/v1/auth/login` - 로그인
+- `POST /api/v1/auth/refresh` - 토큰 갱신
+- `POST /api/v1/auth/logout` - 로그아웃
 
-# 서버 실행
-python manage.py runserver
-```
+#### 사용자 (Users)
+- `GET /api/v1/users` - 사용자 정보 조회
+- `PATCH /api/v1/users` - 사용자 정보 수정
+- `GET /api/v1/users/statistics` - 사용자 통계
+- `GET /api/v1/users/search-history` - 검색 기록
 
-#### Mac/Linux
+#### 장소 (Places)
+- `POST /api/v1/places/search` - 장소 검색 (TMap API)
+- `POST /api/v1/places/reverse-geocoding` - 역지오코딩
+- `GET /api/v1/saved-places` - 즐겨찾기 조회
+- `POST /api/v1/saved-places` - 즐겨찾기 추가
+- `DELETE /api/v1/saved-places/{id}` - 즐겨찾기 삭제
 
-```bash
-cd backend
+#### 경로 (Itineraries)
+- `POST /api/v1/itineraries/search` - 경로 검색
+- `GET /api/v1/itineraries/{id}` - 경로 상세 조회
+- `GET /api/v1/itineraries/recent` - 최근 검색 기록
 
-# 가상환경 생성 (최초 1회)
-python3 -m venv venv
+#### 경주 (Routes)
+- `POST /api/v1/routes` - 경주 생성
+- `GET /api/v1/routes/{id}` - 경주 상세 조회
+- `PATCH /api/v1/routes/{id}` - 경주 상태 변경
+- `GET /api/v1/routes/{id}/result` - 경주 결과 조회
+- `GET /api/v1/sse/routes/{id}` - 실시간 SSE 스트림
+<br><br>
 
-# 가상환경 활성화
-source venv/bin/activate
+# System Architecture
+/여기 아키텍쳐 사진
 
-# 패키지 설치
-pip install -r requirements.txt
+### 아키텍처 특징
+- **Frontend**: React + Vite로 구성된 SPA, Vercel 배포
+- **Backend**: Django REST Framework + Uvicorn ASGI 서버
+- **Message Queue**: RabbitMQ를 통한 비동기 작업 처리
+- **Worker**: Celery Worker가 실시간 대중교통 데이터 수집
+- **Database**: PostgreSQL + PostGIS 공간 데이터 처리
+- **Cache**: Redis를 활용한 실시간 위치 데이터 캐싱
+- **Gateway**: Traefik을 통한 리버스 프록시 및 라우팅
+- **Monitoring**: Prometheus + Grafana로 메트릭 수집 및 시각화
 
-# 환경 변수 설정 (최초 1회)
-cp .env.example .env
+### 데이터 흐름
+1. Client → Traefik → Django (요청 처리)
+2. Django → RabbitMQ (Celery Task 생성)
+3. RabbitMQ → Celery Worker → External API (30초/15초 동적 주기 호출)
+4. Celery → RabbitMQ (Topic Exchange) → Django (Consumer) → Client (SSE Stream)
 
-# 마이그레이션
-python manage.py migrate
+### 실시간 통신
+- SSE (Server-Sent Events)로 봇 상태 전송
+- 프론트엔드에서 Turf.js로 애니메이션 처리
+- 30초/15초 동적 주기 `bot_status_update` 이벤트 (도착 임박 시 15초)
+<br><br>
 
-# 서버 실행
-python manage.py runserver
-```
+# ERD
+/여기 ERD 테이블 사진
 
-### 4. Frontend 설정 및 실행
+### 주요 테이블
+- **user** - 사용자 정보
+- **poi_place** - POI 장소 (TMap 데이터)
+- **saved_place** - 즐겨찾기 장소 (집/회사/학교 등)
+- **route_itinerary** - 경로 탐색 결과 묶음
+- **route_leg** - 개별 경로 구간 (PostGIS LineString)
+- **route** - 경주 세션 (유저 vs 봇)
+- **bot** - 봇 정보 및 상태
+<br><br>
 
-```bash
-cd frontend
+# Tech Stack
+<div align="center">
+  <table>
+    <tr>
+      <th>Field</th>
+      <th>Technology of Use</th>
+    </tr>
+    <tr>
+      <td><b>Frontend</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black">
+        <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
+        <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white">
+        <img src="https://img.shields.io/badge/Zustand-000000?style=for-the-badge&logo=react&logoColor=white">
+        <img src="https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white">
+        <img src="https://img.shields.io/badge/Mapbox-000000?style=for-the-badge&logo=mapbox&logoColor=white">
+        <img src="https://img.shields.io/badge/Turf.js-3FA03F?style=for-the-badge&logo=javascript&logoColor=white">
+        <img src="https://img.shields.io/badge/TailwindCSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
+        <img src="https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white">
+        <img src="https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>Backend</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white">
+        <img src="https://img.shields.io/badge/Django REST Framework-ff1709?style=for-the-badge&logo=django&logoColor=white">
+        <img src="https://img.shields.io/badge/Uvicorn-009688?style=for-the-badge&logo=gunicorn&logoColor=white">
+        <img src="https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery&logoColor=white">
+        <img src="https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white">
+        <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>Database</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
+        <img src="https://img.shields.io/badge/PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>External APIs</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/TMap API-FF5E00?style=for-the-badge&logo=tmap&logoColor=white">
+        <img src="https://img.shields.io/badge/공공데이터포털-003876?style=for-the-badge&logo=data&logoColor=white">
+        <img src="https://img.shields.io/badge/서울시 API-004098?style=for-the-badge&logo=seoul&logoColor=white">
+        <img src="https://img.shields.io/badge/Mapbox API-000000?style=for-the-badge&logo=mapbox&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>DevOps</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+        <img src="https://img.shields.io/badge/Amazon EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
+        <img src="https://img.shields.io/badge/GitHub Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
+        <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white">
+        <img src="https://img.shields.io/badge/Traefik-24A1C1?style=for-the-badge&logo=traefikproxy&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>Monitoring</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white">
+        <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white">
+        <img src="https://img.shields.io/badge/Node Exporter-37D100?style=for-the-badge&logo=prometheus&logoColor=white">
+        <img src="https://img.shields.io/badge/Celery Exporter-37814A?style=for-the-badge&logo=celery&logoColor=white">
+      </td>
+    </tr>
+    <tr>
+      <td><b>ETC</b></td>
+      <td>
+        <img src="https://img.shields.io/badge/Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white">
+        <img src="https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white">
+        <img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white">
+        <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
+        <img src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black">
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
 
-# 패키지 설치 (최초 1회)
-npm install
+# Monitoring
+<h3 align="left">Prometheus & Grafana</h3>
+<table>
+    <tr>
+        <th>Django Metrics</th>
+    </tr>
+    <tr>
+        <td>장고 Monitoring 사진</td>
+    </tr>
+    <tr>
+        <th>Celery Worker Metrics</th>
+    </tr>
+    <tr>
+        <td>샐러리 Monitoring 사진</td>
+    </tr>
+</table>
 
-# 환경 변수 설정 (최초 1회)
-cp .env.example .env
+### 모니터링 항목
+- **Django**: HTTP 요청/응답, Database Ops, Models Stats
+- **Celery**: Task 처리량, 성공률, 실행 시간, Worker 상태, CPU 사용률
+<br><br>
 
-# 개발 서버 실행
-npm run dev
-```
-
-### 5. Figma MCP 서버 설정 (Claude Code 사용 시)
-
-Claude Code를 사용하여 Figma 디자인과 연동하려면 다음 단계를 따르세요.
-
-#### 5.1 Figma API 토큰 생성
-
-1. [Figma](https://figma.com)에 로그인
-2. 프로필 아이콘 → **Settings** 클릭
-3. **Personal access tokens** 탭 선택
-4. **Create a new personal access token** 클릭
-5. 토큰명 입력 (예: "HAD BETTER MCP")
-6. 토큰 복사 (나중에 다시 볼 수 없음)
-
-#### 5.2 MCP 설정 파일 생성
-
-```bash
-# 프로젝트 루트에서 실행
-cp .mcp.json.example .mcp.json
-```
-
-#### 5.3 토큰 설정
-
-`.mcp.json` 파일을 열어 `FIGMA_API_TOKEN` 값을 실제 토큰으로 변경:
-
-```json
-{
-  "mcpServers": {
-    "figma": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "figma-developer-mcp",
-        "--figma-api-key=${FIGMA_API_TOKEN}"
-      ],
-      "env": {
-        "FIGMA_API_TOKEN": "여기에_실제_토큰_입력"
-      }
-    }
-  }
-}
-```
-
-#### 5.4 설정 확인
-
-Claude Code에서 다음 명령 실행:
-
-```
-/mcp
-```
-
-Figma 서버가 활성화되어 있으면 성공적으로 연결된 것입니다.
-
-## 접속 URL
-
-| 서비스 | URL | 설명 |
-|--------|-----|------|
-| Frontend | http://localhost:5173 | React 개발 서버 |
-| Backend API | http://localhost:8000 | Django REST API |
-| API 문서 (Swagger) | http://localhost:8000/api/docs/ | API 문서 |
-| Admin 페이지 | http://localhost:8000/admin/ | Django 관리자 |
-| RabbitMQ 관리 콘솔 | http://localhost:15672 | guest / guest |
-
-## 개발 시 실행 순서
-
-```
-1. Docker Desktop 실행
-2. docker-compose up -d          # DB, RabbitMQ, Celery 시작
-3. cd backend && python manage.py runserver   # Backend 시작
-4. cd frontend && npm run dev    # Frontend 시작 (새 터미널)
-```
-
-## Docker 서비스 관리
-
-```bash
-# 서비스 상태 확인
-docker-compose ps
-
-# 로그 확인
-docker-compose logs -f celery        # Celery Worker 로그
-docker-compose logs -f celery-beat   # Celery Beat 로그
-
-# 서비스 중지
-docker-compose down
-
-# 서비스 재시작 (코드 변경 후 Celery 재시작 필요 시)
-docker-compose restart celery celery-beat
-```
-
-## 기술 스택
-
-### Frontend
-- React + TypeScript + Vite
-- Mapbox GL JS
-- Turf.js
-- Zustand
-- Axios
-
-### Backend
-- Django 6.0 + Django REST Framework
-- Celery + RabbitMQ
-- PostgreSQL + PostGIS
-
-## 프로젝트 구조
-
+# Directory Structure
 ```
 had-better/
 ├── frontend/                # React + TypeScript + Vite
@@ -215,97 +251,30 @@ had-better/
 │   └── ...
 ├── backend/                 # Django REST Framework
 │   ├── config/              # 프로젝트 설정
+│   │   ├── settings.py      # Django 설정
+│   │   ├── celery.py        # Celery 설정
+│   │   ├── urls.py          # 루트 URL 설정
+│   │   └── exceptions.py    # 커스텀 예외 핸들러
 │   ├── apps/
 │   │   ├── users/           # 사용자 및 인증
 │   │   ├── places/          # 장소 검색 및 즐겨찾기
 │   │   ├── itineraries/     # 경로 검색
 │   │   └── routes/          # 경주 관리
+│   ├── Dockerfile           # Celery 컨테이너용
 │   └── ...
-├── docker-compose.yml       # 개발용 Docker 설정
-└── docker-compose.prod.yml  # 프로덕션용 Docker 설정 (Traefik 포함)
+├── monitoring/              # 모니터링 설정
+│   ├── prometheus/
+│   │   └── prometheus.yml
+│   └── grafana/
+│       └── provisioning/
+├── docker-compose.yml       # 메인 서비스 설정
+└── docker-compose.monitoring.yml  # 모니터링 스택
 ```
+<br>
 
-## 문제 해결
-
-### Docker 서비스가 시작되지 않을 때
-
-```bash
-# 기존 컨테이너 정리 후 재시작
-docker-compose down -v
-docker-compose up -d
-```
-
-### 포트 충돌 시
-
-- 5432 (PostgreSQL), 5672/15672 (RabbitMQ) 포트가 사용 중인지 확인
-- 기존에 로컬에 설치된 PostgreSQL이나 RabbitMQ가 있다면 중지
-
-### 마이그레이션 오류 시
-
-```bash
-# 마이그레이션 파일 재생성
-python manage.py makemigrations
-python manage.py migrate
-```
-
-## 지도 캐릭터 변경 가이드
-
-현재 지도 위에서 움직이는 캐릭터는 3가지 색상 중 선택할 수 있습니다:
-- **Green** (초록색) - 현재 기본 설정
-- **Yellow** (노란색)
-- **Gray** (회색)
-
-### 캐릭터 변경 방법
-
-`frontend/src/components/map/naviSprite.ts` 파일의 **18번째 줄**을 수정하세요.
-
-#### Green 캐릭터 사용 (현재 설정)
-```typescript
-const base = "/assets/sprites/characters/green";
-```
-
-#### Yellow 캐릭터로 변경
-```typescript
-const base = "/assets/sprites/characters/yellow";
-```
-
-그리고 **22-25번째 줄**의 파일명을 다음과 같이 변경:
-```typescript
-loadImage(map, "navi-walk-0", `${base}/yellow1.png`),
-loadImage(map, "navi-walk-1", `${base}/yellow2.png`),
-loadImage(map, "navi-walk-2", `${base}/yellow3.png`),
-loadImage(map, "navi-walk-3", `${base}/yellow4.png`),
-// 대기 상태
-loadImage(map, "navi-idle", `${base}/yellow1.png`),
-// 도착 상태
-loadImage(map, "navi-arrive", `${base}/yellow5.png`),
-```
-
-#### Gray 캐릭터로 변경
-```typescript
-const base = "/assets/sprites/characters/gray";
-```
-
-그리고 **22-25번째 줄**의 파일명을 다음과 같이 변경:
-```typescript
-loadImage(map, "navi-walk-0", `${base}/navi-idle.png`),
-loadImage(map, "navi-walk-1", `${base}/navi-walk-1.png`),
-loadImage(map, "navi-walk-2", `${base}/navi-idle.png`),
-loadImage(map, "navi-walk-3", `${base}/navi-walk-3.png`),
-// 대기 상태
-loadImage(map, "navi-idle", `${base}/navi-idle.png`),
-// 도착 상태
-loadImage(map, "navi-arrive", `${base}/navi-arrive.png`),
-```
-
-### 캐릭터 크기 조정 (선택사항)
-
-캐릭터 크기가 너무 크거나 작다면 `frontend/src/components/map/naviLayer.ts` 파일의 **52번째 줄**을 수정하세요.
-
-```typescript
-"icon-size": 0.6,  // 0.3 ~ 1.0 사이 값으로 조정 가능
-```
-
-- 더 작게: `0.4` ~ `0.5`
-- 기본: `0.6`
-- 더 크게: `0.7` ~ `0.8`
+## Member
+| Name | 김민규 | 이현영 | 강동원 | 한동혁 | 이초은 | 조재문 |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Profile | 민규님 프사 | 현영님 프사 | 내 프사 | 동혁님 프사 | 초은님 프사 | 재문님 프사 |
+| Role | Team Leader, <br>Fullstack, DevOps | Fullstack, <br>DevOps | Backend, <br>DevOps | Backend, <br>Design | Frontend, <br>Design | Frontend, <br>Design |
+| GitHub | <a href="https://github.com/sincereQK"> @sincereQK | <a href="https://github.com/hyl1115"> @hyl1115 | <a href="https://github.com/k-dong1"> @k-dong1 | <a href="https://github.com/Asterisk0707"> @Asterisk0707 | <a href="https://github.com/b94848774-svg"> @b94848774-svg | <a href="https://github.com/whwoans"> @whwoans |
