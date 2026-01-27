@@ -1,4 +1,4 @@
-<p align="center">
+<img width="390" height="842" alt="스크린샷 2026-01-27 220220" src="https://github.com/user-attachments/assets/4a2bbc22-ac1b-4f65-b44d-65c1acaf7d53" /><p align="center">
   <a href="https://github.com/2025-TECHEER-TEAM-H/had-better">2025-TEECHER-WINTER-BOOTCAMP-TEAM-H
   </br>HAD - BETTER
   </a>
@@ -11,7 +11,7 @@
 
 ###  - URL
 
-<blockquote>[배포 URL을 여기에 입력]</blockquote>
+<blockquote><a href="https://www.hadbetter.cloud/">hadbetter.cloud</a></blockquote>
 
 ### 프로젝트 소개
 
@@ -28,8 +28,7 @@
 - SSE를 활용한 실시간 위치 업데이트
 
 ### - Medium
-
-> [HAD-BETTER-Medium]
+<a href="https://medium.com/@ruciano77/siliconvalley-bootcamp-team-h-had-better-adf553d2e1bd?postPublishedType=repub">[HAD-BETTER-Medium]</a>
 
 <br>
 </br>
@@ -41,9 +40,12 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page1" src="https://github.com/user-attachments/assets/16e36d68-a002-4c47-9579-f746416b5c73" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page2" src="https://github.com/user-attachments/assets/b43cc53d-c3ed-47ef-ac1b-d07fc98adc73" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page3" src="https://github.com/user-attachments/assets/3978a1b0-6084-48c6-8049-c8d454ed1e60" />
+</td>
   </tr>
 </table>
 
@@ -53,9 +55,12 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
+    <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="route-search1" src="https://github.com/user-attachments/assets/100e84f8-5774-47e0-bcca-e58164571915" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="845" alt="route-search2" src="https://github.com/user-attachments/assets/35f966ed-eefb-4d7b-81fe-8c56b8345cfb" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="842" alt="route-search3" src="https://github.com/user-attachments/assets/e71d75e0-3eb4-418f-b5b6-951225f83c9a" />
+</td>
   </tr>
 </table>
 
@@ -65,9 +70,12 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="845" alt="route-start1" src="https://github.com/user-attachments/assets/225b0b41-eede-476a-9939-e624847f9e7d" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="388" height="844" alt="route-start2" src="https://github.com/user-attachments/assets/3031ad2d-02d4-4271-9180-502fa7713424" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="842" alt="route-start3" src="https://github.com/user-attachments/assets/8951a3a0-dd22-46e0-ae9c-572a6c4d5728" />
+</td>
   </tr>
 </table>
 
@@ -77,9 +85,12 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
+    <td width="33%" style="padding: 10px;"><img width="391" height="841" alt="realtime-route1" src="https://github.com/user-attachments/assets/579d0cc4-4afa-4516-8372-9e7411ff3272" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="realtime-route2" src="https://github.com/user-attachments/assets/375eaf00-f39c-4e48-9025-2717abcc7586" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="388" height="843" alt="realtime-route3" src="https://github.com/user-attachments/assets/6d6729e3-9a02-497c-b1e3-8954a4787526" />
+</td>
   </tr>
 </table>
 
@@ -89,54 +100,37 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
+    <td width="33%" style="padding: 10px;"><img width="389" height="843" alt="route-result1" src="https://github.com/user-attachments/assets/a6d941b3-d815-4799-9698-ff8fa534251f" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="route-result2" src="https://github.com/user-attachments/assets/3fad4398-f9a8-4fbb-ac00-10f17eb81ce5" />
+</td>
+    <td width="33%" style="padding: 10px;"><img width="390" height="842" alt="route-result3" src="https://github.com/user-attachments/assets/b0ae193e-740a-4225-a49a-640f31434f96" />
+</td>
   </tr>
 </table>
-
-### 사용자 대시보드 화면
-
-<table>
-  <tr>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-    <td width="33%" style="padding: 10px;"></td>
-  </tr>
-</table>
-
-<br><br>
 
 </br>
 </br>
 
 # API
-
 <img width="1451" height="772" alt="API Image" src="https://github.com/user-attachments/assets/7cc78e4f-d145-4610-b0f2-39af7a0e4ad0" />
 <img width="1457" height="762" alt="API Image" src="https://github.com/user-attachments/assets/823730c6-ec36-48da-9890-b05d76d8149a" />
 <img width="1460" height="655" alt="API Image" src="https://github.com/user-attachments/assets/6f09ea9b-7306-4f83-9cdc-dcf5b53f5175" />
 <img width="1471" height="604" alt="API Image" src="https://github.com/user-attachments/assets/ca245159-abeb-469d-9483-c8d55220a4cd" />
-
 </br>
 </br>
 
 # System Architecture
-
-/여기 아키텍쳐 사진
-
-
+<img width="5876" height="2745" alt="final_hadbetter_system_architecture" src="https://github.com/user-attachments/assets/042bc018-91b5-4055-a21b-a71cb3711278" />
 </br>
 </br>
 
 # ERD
-
-/여기 ERD 테이블 사진
-
+<img width="1132" height="800" alt="Erd" src="https://github.com/user-attachments/assets/d141f1a8-4b48-4a03-b564-4a80dd55ab79" />
 </br>
 </br>
 
 # Tech Stack
-
 <div align="center">
   <table>
     <tr>
@@ -244,6 +238,6 @@
 ## Member
 | Name | 김민규 | 이현영 | 강동원 | 한동혁 | 이초은 | 조재문 |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Profile | 민규님 프사 | 현영님 프사 | 내 프사 | 동혁님 프사 | 초은님 프사 | 재문님 프사 |
+| Profile | 민규님 프사 | 현영님 프사 | 내 프사 | <img src="https://github.com/user-attachments/assets/75dd4ab1-bb3d-4b9f-bbf0-eebd7db0589c" /> | 초은님 프사 | 재문님 프사 |
 | Role | Team Leader, <br>Fullstack, DevOps | Fullstack, <br>DevOps | Backend, <br>DevOps | Backend, <br>Design | Frontend, <br>Design | Frontend, <br>Design |
 | GitHub | <a href="https://github.com/sincereQK"> @sincereQK | <a href="https://github.com/hyl1115"> @hyl1115 | <a href="https://github.com/k-dong1"> @k-dong1 | <a href="https://github.com/Asterisk0707"> @Asterisk0707 | <a href="https://github.com/b94848774-svg"> @b94848774-svg | <a href="https://github.com/whwoans"> @whwoans |
