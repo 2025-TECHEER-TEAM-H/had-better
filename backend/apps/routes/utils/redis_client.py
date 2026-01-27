@@ -220,7 +220,9 @@ class RedisClient:
                 except redis.RedisError as e:
                     logger.warning(f"락 해제 중 오류: route_id={route_id}, error={e}")
 
-    def update_bot_state(self, route_id: int, ttl: int = 3600, **kwargs) -> Optional[Dict]:
+    def update_bot_state(
+        self, route_id: int, ttl: int = 3600, **kwargs
+    ) -> Optional[Dict]:
         """
         봇 상태 부분 업데이트
 
