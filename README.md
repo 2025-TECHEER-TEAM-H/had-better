@@ -121,12 +121,12 @@
 </br>
 
 # System Architecture
-<img width="5876" height="2745" alt="final_hadbetter_system_architecture" src="https://github.com/user-attachments/assets/042bc018-91b5-4055-a21b-a71cb3711278" />
+<img width="1918" height="1087" alt="찐막아키텍쳐" src="https://github.com/user-attachments/assets/0e72501f-2b9b-4610-ba08-39d032da122c" />
 </br>
 </br>
 
 # ERD
-<img width="1132" height="800" alt="Erd" src="https://github.com/user-attachments/assets/d141f1a8-4b48-4a03-b564-4a80dd55ab79" />
+<img width="1918" height="1087" alt="찐막ERD" src="https://github.com/user-attachments/assets/f906ab98-700f-47f0-8c7c-fccaa098dd1b" />
 </br>
 </br>
 
