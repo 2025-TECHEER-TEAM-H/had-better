@@ -5,7 +5,7 @@
 
 import { DashboardPopup } from "@/app/components/DashboardPopup";
 import { FavoritesPlaces } from "@/app/components/FavoritesPlaces";
-import { MapView } from "@/app/components/MapView";
+import { MapView, type PageType } from "@/app/components/MapView";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import { useState } from "react";
@@ -50,6 +50,23 @@ export function MainLayout() {
   const currentPath = location.pathname;
   const isMapPage = currentPath === "/map";
   const isSubwayPage = currentPath === "/subway";
+  const isSearchPage = currentPath === "/search";
+  const isRoutePage = currentPath === "/route";
+  const isRouteDetailPage = currentPath === "/route/detail";
+
+  // MapView에 전달할 currentPage 결정
+  let mapCurrentPage: PageType;
+  if (isMapPage) {
+    mapCurrentPage = "map";
+  } else if (isSearchPage) {
+    mapCurrentPage = "search"; // SearchPage일 때만 레이어 버튼 표시
+  } else if (isRoutePage) {
+    mapCurrentPage = "route"; // RouteSelectionPage - MapView에서 버튼 숨김
+  } else if (isRouteDetailPage) {
+    mapCurrentPage = "routeDetail"; // RouteDetailPage - MapView에서 버튼 숨김
+  } else {
+    mapCurrentPage = "background"; // 기타 페이지
+  }
 
   // 페이지 이동 핸들러
   const handleNavigate = (page: string) => {
@@ -202,21 +219,18 @@ export function MainLayout() {
             <SubwayMap key="desktop-subway-map" />
           </div>
         ) : (
-          // 지도 표시
-          <MapView currentPage={isMapPage ? "map" : "background"} />
+          // 지도 표시 - 현재 페이지에 따라 적절한 currentPage 전달
+          <MapView currentPage={mapCurrentPage} />
         )}
 
         {/* 데스크톱: 지도 전체 화면일 때 왼쪽 상단 돋보기 버튼 */}
         {isMapPage && (
           <button
             onClick={() => navigate("/search")}
-            className="absolute top-4 left-4 bg-white rounded-[12px] shadow-[4px_4px_0px_0px_black] border-3 border-black size-[56px] flex items-center justify-center hover:bg-[#f0f0f0] active:bg-[#e5e7eb] transition-colors z-20"
+            className="absolute top-4 left-4 bg-white/40 backdrop-blur-md rounded-[12px] shadow-lg border border-white/50 size-[56px] flex items-center justify-center hover:bg-white/50 active:bg-white/60 transition-all z-20"
             title="검색 화면 열기"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="#2D5F3F" strokeWidth="2" />
-              <path d="M16 16L21 21" stroke="#2D5F3F" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <span className="text-[24px]">🔍</span>
           </button>
         )}
       </div>

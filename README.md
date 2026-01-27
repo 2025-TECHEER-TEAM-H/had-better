@@ -121,12 +121,12 @@
 </br>
 
 # System Architecture
-<img width="5876" height="2745" alt="final_hadbetter_system_architecture" src="https://github.com/user-attachments/assets/042bc018-91b5-4055-a21b-a71cb3711278" />
+<img width="1918" height="1087" alt="찐막아키텍쳐" src="https://github.com/user-attachments/assets/0e72501f-2b9b-4610-ba08-39d032da122c" />
 </br>
 </br>
 
 # ERD
-<img width="1132" height="800" alt="Erd" src="https://github.com/user-attachments/assets/d141f1a8-4b48-4a03-b564-4a80dd55ab79" />
+<img width="1918" height="1087" alt="찐막ERD" src="https://github.com/user-attachments/assets/f906ab98-700f-47f0-8c7c-fccaa098dd1b" />
 </br>
 </br>
 
@@ -167,15 +167,6 @@
       <td>
         <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
         <img src="https://img.shields.io/badge/PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
-      </td>
-    </tr>
-    <tr>
-      <td><b>External APIs</b></td>
-      <td>
-        <img src="https://img.shields.io/badge/TMap API-FF5E00?style=for-the-badge&logo=tmap&logoColor=white">
-        <img src="https://img.shields.io/badge/공공데이터포털-003876?style=for-the-badge&logo=data&logoColor=white">
-        <img src="https://img.shields.io/badge/서울시 API-004098?style=for-the-badge&logo=seoul&logoColor=white">
-        <img src="https://img.shields.io/badge/Mapbox API-000000?style=for-the-badge&logo=mapbox&logoColor=white">
       </td>
     </tr>
     <tr>

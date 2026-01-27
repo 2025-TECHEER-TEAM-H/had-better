@@ -1,4 +1,3 @@
-import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
 import favoriteStarEmpty from "@/assets/favorite-star-empty.webp";
 import favoriteStarFilled from "@/assets/favorite-star-filled.webp";
 import placeService from "@/services/placeService";
@@ -552,124 +551,21 @@ export function PlaceDetailPage({
         )}
         {/* 왼쪽 사이드바 (400px 고정) */}
         <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
-          {/* 헤더 영역 - Figma 스타일 */}
-          <div className="relative h-[198px] border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg shrink-0">
-            {/* 햄버거 메뉴 버튼 */}
-            <button className="absolute bg-white left-[19px] top-[23px] rounded-[12px] size-[42px] border-[3px] border-black shadow-[0px_4px_0px_0px_rgba(0,0,0,0.3)]">
-              <div className="absolute left-[6px] size-[24px] top-[6px]">
-                <div className="h-[24px] overflow-clip relative shrink-0 w-full">
-                  <div className="absolute contents inset-[20.83%_16.67%]">
-                    <div className="absolute inset-[20.83%_16.67%_79.17%_16.67%]">
-                      <div className="absolute inset-[-1px_-6.25%]">
-                        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 18 2">
-                          <path d="M1 1H17" stroke="black" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="absolute bottom-1/2 left-[16.67%] right-[16.67%] top-1/2">
-                      <div className="absolute inset-[-1px_-6.25%]">
-                        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 18 2">
-                          <path d="M1 1H17" stroke="black" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="absolute inset-[79.17%_16.67%_20.83%_16.67%]">
-                      <div className="absolute inset-[-1px_-6.25%]">
-                        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 18 2">
-                          <path d="M1 1H17" stroke="black" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            {/* 타이틀 */}
-            <p className="absolute css-4hzbpn font-['Press_Start_2P:Regular',sans-serif] h-[25.328px] leading-[30px] left-1/2 not-italic text-[16px] text-white text-center top-[32px] -translate-x-1/2 drop-shadow-md">
-              HAD BETTER
-            </p>
-
-            {/* 뒤로 가기 버튼 */}
-            <button
-              onClick={onClose}
-              className="absolute right-[19px] top-[25px] bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
-              title="뒤로가기"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            {/* 장소 이름 입력 필드 스타일 박스 */}
-            <div className="absolute left-[26px] right-[31px] top-[75px]">
-              <div className="bg-white h-[63px] relative rounded-[25px] w-full border-[3px] border-black flex items-center px-[18px] gap-[17px]">
-                <div className="relative shrink-0 size-[30px]">
-                  <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgHudHeartEmpty1} />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && searchQuery.trim()) {
-                      onSearchSubmit?.(searchQuery);
-                    }
-                  }}
-                  placeholder="목적지를 입력해주세요"
-                  className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] text-[14px] text-black flex-1 bg-transparent outline-none placeholder:text-gray-400"
-                />
-              </div>
-            </div>
-
-            {/* 네비게이션 버튼들 */}
-            <div className="absolute bg-white content-stretch flex h-[42px] items-center justify-center left-0 top-[160px] w-full">
-              <div aria-hidden="true" className="absolute border-[3px] border-black border-solid inset-0 pointer-events-none" />
-              <div className="content-stretch flex gap-[25px] items-center px-[25px] py-0 relative shrink-0 w-[351px]">
-                {/* 지도 버튼 - PlaceDetailPage를 닫고 지도 페이지로 이동 */}
-                <button
-                  onClick={() => {
-                    onClose();
-                    onNavigate?.('map');
-                  }}
-                  className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[57px]"
-                >
-                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지도</p>
-                </button>
-
-                {/* 검색 버튼 - PlaceDetailPage를 닫고 검색 페이지로 이동 */}
-                <button
-                  onClick={() => {
-                    onClose();
-                    onNavigate?.('search');
-                  }}
-                  className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[56px]"
-                >
-                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">검색</p>
-                </button>
-
-                {/* 지하철 버튼 - PlaceDetailPage를 닫고 지하철 노선도 오버레이 열기 */}
-                <button
-                  onClick={() => {
-                    onClose();
-                    onNavigate?.('subway');
-                  }}
-                  className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[57px]"
-                >
-                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">지하철</p>
-                </button>
-
-                {/* MY 버튼 - PlaceDetailPage를 닫고 대시보드 팝업 열기 */}
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenDashboard?.();
-                  }}
-                  className="bg-[rgba(255,255,255,0)] content-stretch flex h-[43px] items-center justify-center px-[10px] py-[5px] relative rounded-[40px] shrink-0 w-[56px]"
-                >
-                  <p className="font-['Pretendard',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-black text-center">MY</p>
-                </button>
-              </div>
+          {/* 헤더 */}
+          <div className="px-6 py-5 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onClose}
+                className="bg-white/40 backdrop-blur-md rounded-[12px] w-[44px] h-[44px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all shrink-0"
+                title="뒤로가기"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-black drop-shadow-md">
+                상세정보
+              </h1>
             </div>
           </div>
 

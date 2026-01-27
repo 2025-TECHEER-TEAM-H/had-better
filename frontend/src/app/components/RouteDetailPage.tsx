@@ -2440,21 +2440,23 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         {/* 왼쪽 사이드바 */}
         <div className="w-[400px] bg-white border-r-[3px] border-black flex flex-col h-full overflow-hidden">
           {/* 헤더 */}
-          <div className="relative px-8 pt-6 pb-4 border-b-[3px] border-black bg-[#80cee1]">
-            <button
-              onClick={handleCancelRoute}
-              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
-              title="경주 취소"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <p className="font-['Pretendard',sans-serif] leading-[30px] text-[12px] font-bold text-black text-center">
-              {departure?.name && arrival?.name
-                ? `${departure.name} → ${arrival.name}`
-                : "경로 진행중"}
-            </p>
+          <div className="px-6 py-5 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleCancelRoute}
+                className="bg-white/40 backdrop-blur-md rounded-[12px] w-[44px] h-[44px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all shrink-0"
+                title="경주 취소"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <h1 className="font-['DNFBitBitv2',sans-serif] text-[16px] text-black drop-shadow-md">
+                {departure?.name && arrival?.name
+                  ? `${departure.name} → ${arrival.name}`
+                  : "경로 진행중"}
+              </h1>
+            </div>
           </div>
 
           {/* 스크롤 가능한 컨텐츠 영역 */}
