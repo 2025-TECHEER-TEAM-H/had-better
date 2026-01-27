@@ -14,7 +14,7 @@ import time
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Optional
+from typing import Dict, Optional
 
 from django.conf import settings
 
@@ -116,7 +116,7 @@ class RedisClient:
         )
         return result is not None
 
-    def get_bot_state(self, route_id: int) -> dict | None:
+    def get_bot_state(self, route_id: int) -> Optional[Dict]:
         """
         봇 상태 조회
 
@@ -220,7 +220,7 @@ class RedisClient:
                 except redis.RedisError as e:
                     logger.warning(f"락 해제 중 오류: route_id={route_id}, error={e}")
 
-    def update_bot_state(self, route_id: int, ttl: int = 3600, **kwargs) -> dict | None:
+    def update_bot_state(self, route_id: int, ttl: int = 3600, **kwargs) -> Optional[Dict]:
         """
         봇 상태 부분 업데이트
 
@@ -243,7 +243,7 @@ class RedisClient:
 
     def update_bot_state_atomic(
         self, route_id: int, ttl: int = 3600, **kwargs
-    ) -> dict | None:
+    ) -> Optional[Dict]:
         """
         봇 상태 원자적 업데이트 (분산 락 사용)
 
@@ -318,7 +318,7 @@ class RedisClient:
             )
             return False
 
-    def get_last_api_call(self, route_id: int, api_type: str) -> dict | None:
+    def get_last_api_call(self, route_id: int, api_type: str) -> Optional[Dict]:
         """
         마지막 API 호출 정보 조회
 
@@ -409,7 +409,7 @@ class RedisClient:
         )
         return result is not None
 
-    def get_public_ids(self, route_id: int) -> dict | None:
+    def get_public_ids(self, route_id: int) -> Optional[Dict]:
         """
         공공데이터 ID 조회
 
@@ -478,7 +478,7 @@ class RedisClient:
             logger.warning(f"Task ID 저장 실패: route_id={route_id}, error={e}")
             return False
 
-    def get_task_id(self, route_id: int) -> str | None:
+    def get_task_id(self, route_id: int) -> Optional[str]:
         """
         Celery Task ID 조회
 

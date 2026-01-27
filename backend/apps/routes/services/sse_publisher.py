@@ -18,6 +18,7 @@ SSE 이벤트 발행 서비스 (v3)
 """
 
 import logging
+from typing import Optional
 
 from django.utils import timezone
 
@@ -38,7 +39,7 @@ class SSEPublisher:
     def publish_bot_status_update(
         route_itinerary_id: int,
         bot_state: dict,
-        vehicle_info: dict | None = None,
+        vehicle_info: Optional[dict] = None,
         next_update_in: int = 30,
     ) -> None:
         """

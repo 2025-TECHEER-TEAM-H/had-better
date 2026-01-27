@@ -14,6 +14,7 @@
 
 import logging
 from datetime import datetime
+from typing import List, Optional
 
 from django.utils import timezone
 
@@ -86,8 +87,8 @@ def _parse_pass_shape(pass_shape) -> list:
 
 
 def _estimate_current_station(
-    elapsed: float, section_time: int, pass_stops: list
-) -> str | None:
+    elapsed: float, section_time: int, pass_stops: List
+) -> Optional[str]:
     """
     경과 시간 기반 현재 역/정류장 추정
 
@@ -1434,7 +1435,7 @@ def _stations_match(station1: str, station2: str) -> bool:
     return _normalize_station_name(station1) == _normalize_station_name(station2)
 
 
-def _find_station_index(station_name: str, pass_stops: list[str]) -> int:
+def _find_station_index(station_name: str, pass_stops: List[str]) -> int:
     """pass_stops에서 역명의 인덱스를 찾음 (정규화된 비교)"""
     normalized_name = _normalize_station_name(station_name)
     for i, stop in enumerate(pass_stops):

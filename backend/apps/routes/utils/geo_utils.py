@@ -7,6 +7,7 @@
 """
 
 import math
+from typing import Dict, List, Optional
 
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -40,8 +41,8 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 def find_closest_station(
-    tmap_lat: float, tmap_lon: float, stations: list[dict]
-) -> dict | None:
+    tmap_lat: float, tmap_lon: float, stations: List[Dict]
+) -> Optional[Dict]:
     """
     TMAP 좌표와 가장 가까운 정류소 찾기
 

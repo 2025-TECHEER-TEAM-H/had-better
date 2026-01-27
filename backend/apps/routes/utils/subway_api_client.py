@@ -20,6 +20,7 @@ API 문서:
 """
 
 import logging
+from typing import Dict, List, Optional
 
 from django.conf import settings
 
@@ -39,7 +40,7 @@ class SeoulSubwayAPIClient:
         self.api_key = getattr(settings, "SUBWAY_API_KEY", "")
         self.timeout = 10
 
-    def get_arrival_info(self, station_name: str) -> list[dict]:
+    def get_arrival_info(self, station_name: str) -> List[Dict]:
         """
         실시간 도착정보 조회
 
@@ -101,7 +102,7 @@ class SeoulSubwayAPIClient:
             )
             return []
 
-    def get_train_position(self, subway_line: str) -> list[dict]:
+    def get_train_position(self, subway_line: str) -> List[Dict]:
         """
         실시간 열차 위치 조회
 
@@ -151,7 +152,7 @@ class SeoulSubwayAPIClient:
             logger.error(f"지하철 위치정보 응답 파싱 실패: {e}")
             return []
 
-    def filter_by_train_no(self, positions: list[dict], train_no: str) -> dict | None:
+    def filter_by_train_no(self, positions: List[Dict], train_no: str) -> Optional[Dict]:
         """
         열차번호로 필터링
 
@@ -197,11 +198,11 @@ class SeoulSubwayAPIClient:
 
     def filter_by_direction(
         self,
-        arrivals: list[dict],
+        arrivals: List[Dict],
         subway_line_id: str,
         destination_station: str,
-        pass_stops: list[str] = None,
-    ) -> dict | None:
+        pass_stops: List[str] = None,
+    ) -> Optional[Dict]:
         """
         방향으로 열차 필터링 (pass_stops 기반)
 
@@ -264,11 +265,11 @@ class SeoulSubwayAPIClient:
 
     def _filter_by_train_line_nm(
         self,
-        arrivals: list[dict],
+        arrivals: List[Dict],
         subway_line_id: str,
         destination_station: str,
-        pass_stops: list[str],
-    ) -> dict | None:
+        pass_stops: List[str],
+    ) -> Optional[Dict]:
         """
         trainLineNm 기반 방향 필터링 (fallback)
 

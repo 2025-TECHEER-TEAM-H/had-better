@@ -8,6 +8,7 @@
 
 import json
 import logging
+from typing import List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -328,8 +329,8 @@ class BusRoutePathView(APIView):
         )
 
     def _mapbox_map_matching(
-        self, coordinates: list[list[float]]
-    ) -> list[list[float]] | None:
+        self, coordinates: List[List[float]]
+    ) -> Optional[List[List[float]]]:
         """
         Mapbox Map Matching API 호출
 

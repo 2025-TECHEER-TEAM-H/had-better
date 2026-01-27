@@ -8,6 +8,7 @@ TMAP → 공공데이터 ID 변환 서비스
 """
 
 import logging
+from typing import Dict, List, Optional
 
 from ..utils.bus_api_client import bus_api_client
 from ..utils.geo_utils import find_closest_station
@@ -90,7 +91,7 @@ class PublicAPIIdConverter:
         return result
 
     @staticmethod
-    def get_bus_route_id(bus_number: str) -> str | None:
+    def get_bus_route_id(bus_number: str) -> Optional[str]:
         """
         버스번호로 공공데이터 노선 ID 조회
 
@@ -140,8 +141,8 @@ class PublicAPIIdConverter:
         station_name: str,
         tmap_lon: float,
         tmap_lat: float,
-        bus_route_id: str | None = None,
-    ) -> dict | None:
+        bus_route_id: Optional[str] = None,
+    ) -> Optional[Dict]:
         """
         정류소명과 좌표로 공공데이터 정류소 ID 조회
 
@@ -316,7 +317,7 @@ class PublicAPIIdConverter:
             return None
 
     @classmethod
-    def convert_legs(cls, legs: list[dict]) -> dict:
+    def convert_legs(cls, legs: List[Dict]) -> Dict:
         """
         전체 legs의 ID 변환
 
