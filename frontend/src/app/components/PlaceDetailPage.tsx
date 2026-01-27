@@ -1,6 +1,6 @@
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
-import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
-import favoriteStarFilled from "@/assets/favorite-star-filled.png";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.webp";
+import favoriteStarFilled from "@/assets/favorite-star-filled.webp";
 import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
