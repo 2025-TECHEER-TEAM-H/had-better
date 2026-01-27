@@ -6,9 +6,9 @@
  * - API 업데이트 사이의 부드러운 애니메이션
  */
 
+import type { Coordinate, RouteSegment } from '@/types/route';
 import * as turf from '@turf/turf';
 import type { Feature, LineString } from 'geojson';
-import type { Coordinate, RouteSegment } from '@/types/route';
 
 // 보간 상태 타입
 export interface InterpolationState {
@@ -31,18 +31,14 @@ export interface InterpolationResult {
 /**
  * 경로 좌표 배열로 LineString 생성
  */
-export function createRouteLine(
-  coordinates: [number, number][]
-): Feature<LineString> {
+export function createRouteLine(coordinates: [number, number][]): Feature<LineString> {
   return turf.lineString(coordinates);
 }
 
 /**
  * 여러 세그먼트의 좌표를 하나의 경로로 합치기
  */
-export function mergeSegmentCoordinates(
-  segments: RouteSegment[]
-): [number, number][] {
+export function mergeSegmentCoordinates(segments: RouteSegment[]): [number, number][] {
   const allCoords: [number, number][] = [];
 
   segments.forEach((segment) => {
@@ -51,10 +47,7 @@ export function mergeSegmentCoordinates(
       if (allCoords.length > 0) {
         const lastCoord = allCoords[allCoords.length - 1];
         const firstCoord = segment.path_coordinates[0];
-        if (
-          lastCoord[0] === firstCoord[0] &&
-          lastCoord[1] === firstCoord[1]
-        ) {
+        if (lastCoord[0] === firstCoord[0] && lastCoord[1] === firstCoord[1]) {
           // 첫 좌표 건너뛰기
           allCoords.push(...segment.path_coordinates.slice(1));
         } else {
@@ -111,10 +104,7 @@ export function getPointAtDistance(
  * 두 점 사이의 방향(Bearing) 계산
  * 0° = 북쪽, 90° = 동쪽, 180° = 남쪽, 270° = 서쪽
  */
-export function calculateBearing(
-  from: [number, number],
-  to: [number, number]
-): number {
+export function calculateBearing(from: [number, number], to: [number, number]): number {
   const fromPoint = turf.point(from);
   const toPoint = turf.point(to);
   const bearing = turf.bearing(fromPoint, toPoint);
@@ -136,8 +126,7 @@ export function interpolateAlongRoute(
   const clampedT = Math.max(0, Math.min(1, t));
 
   // 현재 거리 계산
-  const currentDistance =
-    startDistance + (endDistance - startDistance) * clampedT;
+  const currentDistance = startDistance + (endDistance - startDistance) * clampedT;
 
   // 현재 좌표
   const currentCoord = getPointAtDistance(routeLine, currentDistance);
@@ -169,12 +158,7 @@ export function interpolateByTime(
   const elapsed = now - state.startTime;
   const t = Math.min(elapsed / state.duration, 1);
 
-  return interpolateAlongRoute(
-    routeLine,
-    state.startDistance,
-    state.endDistance,
-    t
-  );
+  return interpolateAlongRoute(routeLine, state.startDistance, state.endDistance, t);
 }
 
 /**
@@ -206,10 +190,7 @@ export function createInterpolationState(
 /**
  * 두 좌표 사이의 직선 거리 계산 (m)
  */
-export function calculateDistance(
-  from: Coordinate,
-  to: Coordinate
-): number {
+export function calculateDistance(from: Coordinate, to: Coordinate): number {
   const fromPoint = turf.point([from.lon, from.lat]);
   const toPoint = turf.point([to.lon, to.lat]);
   return turf.distance(fromPoint, toPoint, { units: 'meters' });
