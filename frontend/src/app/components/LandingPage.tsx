@@ -49,7 +49,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
   }, [handleStart]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 bg-white text-[17px] md:text-[18px] lg:text-[20px]">
       {/* 모바일 뷰 (< 768px) */}
       <div className="md:hidden size-full">
         <MobileView />

@@ -10,7 +10,7 @@ import type { InternalAxiosRequestConfig } from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 // 토큰 가져오기 (localStorage 우선, 없으면 sessionStorage)
-const getToken = (key: string): string | null => {
+export const getToken = (key: string): string | null => {
   return localStorage.getItem(key) || sessionStorage.getItem(key);
 };
 

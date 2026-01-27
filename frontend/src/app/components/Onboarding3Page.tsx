@@ -349,7 +349,7 @@ export function Onboarding3Page({ isOpen = true, onNext, onSkip, onBack }: Onboa
               </div>
             </div>
 
-            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[18px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium">
+            <p className="absolute left-1/2 -translate-x-1/2 bottom-[12px] text-center text-[18px] text-[#1f4a2f] opacity-70 font-['Pretendard',sans-serif] font-medium whitespace-nowrap">
               3개의 경로가 동시에 달려요
             </p>
           </div>

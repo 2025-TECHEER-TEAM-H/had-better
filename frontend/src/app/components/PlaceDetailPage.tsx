@@ -1,6 +1,6 @@
 import imgHudHeartEmpty1 from "@/assets/hud-heart-empty.png";
-import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
-import favoriteStarFilled from "@/assets/favorite-star-filled.png";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.webp";
+import favoriteStarFilled from "@/assets/favorite-star-filled.webp";
 import placeService from "@/services/placeService";
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "./MapView";
@@ -462,7 +462,7 @@ export function PlaceDetailPage({
 
           {/* 장소 이름과 즐겨찾기 */}
           <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-            <p className="font-['Pretendard',sans-serif] font-bold leading-[22px] text-[16px] text-black break-words flex-1">
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[24px] text-[18px] text-black break-words flex-1">
               {place.name}
             </p>
             {/* 즐겨찾기 버튼 */}
@@ -483,15 +483,15 @@ export function PlaceDetailPage({
         <div className="flex flex-col gap-2 pt-3 border-t border-white/30">
           {(calculatedDistance || place.distance) && (
             <div className="flex items-center gap-2">
-              <span className="text-[12px]">📍</span>
-              <p className="font-['Pretendard',sans-serif] font-semibold leading-[16px] text-[#4a9960] text-[14px]">
+              <span className="text-[13px]">📍</span>
+              <p className="font-['Pretendard',sans-serif] font-semibold leading-[19px] text-[#4a9960] text-[16px]">
                 {calculatedDistance || place.distance}
               </p>
             </div>
           )}
           <div className="flex items-start gap-2">
-            <span className="text-[12px] mt-0.5">🏠</span>
-            <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#6b7280] text-[12px] break-words flex-1">
+            <span className="text-[13px] mt-0.5">🏠</span>
+            <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[#6b7280] text-[14px] break-words flex-1">
               {place.address}
             </p>
           </div>
@@ -684,7 +684,7 @@ export function PlaceDetailPage({
                     <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black mb-2">
                       장소명
                     </p>
-                    <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black leading-[20px] break-words">
+                    <p className="font-['Pretendard',sans-serif] font-bold text-[18px] text-black leading-[22px] break-words">
                       {place.name}
                     </p>
                   </div>
@@ -692,9 +692,9 @@ export function PlaceDetailPage({
                   {/* 거리 정보 (GPS 기반) */}
                   {(calculatedDistance || place.distance) && (
                     <div className="flex items-center gap-2">
-                      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black">거리:</p>
+                      <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black">거리:</p>
                       <div className="bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/40 rounded-[4px] inline-flex items-center px-[9px] py-[5px]">
-                        <p className="font-['Pretendard',sans-serif] font-semibold text-[14px] text-cyan-600 leading-[16px]">
+                        <p className="font-['Pretendard',sans-serif] font-semibold text-[16px] text-cyan-600 leading-[19px]">
                           {calculatedDistance || place.distance}
                         </p>
                       </div>
@@ -703,8 +703,8 @@ export function PlaceDetailPage({
 
                   {/* 주소 */}
                   <div className="flex flex-col gap-1">
-                    <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black">주소:</p>
-                    <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] leading-[18px] break-words">
+                    <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[13px] text-black">주소:</p>
+                    <p className="font-['Pretendard',sans-serif] font-medium text-[14px] text-[#6b9080] leading-[20px] break-words">
                       {place.address}
                     </p>
                   </div>

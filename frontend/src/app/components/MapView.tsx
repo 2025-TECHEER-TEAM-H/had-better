@@ -430,7 +430,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       const pinLo = darkenHex(pinBase, 0.12);
       const pinStroke = darkenHex(pinBase, 0.32);
       const innerFill = "white";
-      // 핀 내부(흰 원)에는 아이콘/글자 없이 비워둠
+      // 핀 내부(흰 원)에 알파벳 표시
+      const markerLabel = markerInfo.icon || "";
 
       // SVG id는 XML Name 규칙을 타서 숫자 시작/특수문자에 취약할 수 있어 안전하게 sanitize + prefix
       const safeId = String(markerInfo.id).replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -482,6 +483,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
               <circle cx="21" cy="17" r="6.8" fill="${pinHi}" opacity="0.16" />
               <!-- 구멍 가장자리 얇은 음영(입체감) -->
               <circle cx="24" cy="20" r="11.1" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="1" />
+              <!-- 알파벳 라벨 -->
+              <text x="24" y="24" text-anchor="middle" font-family="Pretendard, Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">${markerLabel}</text>
             </svg>
           </div>
         </div>

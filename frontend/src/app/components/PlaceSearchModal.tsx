@@ -6,24 +6,6 @@ import imgWindow2 from "@/assets/window.png";
 import placeService from "@/services/placeService";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// 카테고리별 아이콘 이미지 import
-import iconCafe from "@/assets/icons/cafe_emoji.png";
-import iconRestaurant from "@/assets/icons/restaurant_emoji.png";
-import iconConvenience from "@/assets/icons/convenience.png";
-import iconHospital from "@/assets/icons/hospital_emoji.png";
-import iconPharmacy from "@/assets/icons/pharmacy_emoji.png";
-import iconPark from "@/assets/icons/park_emoji.png";
-import iconSchool from "@/assets/icons/school_emoji.png";
-import iconBank from "@/assets/icons/bank_emoji.png";
-import iconGas from "@/assets/icons/gas_emoji.png";
-import iconParking from "@/assets/icons/parking_emoji.png";
-import iconSubway from "@/assets/icons/subway_emoji.png";
-import iconBus from "@/assets/icons/bus_emoji.png";
-import iconHotel from "@/assets/icons/hotel_emoji.png";
-import iconMarket from "@/assets/icons/market_emoji.png";
-import iconMall from "@/assets/icons/mall_emoji.png";
-import iconDefault from "@/assets/icons/default_emoji.png";
-
 type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 interface Place {
@@ -57,12 +39,7 @@ interface PlaceSearchModalProps {
   onOpenDashboard: () => void;
 }
 
-// [주석처리 - 알파벳 버전]
-// const getAlphabetLabel = (index: number): string => {
-//   return String.fromCharCode(65 + index); // A=65, B=66, ...
-// };
-
-// [현재 사용중 - 이모지 버전]
+// 카테고리별 아이콘 매핑 (이모지)
 const getCategoryIcon = (category: string): string => {
   const c = (category || "").toLowerCase();
   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
@@ -85,31 +62,6 @@ const getCategoryIcon = (category: string): string => {
 
   return "📍"; // 기본 아이콘
 };
-
-// [주석처리 - 흑백 아이콘 이미지 버전]
-// 카테고리별 아이콘 매핑 (이미지 경로 반환)
-// const getCategoryIcon = (category: string): string => {
-//   const c = (category || "").toLowerCase();
-//   const hasAny = (tokens: string[]) => tokens.some((t) => c.includes(t));
-//
-//   if (hasAny(["카페", "커피", "coffee", "cafe", "베이커리", "디저트"])) return iconCafe;
-//   if (hasAny(["음식", "음식점", "식당", "restaurant", "dining", "한식", "중식", "일식", "양식", "패스트푸드"])) return iconRestaurant;
-//   if (hasAny(["편의점", "convenience", "cvs"])) return iconConvenience;
-//   if (hasAny(["병원", "의원", "clinic", "hospital", "응급", "의료"])) return iconHospital;
-//   if (hasAny(["약국", "pharmacy", "drugstore"])) return iconPharmacy;
-//   if (hasAny(["공원", "park", "산", "등산", "숲", "자연"])) return iconPark;
-//   if (hasAny(["학교", "대학", "대학교", "univ", "university", "school", "학원"])) return iconSchool;
-//   if (hasAny(["은행", "bank", "atm"])) return iconBank;
-//   if (hasAny(["주유", "주유소", "gas", "fuel", "station"])) return iconGas;
-//   if (hasAny(["주차", "parking"])) return iconParking;
-//   if (hasAny(["지하철", "subway", "metro", "train", "rail"])) return iconSubway;
-//   if (hasAny(["버스", "bus"])) return iconBus;
-//   if (hasAny(["호텔", "숙박", "hotel", "motel", "hostel"])) return iconHotel;
-//   if (hasAny(["마트", "market", "grocery", "supermarket"])) return iconMarket;
-//   if (hasAny(["백화점", "department", "mall", "쇼핑"])) return iconMall;
-//
-//   return iconDefault; // 기본 아이콘
-// };
 
 // 카테고리별 배경색 매핑
 const getCategoryColor = (_category: string, index: number): string => {
@@ -549,7 +501,7 @@ export function PlaceSearchModal({
           <div className="px-5 pb-6 overflow-y-auto h-[calc(100%-40px)]">
             {!showResults ? (
               <>
-                <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black mb-3">
+                <p className="font-['FreesentationVF','Pretendard','Noto_SANS_KR',sans-serif] font-bold text-[16px] text-black mb-3">
                   등록된 {titleText} 장소
                 </p>
 
@@ -593,14 +545,14 @@ export function PlaceSearchModal({
                             ) : null}
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black truncate w-full">
-                              {saved.name}
-                            </p>
-                            <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[12px] leading-[14px] text-black/60 truncate w-full">
-                              {saved.detail?.trim() ? saved.detail : "상세 장소 정보 없음"}
-                            </p>
-                          </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[15px] leading-[20px] text-black truncate w-full text-left">
+                                {saved.name}
+                              </p>
+                              <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[14px] leading-[20px] text-black/70 truncate w-full text-left">
+                                {saved.detail?.trim() ? saved.detail : "상세 장소 정보 없음"}
+                              </p>
+                            </div>
                         </div>
 
                         <div className="mt-3 flex gap-2">
@@ -745,12 +697,12 @@ export function PlaceSearchModal({
                           {/* <img src={place.icon} alt="" className="w-[32px] h-[32px] object-contain" /> */}
                         </div>
 
-                        {/* 정보 */}
-                        <div className="flex-1 flex flex-col gap-2 items-start">
-                          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black">
+                        {/* 정보 (이름 + 상세 주소를 이모지 오른쪽에 세로로 정렬) */}
+                        <div className="flex-1 flex flex-col gap-1 items-start">
+                          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[15px] leading-[20px] text-black text-left">
                             {place.name}
                           </p>
-                          <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-black/60 truncate w-full">
+                          <p className="font-['Pretendard',sans-serif] font-medium text-[14px] leading-[20px] text-black/70 truncate w-full text-left">
                             {place.detail || "상세 주소 정보 없음"}
                           </p>
                         </div>

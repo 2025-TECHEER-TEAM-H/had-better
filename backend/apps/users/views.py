@@ -2,6 +2,7 @@
 사용자 및 인증 관련 View
 """
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -48,13 +49,25 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        return success_response(
+        response = success_response(
             data={
                 "user": UserSerializer(result["user"]).data,
                 "tokens": result["tokens"],
             },
             status=status.HTTP_201_CREATED,
         )
+
+        # SSE 인증용 HttpOnly 쿠키 설정
+        response.set_cookie(
+            key="access_token",
+            value=result["tokens"]["access"],
+            httponly=True,
+            secure=not settings.DEBUG,  # 로컬(DEBUG=True)은 False, 배포는 True
+            samesite="Lax",
+            max_age=3 * 60 * 60,
+        )
+
+        return response
 
 
 @extend_schema_view(
@@ -80,13 +93,25 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        return success_response(
+        response = success_response(
             data={
                 "user": UserSerializer(result["user"]).data,
                 "tokens": result["tokens"],
             },
             status=status.HTTP_200_OK,
         )
+
+        # SSE 인증용 HttpOnly 쿠키 설정
+        response.set_cookie(
+            key="access_token",
+            value=result["tokens"]["access"],
+            httponly=True,
+            secure=not settings.DEBUG,  # 로컬(DEBUG=True)은 False, 배포는 True
+            samesite="Lax",
+            max_age=3 * 60 * 60,  # 3시간 (ACCESS_TOKEN_LIFETIME과 동일)
+        )
+
+        return response
 
 
 @extend_schema_view(
@@ -111,10 +136,24 @@ class TokenRefreshView(APIView):
         serializer = TokenRefreshSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        return success_response(
-            data={"access": serializer.validated_data["access"]},
+        access_token = serializer.validated_data["access"]
+
+        response = success_response(
+            data={"access": access_token},
             status=status.HTTP_200_OK,
         )
+
+        # SSE 인증용 HttpOnly 쿠키 갱신
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=not settings.DEBUG,  # 로컬(DEBUG=True)은 False, 배포는 True
+            samesite="Lax",
+            max_age=3 * 60 * 60,
+        )
+
+        return response
 
 
 @extend_schema_view(
@@ -140,9 +179,14 @@ class LogoutView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return success_response(
+        response = success_response(
             data={"message": "로그아웃 되었습니다."}, status=status.HTTP_200_OK
         )
+
+        # SSE 인증용 쿠키 삭제
+        response.delete_cookie("access_token")
+
+        return response
 
 
 # ============================================

@@ -287,7 +287,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                   </div>
 
                   {/* 시간 */}
-                  <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black">{duration}</p>
+                  <p className="font-['Pretendard',sans-serif] font-bold text-[16px] text-black whitespace-nowrap">{duration}</p>
                 </div>
               );
             });
@@ -366,7 +366,7 @@ export function ResultPopup({ isOpen, onClose, onNavigate, onOpenDashboard, onCl
                 </div>
                 
                 <p className={`font-['Pretendard',sans-serif] font-bold text-[16px] text-black`}>{displayName}</p>
-                <p className={`font-['Pretendard',sans-serif] font-semibold text-[16px] text-black mt-[3.995px]`}>{duration}</p>
+                <p className={`font-['Pretendard',sans-serif] font-semibold text-[16px] text-black mt-[3.995px] whitespace-nowrap`}>{duration}</p>
               </div>
             );
           })}
