@@ -12,6 +12,7 @@ import logging
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Dict, Optional
 
 from django.conf import settings
 
@@ -151,7 +152,7 @@ class RabbitMQClient:
 
     def subscribe(
         self, route_itinerary_id: int, timeout: int = 30
-    ) -> Generator[dict | None, None, None]:
+    ) -> Generator[Optional[Dict], None, None]:
         """
         SSE 이벤트 구독 (Generator, 연결 복구 포함)
 

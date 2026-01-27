@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import Any, Dict, Optional
 
 from django.utils import timezone
 
@@ -127,7 +127,7 @@ class UserBusMonitor:
         self.is_initialized = True
         return True
 
-    def check_arrival(self) -> dict[str, Any] | None:
+    def check_arrival(self) -> Optional[Dict[str, Any]]:
         """실시간 도착 정보 조회 (최적화 로직 적용)"""
         if not self.is_initialized:
             if not self.initialize():

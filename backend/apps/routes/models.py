@@ -7,6 +7,7 @@
 """
 
 import re
+from typing import List, Optional
 
 from django.conf import settings
 from django.db import models
@@ -203,7 +204,7 @@ class SubwayStation(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_external_code(cls, station_name: str, line: str) -> int | None:
+    def get_external_code(cls, station_name: str, line: str) -> Optional[int]:
         """
         역명과 호선으로 외부코드 조회
 
@@ -247,7 +248,7 @@ class SubwayStation(models.Model):
     @classmethod
     def get_direction(
         cls, start_station: str, end_station: str, line: str
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         출발역/도착역으로 상행/하행 판단 (2개 역만 사용하는 기본 버전)
 
@@ -292,8 +293,8 @@ class SubwayStation(models.Model):
 
     @classmethod
     def get_direction_from_pass_stops(
-        cls, pass_stops: list[str], line: str
-    ) -> str | None:
+        cls, pass_stops: List[str], line: str
+    ) -> Optional[str]:
         """
         경유역 목록(pass_stops)을 기반으로 실제 이동 방향 판단
 

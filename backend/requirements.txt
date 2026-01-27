@@ -1,7 +1,7 @@
 
 
 # Django Core
-Django==5.2.10  # django-prometheus 호환성을 위해 5.2.10 사용
+Django==5.2.10
 djangorestframework>=3.15,<4.0
 django-cors-headers>=4.3,<5.0
 

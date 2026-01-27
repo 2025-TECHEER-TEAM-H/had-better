@@ -13,6 +13,7 @@ API 문서:
 
 import logging
 import xml.etree.ElementTree as ET
+from typing import Dict, List, Optional
 from urllib.parse import unquote
 
 from django.conf import settings
@@ -33,7 +34,7 @@ class SeoulBusAPIClient:
         self.api_key = unquote(raw_key)
         self.timeout = 10
 
-    def _parse_xml_response(self, response_text: str) -> list[dict]:
+    def _parse_xml_response(self, response_text: str) -> List[Dict]:
         """
         XML 응답 파싱
 
@@ -59,7 +60,7 @@ class SeoulBusAPIClient:
             logger.error(f"XML 파싱 오류: {e}")
             return []
 
-    def _get_error_message(self, response_text: str) -> str | None:
+    def _get_error_message(self, response_text: str) -> Optional[str]:
         """
         API 오류 메시지 추출
 
@@ -81,7 +82,7 @@ class SeoulBusAPIClient:
         except ET.ParseError:
             return None
 
-    def get_bus_route_list(self, bus_number: str) -> list[dict]:
+    def get_bus_route_list(self, bus_number: str) -> List[Dict]:
         """
         버스 노선 목록 조회 (API 호출)
 
@@ -108,7 +109,7 @@ class SeoulBusAPIClient:
             logger.error(f"버스 노선 API 요청 실패: {e}")
             return []
 
-    def get_station_by_name(self, station_name: str) -> list[dict]:
+    def get_station_by_name(self, station_name: str) -> List[Dict]:
         """
         정류소 목록 조회 (API 호출)
 
@@ -138,7 +139,7 @@ class SeoulBusAPIClient:
             logger.error(f"정류소 API 요청 실패: {e}")
             return []
 
-    def get_station_by_route(self, bus_route_id: str) -> list[dict]:
+    def get_station_by_route(self, bus_route_id: str) -> List[Dict]:
         """
         노선의 정류소 목록 조회 (API 호출)
 
@@ -198,8 +199,8 @@ class SeoulBusAPIClient:
             return []
 
     def get_arrival_info(
-        self, st_id: str, bus_route_id: str, ord: int | None = None
-    ) -> dict | None:
+        self, st_id: str, bus_route_id: str, ord: Optional[int] = None
+    ) -> Optional[Dict]:
         """
         버스 도착정보 조회 (JSON 형식)
 
@@ -386,7 +387,7 @@ class SeoulBusAPIClient:
             )
             return None
 
-    def get_bus_position(self, veh_id: str) -> dict | None:
+    def get_bus_position(self, veh_id: str) -> Optional[Dict]:
         """
         버스 실시간 위치 조회 (JSON 형식)
 
@@ -445,7 +446,7 @@ class SeoulBusAPIClient:
             logger.error(f"버스 위치 API JSON 파싱 오류: {e}")
             return None
 
-    def get_bus_positions_by_route(self, bus_route_id: str) -> list[dict]:
+    def get_bus_positions_by_route(self, bus_route_id: str) -> List[Dict]:
         """
         노선의 모든 버스 실시간 위치 조회 (JSON 형식)
 
