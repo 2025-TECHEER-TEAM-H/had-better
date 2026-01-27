@@ -3,21 +3,21 @@ import { Player } from "@/stores/routeStore";
 import { useEffect, useState } from "react";
 
 // 숫자 이미지 import (1~10)
-import imgNumber10 from "/assets/Double/hud_character_0.png"; // 10은 0 이미지 사용
-import imgNumber1 from "/assets/Double/hud_character_1.png";
-import imgNumber2 from "/assets/Double/hud_character_2.png";
-import imgNumber3 from "/assets/Double/hud_character_3.png";
-import imgNumber4 from "/assets/Double/hud_character_4.png";
-import imgNumber5 from "/assets/Double/hud_character_5.png";
-import imgNumber6 from "/assets/Double/hud_character_6.png";
-import imgNumber7 from "/assets/Double/hud_character_7.png";
-import imgNumber8 from "/assets/Double/hud_character_8.png";
-import imgNumber9 from "/assets/Double/hud_character_9.png";
+import imgNumber10 from "@/assets/numbers/hud_character_0.png"; // 10은 0 이미지 사용
+import imgNumber1 from "@/assets/numbers/hud_character_1.png";
+import imgNumber2 from "@/assets/numbers/hud_character_2.png";
+import imgNumber3 from "@/assets/numbers/hud_character_3.png";
+import imgNumber4 from "@/assets/numbers/hud_character_4.png";
+import imgNumber5 from "@/assets/numbers/hud_character_5.png";
+import imgNumber6 from "@/assets/numbers/hud_character_6.png";
+import imgNumber7 from "@/assets/numbers/hud_character_7.png";
+import imgNumber8 from "@/assets/numbers/hud_character_8.png";
+import imgNumber9 from "@/assets/numbers/hud_character_9.png";
 
 // 플레이어 캐릭터 이미지 import (RouteSelectionPage와 동일)
-import imgBot1Character from "/assets/Double/hud_player_purple.png"; // 보라색 (봇1)
-import imgUserCharacter from "/assets/playerB/hud_player_green.png"; // 초록색 (유저)
-import imgBot2Character from "/assets/playerB/hud_player_yellow.png"; // 노란색 (봇2)
+import imgBot1Character from "@/assets/players/hud_player_purple.png"; // 보라색 (봇1)
+import imgUserCharacter from "@/assets/players/hud_player_green.png"; // 초록색 (유저)
+import imgBot2Character from "@/assets/players/hud_player_yellow.png"; // 노란색 (봇2)
 
 // 숫자 이미지 배열 (1~10)
 const NUMBER_IMAGES = [

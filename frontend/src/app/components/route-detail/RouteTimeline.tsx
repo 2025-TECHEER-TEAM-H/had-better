@@ -2,6 +2,10 @@ import { CharacterColor } from "@/components/MovingCharacter";
 import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes } from "@/types/route";
 import { Fragment, useEffect, useRef, useState } from "react";
 
+// 마커 이미지 import
+import departureMarker from "@/assets/markers/departure-marker.png";
+import arrivalMarker from "@/assets/markers/arrival-marker.png";
+
 interface RouteTimelineProps {
   legs: any[];
   isLoading: boolean;
@@ -401,7 +405,7 @@ export function RouteTimeline({
                 {isFirst ? (
                   <div className="w-[48px] h-[48px] flex items-center justify-center">
                     <img
-                      src="/assets/markers/departure-marker.png"
+                      src={departureMarker}
                       alt="출발"
                       className="w-full h-full object-contain drop-shadow-lg"
                     />
@@ -409,7 +413,7 @@ export function RouteTimeline({
                 ) : isLast ? (
                   <div className="w-[48px] h-[48px] flex items-center justify-center">
                     <img
-                      src="/assets/markers/arrival-marker.png"
+                      src={arrivalMarker}
                       alt="도착"
                       className="w-full h-full object-contain drop-shadow-lg"
                     />

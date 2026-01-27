@@ -1,7 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 // 캐릭터 색상 타입
 export type CharacterColor = 'green' | 'pink' | 'yellow';
+
+// 캐릭터 프레임 이미지 import - Green
+import greenIdle from '@/assets/green/character_green_idle.png';
+import greenWalkA from '@/assets/green/character_green_walk_a.png';
+import greenFront from '@/assets/green/character_green_front.png';
+import greenWalkB from '@/assets/green/character_green_walk_b.png';
+import greenJump from '@/assets/green/character_green_jump.png';
+
+// 캐릭터 프레임 이미지 import - Pink
+import pinkIdle from '@/assets/pink/character_pink_idle.png';
+import pinkWalkA from '@/assets/pink/character_pink_walk_a.png';
+import pinkFront from '@/assets/pink/character_pink_front.png';
+import pinkWalkB from '@/assets/pink/character_pink_walk_b.png';
+import pinkJump from '@/assets/pink/character_pink_jump.png';
+
+// 캐릭터 프레임 이미지 import - Yellow
+import yellowIdle from '@/assets/yellow/character_yellow_idle.png';
+import yellowWalkA from '@/assets/yellow/character_yellow_walk_a.png';
+import yellowFront from '@/assets/yellow/character_yellow_front.png';
+import yellowWalkB from '@/assets/yellow/character_yellow_walk_b.png';
+import yellowJump from '@/assets/yellow/character_yellow_jump.png';
+
+// 색상별 프레임 이미지 매핑
+const CHARACTER_FRAMES: Record<CharacterColor, string[]> = {
+  green: [greenIdle, greenWalkA, greenFront, greenWalkB, greenJump],
+  pink: [pinkIdle, pinkWalkA, pinkFront, pinkWalkB, pinkJump],
+  yellow: [yellowIdle, yellowWalkA, yellowFront, yellowWalkB, yellowJump],
+};
 
 interface MapCharacterProps {
   map: mapboxgl.Map | null; // Mapbox 지도 인스턴스
@@ -25,14 +53,8 @@ export function MapCharacter({
   const [currentFrame, setCurrentFrame] = useState(0);
   const [screenPosition, setScreenPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // 각 색상별 프레임 이미지 경로
-  const frames = [
-    `/src/assets/${color}/character_${color}_idle.png`,
-    `/src/assets/${color}/character_${color}_walk_a.png`,
-    `/src/assets/${color}/character_${color}_front.png`,
-    `/src/assets/${color}/character_${color}_walk_b.png`,
-    `/src/assets/${color}/character_${color}_jump.png`,
-  ];
+  // 색상별 프레임 이미지 (메모이제이션)
+  const frames = useMemo(() => CHARACTER_FRAMES[color], [color]);
 
   // 프레임 애니메이션 (무한 루프)
   useEffect(() => {
