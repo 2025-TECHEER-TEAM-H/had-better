@@ -5,20 +5,13 @@
  * SSE를 통해 실시간으로 봇 위치를 수신하여 애니메이션합니다.
  */
 
-import { useEffect, useRef, useState, useMemo } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
 import { MovingCharacter, type CharacterColor } from '@/components/MovingCharacter';
 import { useRouteSSE } from '@/hooks/useRouteSSE';
-import type {
-  RouteParticipant,
-  BotStatusUpdateEvent,
-  Coordinate,
-} from '@/types/route';
-import {
-  mergeSegmentCoordinates,
-  routeLineToGeoJSON,
-} from '@/utils/routeInterpolation';
+import type { BotStatusUpdateEvent, Coordinate, RouteParticipant } from '@/types/route';
+import { mergeSegmentCoordinates, routeLineToGeoJSON } from '@/utils/routeInterpolation';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // Mapbox Access Token 설정
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
@@ -57,31 +50,26 @@ export function RaceMapView({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   // 봇 상태 (봇 ID -> 위치 정보)
-  const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(
-    new Map()
-  );
+  const [botPositions, setBotPositions] = useState<Map<number, BotStatusUpdateEvent>>(new Map());
 
   // SSE 연결
-  const { status, botStates } = useRouteSSE(
-    routeItineraryId,
-    {
-      onBotStatusUpdate: (data) => {
-        setBotPositions((prev) => {
-          const next = new Map(prev);
-          next.set(data.bot_id, data);
-          return next;
-        });
-      },
-      onParticipantFinished: (data) => {
-        console.log('🏁 참가자 도착:', data);
-        onParticipantFinished?.(data.rank, data.duration);
-      },
-      onRouteEnded: () => {
-        console.log('🎉 경주 종료');
-        onRouteEnded?.();
-      },
-    }
-  );
+  const { status, botStates } = useRouteSSE(routeItineraryId, {
+    onBotStatusUpdate: (data) => {
+      setBotPositions((prev) => {
+        const next = new Map(prev);
+        next.set(data.bot_id, data);
+        return next;
+      });
+    },
+    onParticipantFinished: (data) => {
+      console.log('🏁 참가자 도착:', data);
+      onParticipantFinished?.(data.rank, data.duration);
+    },
+    onRouteEnded: () => {
+      console.log('🎉 경주 종료');
+      onRouteEnded?.();
+    },
+  });
 
   // 봇 참가자만 필터링
   const botParticipants = useMemo(
@@ -90,10 +78,7 @@ export function RaceMapView({
   );
 
   // 경로 색상 (참가자별)
-  const routeColors = useMemo(
-    () => ['#ff6b9d', '#ffc107', '#6df3e3', '#9c27b0'],
-    []
-  );
+  const routeColors = useMemo(() => ['#ff6b9d', '#ffc107', '#6df3e3', '#9c27b0'], []);
 
   // 지도 초기화
   useEffect(() => {
@@ -269,7 +254,12 @@ export function RaceMapView({
 
       {/* SSE 연결 상태 표시 */}
       <div className="absolute top-4 left-4 bg-white/90 px-3 py-1 rounded-lg border-2 border-black text-xs">
-        SSE: {status === 'connected' ? '🟢 연결됨' : status === 'connecting' ? '🟡 연결 중' : '🔴 연결 안됨'}
+        SSE:{' '}
+        {status === 'connected'
+          ? '🟢 연결됨'
+          : status === 'connecting'
+            ? '🟡 연결 중'
+            : '🔴 연결 안됨'}
       </div>
 
       {/* 봇 캐릭터들 */}
