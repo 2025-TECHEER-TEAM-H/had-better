@@ -365,7 +365,7 @@ export function AppHeader({
                   className="absolute right-2 top-1/2 -translate-y-1/2 size-[6px] rounded-full bg-[#4a9960]"
                 />
               )}
-              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-current text-center">
+              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[13px] text-current text-center">
                 지도
               </p>
             </button>
@@ -382,7 +382,7 @@ export function AppHeader({
                   className="absolute right-2 top-1/2 -translate-y-1/2 size-[6px] rounded-full bg-[#4a9960]"
                 />
               )}
-              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-current text-center">
+              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[13px] text-current text-center">
                 검색
               </p>
             </button>
@@ -399,7 +399,7 @@ export function AppHeader({
                   className="absolute right-2 top-1/2 -translate-y-1/2 size-[6px] rounded-full bg-[#4a9960]"
                 />
               )}
-              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-current text-center">
+              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[13px] text-current text-center">
                 지하철
               </p>
             </button>
@@ -416,7 +416,7 @@ export function AppHeader({
                   className="absolute right-2 top-1/2 -translate-y-1/2 size-[6px] rounded-full bg-[#4a9960]"
                 />
               )}
-              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[12px] text-current text-center">
+              <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[13px] text-current text-center">
                 MY
               </p>
             </button>

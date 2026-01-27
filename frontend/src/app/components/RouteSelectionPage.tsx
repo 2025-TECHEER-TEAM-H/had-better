@@ -734,19 +734,19 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
   const routeContent = (
     <div className="flex flex-col h-full">
       {/* 타이틀 카드 */}
-      <div className="bg-white/90 backdrop-blur-lg min-h-[64px] md:h-[54px] rounded-[10px] border border-white/50 shadow-lg flex items-center justify-center mb-4 px-4 md:px-0">
+      <div className="bg-white/90 backdrop-blur-lg min-h-[64px] md:h-[56px] rounded-[10px] border border-white/50 shadow-lg flex items-center justify-center mb-4 px-4 md:px-0">
         {departure?.name && arrival?.name ? (
           <div className="flex items-center gap-2 md:gap-3">
             <div className="flex items-center gap-2">
               <img alt="출발지" className="size-[24px] md:size-[20px] object-contain" src={imgGemGreen1} />
-              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-bold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[13px] md:text-[13px] text-black font-bold leading-tight">
                 {departure.name}
               </p>
             </div>
-            <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px]">→</p>
+            <p className="font-['Pretendard',sans-serif] text-[15px] md:text-[15px]">→</p>
             <div className="flex items-center gap-2">
               <img alt="도착지" className="size-[24px] md:size-[20px] object-contain" src={imgGemRed1} />
-              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-bold leading-tight">
+              <p className="font-['Pretendard',sans-serif] text-[13px] md:text-[13px] text-black font-bold leading-tight">
                 {arrival.name}
               </p>
             </div>
@@ -947,7 +947,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
                                   <div className="size-[10px] md:size-[6px] bg-black rounded-sm" />
                                 )}
                               </div>
-                              <p className="font-['Pretendard',sans-serif] text-[12px] md:text-[12px] text-black font-medium">
+                              <p className="font-['Pretendard',sans-serif] text-[14px] md:text-[14px] text-black font-medium">
                                 {PLAYER_LABELS[player]}
                               </p>
                             </label>

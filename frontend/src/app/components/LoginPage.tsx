@@ -454,7 +454,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
               <p className="text-white text-[20px] font-bold leading-none">✓</p>
             )}
           </div>
-          <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] tracking-[0.2px] whitespace-nowrap">
+          <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[#1f4a2f] text-[14px] tracking-[0.2px] whitespace-nowrap">
             로그인 유지
           </p>
         </label>
@@ -465,7 +465,7 @@ export function LoginPage({ isOpen = true, onLogin, onSignup }: LoginPageProps) 
           onClick={handleSignup}
           className="hover:opacity-80 transition-opacity shrink-0"
         >
-          <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[#1f4a2f] text-[12px] text-center tracking-[0.2px] whitespace-nowrap">
+          <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[#1f4a2f] text-[14px] text-center tracking-[0.2px] whitespace-nowrap">
             회원가입
           </p>
         </button>

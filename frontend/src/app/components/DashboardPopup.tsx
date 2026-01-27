@@ -356,8 +356,8 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
               ].map((item, idx) => (
                 <div key={idx} className="hb-dashboard-card rounded-[20px] p-3 flex flex-col items-center justify-center text-center">
                   <span className="text-xl mb-1">{item.icon}</span>
-                  <span className="font-['Pretendard',sans-serif] font-medium text-[12px] text-[#6b9080] mb-1">{item.label}</span>
-                  <span className="hb-pixel-font text-base text-[#1a1a2e]">{item.value}</span>
+                  <span className="font-['Pretendard',sans-serif] font-medium text-[14px] text-black mb-1">{item.label}</span>
+                  <span className="hb-pixel-font text-[18px] text-[#1a1a2e]">{item.value}</span>
                 </div>
               ))}
             </div>
