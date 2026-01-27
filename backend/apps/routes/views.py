@@ -20,6 +20,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from drf_spectacular.utils import extend_schema
 
@@ -891,10 +893,9 @@ class SSEStreamView(APIView):
     GET /api/v1/sse/routes/{route_itinerary_id} - 실시간 봇 상태 스트림
     """
 
-    # TODO: 실제 배포 시 인증 복구 필요
-    # permission_classes = [IsAuthenticated]
-    permission_classes = []  # 테스트용
-    authentication_classes = []  # 테스트용
+    # SSE는 EventSource가 커스텀 헤더를 지원하지 않으므로 HttpOnly 쿠키로 토큰 검증
+    permission_classes = []
+    authentication_classes = []
 
     # DRF content negotiation 우회 (406 에러 해결)
     def perform_content_negotiation(self, request, force=False):
@@ -929,6 +930,27 @@ eventSource.addEventListener('bot_status_update', (e) => {
     )
     def get(self, request, route_itinerary_id):
         """SSE 스트림 연결"""
+        # HttpOnly 쿠키에서 토큰 검증
+        token = request.COOKIES.get("access_token")
+        if not token:
+            return error_response(
+                code="UNAUTHORIZED",
+                message="인증 토큰이 필요합니다. 다시 로그인해주세요.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            access_token = AccessToken(token)
+            user_id = access_token["user_id"]
+            logger.info(f"SSE 인증 성공: user_id={user_id}")
+        except (InvalidToken, TokenError) as e:
+            logger.warning(f"SSE 인증 실패: {e}")
+            return error_response(
+                code="INVALID_TOKEN",
+                message="유효하지 않은 토큰입니다. 다시 로그인해주세요.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+
         # route_itinerary 존재 확인
         try:
             RouteItinerary.objects.get(id=route_itinerary_id, deleted_at__isnull=True)

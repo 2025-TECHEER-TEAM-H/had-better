@@ -187,20 +187,11 @@ export function useRouteSSE(
     setStatus('connecting');
     setError(null);
 
-    // TODO: 실제 배포 시 인증 처리 필요
-    // EventSource는 커스텀 헤더를 지원하지 않으므로 쿼리 파라미터로 토큰 전달
-    // 방법 1: 쿼리 파라미터로 토큰 전달 (백엔드에서 token 파라미터 처리 필요)
-    // const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
-    // const sseUrl = `${SSE_BASE_URL}/api/v1/sse/routes/${routeItineraryId}?token=${token}`;
-    //
-    // 방법 2: 쿠키 기반 인증 (withCredentials 사용)
-    // const eventSource = new EventSource(sseUrl, { withCredentials: true });
-    //
-    // 현재: 테스트용 (백엔드에서 인증 해제 상태)
+    // HttpOnly 쿠키로 인증 (withCredentials: true)
     const sseUrl = `${SSE_BASE_URL}/api/v1/sse/routes/${routeItineraryId}`;
     console.log('🔗 SSE 연결 시도:', sseUrl);
 
-    const eventSource = new EventSource(sseUrl);
+    const eventSource = new EventSource(sseUrl, { withCredentials: true });
     eventSourceRef.current = eventSource;
 
     // 연결 성공
