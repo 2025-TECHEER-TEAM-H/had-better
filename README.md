@@ -170,15 +170,6 @@
       </td>
     </tr>
     <tr>
-      <td><b>External APIs</b></td>
-      <td>
-        <img src="https://img.shields.io/badge/TMap API-FF5E00?style=for-the-badge&logo=tmap&logoColor=white">
-        <img src="https://img.shields.io/badge/공공데이터포털-003876?style=for-the-badge&logo=data&logoColor=white">
-        <img src="https://img.shields.io/badge/서울시 API-004098?style=for-the-badge&logo=seoul&logoColor=white">
-        <img src="https://img.shields.io/badge/Mapbox API-000000?style=for-the-badge&logo=mapbox&logoColor=white">
-      </td>
-    </tr>
-    <tr>
       <td><b>DevOps</b></td>
       <td>
         <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
