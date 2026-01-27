@@ -3,8 +3,8 @@ import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import placeService from "@/services/placeService";
 import { useUserDistance } from "@/hooks/useUserDistance";
-import favoriteStarEmpty from "@/assets/favorite-star-empty.png";
-import favoriteStarFilled from "@/assets/favorite-star-filled.png";
+import favoriteStarEmpty from "@/assets/favorite-star-empty.webp";
+import favoriteStarFilled from "@/assets/favorite-star-filled.webp";
 
 // 카테고리별 아이콘 이미지 import
 import iconCafe from "@/assets/icons/cafe_emoji.png";
