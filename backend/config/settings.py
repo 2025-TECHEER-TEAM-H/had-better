@@ -98,19 +98,26 @@ ASGI_APPLICATION = "config.asgi.application"
 
 # Database
 # PostgreSQL 설정
+DB_HOST = os.getenv("DB_HOST", "localhost")
+
 DATABASES = {
     "default": {
         "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "hadbetter"),
         "USER": os.getenv("DB_USER", "postgres"),
         "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
+        "HOST": DB_HOST,
         "PORT": os.getenv("DB_PORT", "5432"),
         "OPTIONS": {
             "sslmode": "require",  # RDS SSL 연결 요구
         },
     }
 }
+
+# RDS SSL 설정 (프로덕션 환경에서만)
+# localhost가 아닌 경우에만 SSL 요구 (AWS RDS 연결 시)
+if DB_HOST not in ["localhost", "127.0.0.1"]:
+    DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
 
 
 # Password validation
