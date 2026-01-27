@@ -559,6 +559,7 @@ export function SearchResultsPage({
 
   if (!isOpen) return null;
 
+  // 상세 주소와 거리를 각각 별도 줄로 렌더링하기 위한 헬퍼
   const buildSubline = (result: SearchResult) => {
     const status = (result.status || "").trim();
     // GPS 거리 우선, 없으면 API 거리 사용
@@ -566,8 +567,11 @@ export function SearchResultsPage({
       ? formatDistance(getDistanceTo(result.coordinates.lon, result.coordinates.lat))
       : null;
     const distance = gpsDistance || (result.distance || "").trim();
-    if (status && distance) return `${status} · ${distance}`;
-    return status || distance || "";
+
+    return {
+      status,
+      distance,
+    };
   };
 
   // 검색 결과 카드 컴포넌트
@@ -595,14 +599,26 @@ export function SearchResultsPage({
         {/* 장소 이름 */}
         <div className="flex-[1_0_0] min-h-px min-w-px relative">
           <div className="bg-clip-padding border-0 border-transparent border-solid content-stretch flex flex-col items-start relative w-full">
-            <p className="font-['Pretendard',sans-serif] font-bold leading-[18px] text-[16px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
+            <p className="font-['Pretendard',sans-serif] font-bold leading-[20px] text-[17px] text-black text-left w-full overflow-hidden text-ellipsis whitespace-nowrap drop-shadow-sm">
               {result.name}
             </p>
-            {buildSubline(result) && (
-              <p className="font-['Pretendard',sans-serif] font-medium leading-[16px] text-[12px] text-black/70 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                {buildSubline(result)}
-              </p>
-            )}
+            {(() => {
+              const { status, distance } = buildSubline(result);
+              return (
+                <>
+                  {status && (
+                    <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[14px] text-black/80 text-left mt-2 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                      {status}
+                    </p>
+                  )}
+                  {distance && (
+                    <p className="font-['Pretendard',sans-serif] font-medium leading-[18px] text-[14px] text-black/70 text-left mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                      {distance}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 

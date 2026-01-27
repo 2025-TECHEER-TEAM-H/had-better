@@ -549,7 +549,7 @@ export function PlaceSearchModal({
           <div className="px-5 pb-6 overflow-y-auto h-[calc(100%-40px)]">
             {!showResults ? (
               <>
-                <p className="font-['FreesentationVF','Pretendard','Noto_Sans_KR',sans-serif] font-bold text-[12px] text-black mb-3">
+                <p className="font-['FreesentationVF','Pretendard','Noto_SANS_KR',sans-serif] font-bold text-[16px] text-black mb-3">
                   등록된 {titleText} 장소
                 </p>
 
@@ -593,14 +593,14 @@ export function PlaceSearchModal({
                             ) : null}
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black truncate w-full">
-                              {saved.name}
-                            </p>
-                            <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[12px] leading-[14px] text-black/60 truncate w-full">
-                              {saved.detail?.trim() ? saved.detail : "상세 장소 정보 없음"}
-                            </p>
-                          </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[15px] leading-[20px] text-black truncate w-full text-left">
+                                {saved.name}
+                              </p>
+                              <p className="mt-1 font-['Pretendard',sans-serif] font-medium text-[14px] leading-[20px] text-black/70 truncate w-full text-left">
+                                {saved.detail?.trim() ? saved.detail : "상세 장소 정보 없음"}
+                              </p>
+                            </div>
                         </div>
 
                         <div className="mt-3 flex gap-2">
@@ -745,12 +745,12 @@ export function PlaceSearchModal({
                           {/* <img src={place.icon} alt="" className="w-[32px] h-[32px] object-contain" /> */}
                         </div>
 
-                        {/* 정보 */}
-                        <div className="flex-1 flex flex-col gap-2 items-start">
-                          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[12px] text-black">
+                        {/* 정보 (이름 + 상세 주소를 이모지 오른쪽에 세로로 정렬) */}
+                        <div className="flex-1 flex flex-col gap-1 items-start">
+                          <p className="css-ew64yg font-['Press_Start_2P:Regular',sans-serif] text-[15px] leading-[20px] text-black text-left">
                             {place.name}
                           </p>
-                          <p className="font-['Pretendard',sans-serif] font-medium text-[12px] text-black/60 truncate w-full">
+                          <p className="font-['Pretendard',sans-serif] font-medium text-[14px] leading-[20px] text-black/70 truncate w-full text-left">
                             {place.detail || "상세 주소 정보 없음"}
                           </p>
                         </div>
