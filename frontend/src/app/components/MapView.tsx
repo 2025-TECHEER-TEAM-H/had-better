@@ -11,7 +11,7 @@ import { useLocation } from "react-router-dom";
 import departureMarkerImg from "@/assets/markers/departure-marker.png";
 import arrivalMarkerImg from "@/assets/markers/arrival-marker.png";
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
+export type PageType = "map" | "search" | "favorites" | "subway" | "route" | "routeDetail" | "background";
 
 // 지도 스타일 정보
 const MAP_STYLES: Record<MapStyleType, { url: string; name: string; icon: string }> = {

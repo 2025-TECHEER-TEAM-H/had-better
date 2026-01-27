@@ -5,7 +5,7 @@
 
 import { DashboardPopup } from "@/app/components/DashboardPopup";
 import { FavoritesPlaces } from "@/app/components/FavoritesPlaces";
-import { MapView } from "@/app/components/MapView";
+import { MapView, type PageType } from "@/app/components/MapView";
 import { PlaceDetailPage } from "@/app/components/PlaceDetailPage";
 import { SearchResultsPage } from "@/app/components/SearchResultsPage";
 import { useState } from "react";
@@ -55,7 +55,7 @@ export function MainLayout() {
   const isRouteDetailPage = currentPath === "/route/detail";
 
   // MapView에 전달할 currentPage 결정
-  let mapCurrentPage: string;
+  let mapCurrentPage: PageType;
   if (isMapPage) {
     mapCurrentPage = "map";
   } else if (isSearchPage) {
