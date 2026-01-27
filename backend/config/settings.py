@@ -108,9 +108,6 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
         "HOST": DB_HOST,
         "PORT": os.getenv("DB_PORT", "5432"),
-        "OPTIONS": {
-            "sslmode": "require",  # RDS SSL 연결 요구
-        },
     }
 }
 
