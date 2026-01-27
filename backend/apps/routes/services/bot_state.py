@@ -9,6 +9,7 @@
 """
 
 from enum import Enum
+from typing import Optional
 
 from django.utils import timezone
 
@@ -97,7 +98,7 @@ class BotStateManager:
         return state
 
     @staticmethod
-    def get(route_id: int) -> dict | None:
+    def get(route_id: int) -> Optional[dict]:
         """
         봇 상태 조회
 
@@ -110,7 +111,7 @@ class BotStateManager:
         return redis_client.get_bot_state(route_id)
 
     @staticmethod
-    def update(route_id: int, **kwargs) -> dict | None:
+    def update(route_id: int, **kwargs) -> Optional[dict]:
         """
         봇 상태 부분 업데이트 (원자적 업데이트)
 
@@ -140,7 +141,7 @@ class BotStateManager:
         redis_client.delete_api_call_cache(route_id)
 
     @staticmethod
-    def transition_to_waiting_bus(route_id: int, leg_index: int) -> dict | None:
+    def transition_to_waiting_bus(route_id: int, leg_index: int) -> Optional[dict]:
         """
         WAITING_BUS 상태로 전환
 
@@ -162,7 +163,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def transition_to_riding_bus(route_id: int, vehicle_id: str) -> dict | None:
+    def transition_to_riding_bus(route_id: int, vehicle_id: str) -> Optional[dict]:
         """
         RIDING_BUS 상태로 전환
 
@@ -182,7 +183,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def transition_to_waiting_subway(route_id: int, leg_index: int) -> dict | None:
+    def transition_to_waiting_subway(route_id: int, leg_index: int) -> Optional[dict]:
         """
         WAITING_SUBWAY 상태로 전환
 
@@ -204,7 +205,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def transition_to_riding_subway(route_id: int, train_no: str) -> dict | None:
+    def transition_to_riding_subway(route_id: int, train_no: str) -> Optional[dict]:
         """
         RIDING_SUBWAY 상태로 전환
 
@@ -224,7 +225,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def transition_to_walking(route_id: int, leg_index: int) -> dict | None:
+    def transition_to_walking(route_id: int, leg_index: int) -> Optional[dict]:
         """
         WALKING 상태로 전환
 
@@ -246,7 +247,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def transition_to_finished(route_id: int) -> dict | None:
+    def transition_to_finished(route_id: int) -> Optional[dict]:
         """
         FINISHED 상태로 전환
 
@@ -289,7 +290,7 @@ class BotStateManager:
         return next_interval
 
     @staticmethod
-    def update_position(route_id: int, lon: float, lat: float) -> dict | None:
+    def update_position(route_id: int, lon: float, lat: float) -> Optional[dict]:
         """
         현재 위치 좌표 업데이트
 
@@ -307,7 +308,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def update_retry_count(route_id: int, count: int) -> dict | None:
+    def update_retry_count(route_id: int, count: int) -> Optional[dict]:
         """
         API 재시도 카운터 업데이트
 
@@ -324,7 +325,7 @@ class BotStateManager:
         )
 
     @staticmethod
-    def reset_retry_count(route_id: int) -> dict | None:
+    def reset_retry_count(route_id: int) -> Optional[dict]:
         """
         API 재시도 카운터 리셋
 

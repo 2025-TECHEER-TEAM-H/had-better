@@ -3,7 +3,7 @@ TMAP 대중교통 API 서비스
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict
 
 from django.conf import settings
 
@@ -31,7 +31,7 @@ class TmapTransitService:
         count: int = 10,
         lang: int = 0,
         format: str = "json",
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         대중교통 경로 탐색
 

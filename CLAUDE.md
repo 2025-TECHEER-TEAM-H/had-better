@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | ------- | ------- |
 | Python  | 3.12.8  |
 | Node.js | 24.12.0 |
-| Django  | 6.0     |
+| Django  | 5.2.10  |
 
 ## 개발 명령어
 
