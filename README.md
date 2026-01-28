@@ -3,6 +3,9 @@
   </br>HAD - BETTER
   </a>
 </p>
+</br>
+
+![hadbetter_onboarding_image](https://github.com/user-attachments/assets/a56a95d8-f34f-491c-9c11-ba06634a7ce2)
 
 </br>
 </br>
