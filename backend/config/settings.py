@@ -112,8 +112,8 @@ DATABASES = {
 }
 
 # RDS SSL 설정 (프로덕션 환경에서만)
-# localhost가 아닌 경우에만 SSL 요구 (AWS RDS 연결 시)
-if DB_HOST not in ["localhost", "127.0.0.1"]:
+# localhost, 127.0.0.1, db(Docker 서비스)가 아닌 경우에만 SSL 요구 (AWS RDS 연결 시)
+if DB_HOST not in ["localhost", "127.0.0.1", "db"]:
     DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
 
 

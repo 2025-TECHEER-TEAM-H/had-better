@@ -1474,21 +1474,26 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
     try {
       // 유저 경주 상태를 CANCELED로 변경 (진행률 포함)
+      console.log('[취소] 1. updateRouteStatus 호출 시작');
       await updateRouteStatus(routeId, {
         status: 'CANCELED',
         progress_percent: progressPercent
       });
-      console.log(`경주 상태 변경 완료: CANCELED (진행률: ${progressPercent}%)`);
+      console.log(`[취소] 2. 경주 상태 변경 완료: CANCELED (진행률: ${progressPercent}%)`);
 
       // 경주 결과 조회
+      console.log('[취소] 3. getRouteResult 호출 시작');
       const result = await getRouteResult(routeId);
+      console.log('[취소] 4. 경주 결과 조회 완료:', result);
       setRouteResult(result);
+      console.log('[취소] 5. setRouteResult 완료');
     } catch (error) {
-      console.error('경주 취소 실패:', error);
+      console.error('[취소] 에러 발생:', error);
       // 에러 시에도 시뮬레이션 결과 기반으로 표시
       const result = generateResultFromSimulation();
       setRouteResult(result);
     } finally {
+      console.log('[취소] 6. finally - setIsLoadingResult(false) 호출');
       setIsLoadingResult(false);
     }
   }, [userRouteId, playerProgress, generateResultFromSimulation]);

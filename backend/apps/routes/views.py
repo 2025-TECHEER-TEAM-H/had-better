@@ -975,6 +975,41 @@ eventSource.addEventListener('bot_status_update', (e) => {
                 },
             )
 
+            # 현재 봇들의 상태를 조회하여 초기 상태 전송
+            def get_initial_bot_states():
+                """DB에서 봇 Route 조회 후 Redis에서 상태 가져오기"""
+                bot_routes = Route.objects.filter(
+                    route_itinerary_id=route_itinerary_id,
+                    participant_type=Route.ParticipantType.BOT,
+                    status=Route.Status.RUNNING,
+                )
+                states = []
+                for route in bot_routes:
+                    bot_state = BotStateManager.get(route.id)
+                    if bot_state:
+                        states.append(bot_state)
+                return states
+
+            initial_bot_states = await asyncio.to_thread(get_initial_bot_states)
+            for bot_state in initial_bot_states:
+                logger.info(
+                    f"SSE 초기 봇 상태 전송: route_id={bot_state.get('route_id')}, "
+                    f"status={bot_state.get('status')}"
+                )
+                yield _format_sse_event(
+                    "bot_status_update",
+                    {
+                        "route_id": bot_state.get("route_id"),
+                        "bot_id": bot_state.get("bot_id"),
+                        "status": bot_state.get("status"),
+                        "leg_index": bot_state.get("current_leg_index"),
+                        "progress_percent": bot_state.get("progress_percent", 0),
+                        "position": bot_state.get("current_position"),
+                        "next_update_in": 30,
+                        "timestamp": timezone.localtime(timezone.now()).isoformat(),
+                    },
+                )
+
             # 테스트용: 1초 대기 후 heartbeat 전송
             await asyncio.sleep(1)
             logger.info(
