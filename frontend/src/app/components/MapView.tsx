@@ -201,6 +201,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
   const routesFitted = useRef(false); // 경로 범위 맞춤 여부
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // 지도 로드 상태
+  const [styleVersion, setStyleVersion] = useState(0); // 스타일이 새로 로드된 횟수 (레이어 재적용 트리거)
   const { mapStyle, setMapStyle } = useMapStore(); // 지도 스타일 (글로벌 스토어)
   const [isLayerPopoverOpen, setIsLayerPopoverOpen] = useState(false); // 레이어 팝오버 상태
   const [is3DBuildingsEnabled, setIs3DBuildingsEnabled] = useState(false); // 3D 건물 레이어 상태
@@ -236,6 +237,44 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     map: map.current,
   }), [isMapLoaded]);
 
+  // 데스크톱에서 사이드바(400px) ↔ 전체화면 전환 등 컨테이너 크기 변경 시
+  // Mapbox가 자동으로 리사이즈되지 않아서 흰 여백이 생길 수 있어, 여기서 강제 resize 처리.
+  useEffect(() => {
+    if (!map.current || !mapContainer.current) return;
+
+    const safeResize = () => {
+      const m = map.current;
+      const el = mapContainer.current;
+      if (!m || !el) return;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      try {
+        m.resize();
+      } catch {
+        // map이 제거/초기화 중인 타이밍이면 무시
+      }
+    };
+
+    // 최초 1회 및 페이지 전환 직후 즉시 리사이즈
+    safeResize();
+    const t = window.setTimeout(safeResize, 0);
+
+    // 컨테이너 크기 변화를 감지 (사이드바 토글 포함)
+    const ro = new ResizeObserver(() => safeResize());
+    ro.observe(mapContainer.current);
+
+    // 윈도우 리사이즈도 보완
+    window.addEventListener("resize", safeResize);
+
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", safeResize);
+      ro.disconnect();
+    };
+  }, [resolvedCurrentPage, isMapLoaded]);
+
   // 지도 초기화
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -244,7 +283,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     const initialCenter = lastCenter || defaultCenter;
     const initialZoom = lastZoom || defaultZoom;
 
-    map.current = new mapboxgl.Map({
+    const mapInstance = new mapboxgl.Map({
       container: mapContainer.current,
       style: MAP_STYLES[mapStyle].url, // 글로벌 스토어의 스타일 사용
       center: initialCenter,
@@ -258,6 +297,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         "GeolocateControl.LocationNotAvailable": "위치를 사용할 수 없습니다",
       },
     });
+
+    map.current = mapInstance;
 
     // 콘솔 경고 필터링 (Mapbox layer null 관련 경고 무시)
     const originalWarn = console.warn;
@@ -276,49 +317,62 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     // console.warn 필터링 적용
     console.warn = warnFilter;
 
-    // 지도 로드 완료 후 한국어 라벨 적용 및 현재 위치 가져오기
-    map.current.on("load", () => {
-      // 모든 심볼 레이어의 텍스트를 한국어로 변경
-      const mapInstance = map.current;
-      if (mapInstance) {
-        const layers = mapInstance.getStyle().layers;
+    // 스타일 로드 시마다 한국어 라벨/하늘 레이어 적용 및 오버레이 재적용 트리거
+    const handleStyleLoad = () => {
+      const m = map.current;
+      if (m) {
+        const layers = m.getStyle().layers;
         if (layers) {
           layers.forEach((layer) => {
             if (layer.type === "symbol" && layer.layout?.["text-field"]) {
-              mapInstance.setLayoutProperty(layer.id, "text-field", [
-                "coalesce",
-                ["get", "name_ko"],
-                ["get", "name:ko"],
-                ["get", "name"],
-              ]);
+              try {
+                m.setLayoutProperty(layer.id, "text-field", [
+                  "coalesce",
+                  ["get", "name_ko"],
+                  ["get", "name:ko"],
+                  ["get", "name"],
+                ]);
+              } catch {
+                // 일부 레이어는 text-field 변경이 불가능할 수 있음
+              }
             }
           });
         }
-      }
-      // 지도 로드 완료 상태 설정
-      setIsMapLoaded(true);
 
-      // 하늘 및 대기권 레이어 추가 (3D 뷰 대비)
-      if (mapInstance && !mapInstance.getLayer('sky')) {
-        mapInstance.addLayer({
-          'id': 'sky',
-          'type': 'sky',
-          'paint': {
-            'sky-type': 'atmosphere',
-            'sky-atmosphere-sun': [0.0, 0.0],
-            'sky-atmosphere-sun-intensity': 15
+        // 하늘 및 대기권 레이어 추가 (3D 뷰 대비)
+        if (!m.getLayer("sky")) {
+          try {
+            m.addLayer({
+              id: "sky",
+              type: "sky",
+              paint: {
+                "sky-type": "atmosphere",
+                "sky-atmosphere-sun": [0.0, 0.0],
+                "sky-atmosphere-sun-intensity": 15,
+              },
+            });
+          } catch {
+            // 스타일에 sky 지원이 없거나 추가 실패 시 무시
           }
-        });
+        }
       }
-    });
+
+      // 지도 로드/스타일 로드 완료 상태 및 버전 갱신
+      setIsMapLoaded(true);
+      setStyleVersion((v) => v + 1);
+    };
+
+    // 최초 load 및 이후 style.load 모두 감지
+    mapInstance.on("load", handleStyleLoad);
+    mapInstance.on("style.load", handleStyleLoad);
 
     // 지도 이동/줌 완료 시 상태 저장 (moveend 이벤트)
-    map.current.on("moveend", () => {
-      const mapInstance = map.current;
-      if (mapInstance && mapInstance.isStyleLoaded()) {
+    mapInstance.on("moveend", () => {
+      const m = map.current;
+      if (m && m.isStyleLoaded()) {
         try {
-          const center = mapInstance.getCenter();
-          const zoom = mapInstance.getZoom();
+          const center = m.getCenter();
+          const zoom = m.getZoom();
           setMapView([center.lng, center.lat], zoom);
         } catch {
           // 스타일 로딩 중 에러 무시
@@ -332,7 +386,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       console.warn = originalWarn;
 
       if (map.current) {
-        map.current.remove();
+        try {
+          map.current.off("load", handleStyleLoad);
+          map.current.off("style.load", handleStyleLoad);
+        } catch {
+          // 이미 제거된 경우 무시
+        }
+        try {
+          map.current.remove();
+        } catch {
+          // 제거 중 에러 무시
+        }
         map.current = null;
       }
     };
@@ -757,7 +821,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeLines, routeLines.length, isMapLoaded]);
+  }, [routeLines, routeLines.length, isMapLoaded, styleVersion]);
 
   // 환승 지점 표시
   useEffect(() => {
@@ -1133,7 +1197,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         }
       }
     };
-  }, [showSubwayLines, isSubwayLinesEnabled, isMapLoaded]);
+  }, [showSubwayLines, isSubwayLinesEnabled, isMapLoaded, styleVersion]);
 
   // 버스 실시간 위치 레이어 표시/숨김 (사용자 지정 버스 번호 추적)
   useEffect(() => {
@@ -1200,7 +1264,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
         }
       }
     };
-  }, [isBusLinesEnabled, trackedBusNumbers, isMapLoaded]);
+  }, [isBusLinesEnabled, trackedBusNumbers, isMapLoaded, styleVersion]);
 
   // 지하철 노선 토글 핸들러
   const handleSubwayLinesToggle = useCallback(() => {
