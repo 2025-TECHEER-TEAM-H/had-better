@@ -494,13 +494,13 @@ def _handle_waiting_bus_fallback(
         legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
     )
 
-    # 정류장 위치로 봇 위치 업데이트
-    start_station = public_leg.get("start_station") or {}
-    station_lon = start_station.get("lon")
-    station_lat = start_station.get("lat")
-    if station_lon and station_lat:
+    # 정류장 위치로 봇 위치 업데이트 (current_leg의 start 좌표 사용 - WALKING leg의 end와 일치)
+    start = current_leg.get("start", {})
+    start_lon = start.get("lon")
+    start_lat = start.get("lat")
+    if start_lon and start_lat:
         BotStateManager.update_position(
-            route_id, lon=float(station_lon), lat=float(station_lat)
+            route_id, lon=float(start_lon), lat=float(start_lat)
         )
 
     leg_started_at = datetime.fromisoformat(bot_state["leg_started_at"])
