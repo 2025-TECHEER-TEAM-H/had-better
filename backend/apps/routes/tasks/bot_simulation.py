@@ -425,6 +425,20 @@ def _handle_walking(
         else:
             BotStateManager.transition_to_walking(route_id, next_leg_index)
 
+        # 상태 전환 후 즉시 bot_status_update 발행
+        transitioned_state = BotStateManager.get(route_id)
+        if transitioned_state:
+            completed_time = sum(
+                legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+            )
+            total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+            new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**transitioned_state, "progress_percent": new_progress},
+                next_update_in=30,
+            )
+
     return next_interval
 
 
@@ -564,6 +578,20 @@ def _handle_riding_bus_fallback(
         elif next_leg["mode"] == "BUS":
             BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
 
+        # 상태 전환 후 즉시 bot_status_update 발행
+        transitioned_state = BotStateManager.get(route_id)
+        if transitioned_state:
+            completed_time = sum(
+                legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+            )
+            total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+            new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**transitioned_state, "progress_percent": new_progress},
+                next_update_in=30,
+            )
+
         return 30
 
     # 전체 경로 기준 진행률 계산
@@ -597,6 +625,20 @@ def _handle_riding_bus_fallback(
             BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
         elif next_leg["mode"] == "BUS":
             BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+
+        # 상태 전환 후 즉시 bot_status_update 발행
+        transitioned_state = BotStateManager.get(route_id)
+        if transitioned_state:
+            completed_time = sum(
+                legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+            )
+            total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+            new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**transitioned_state, "progress_percent": new_progress},
+                next_update_in=30,
+            )
 
         return 30
 
@@ -764,6 +806,20 @@ def _handle_riding_subway_fallback(
         elif next_leg["mode"] == "SUBWAY":
             BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
 
+        # 상태 전환 후 즉시 bot_status_update 발행
+        transitioned_state = BotStateManager.get(route_id)
+        if transitioned_state:
+            completed_time = sum(
+                legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+            )
+            total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+            new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**transitioned_state, "progress_percent": new_progress},
+                next_update_in=30,
+            )
+
         return 30
 
     # 전체 경로 기준 진행률 계산
@@ -794,6 +850,20 @@ def _handle_riding_subway_fallback(
             BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
         elif next_leg["mode"] == "SUBWAY":
             BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
+
+        # 상태 전환 후 즉시 bot_status_update 발행
+        transitioned_state = BotStateManager.get(route_id)
+        if transitioned_state:
+            completed_time = sum(
+                legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+            )
+            total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+            new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**transitioned_state, "progress_percent": new_progress},
+                next_update_in=30,
+            )
 
         return 30
 
@@ -1250,6 +1320,20 @@ def _alight_from_bus(
         BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
     elif next_leg["mode"] == "BUS":
         BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
+
+    # 상태 전환 후 즉시 bot_status_update 발행
+    transitioned_state = BotStateManager.get(route_id)
+    if transitioned_state:
+        completed_time = sum(
+            legs[i].get("sectionTime", 0) for i in range(next_leg_index)
+        )
+        total_time = sum(leg.get("sectionTime", 0) for leg in legs)
+        new_progress = (completed_time / total_time * 100) if total_time > 0 else 0
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**transitioned_state, "progress_percent": new_progress},
+            next_update_in=30,
+        )
 
     return 30
 
