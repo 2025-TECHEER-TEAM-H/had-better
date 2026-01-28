@@ -4,7 +4,7 @@
 services:
   # Celery Worker
   celery-worker:
-    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    image: hadbetter-backend:local
     container_name: hadbetter-celery-worker
     command: celery -A config worker -l info --concurrency=4
     environment:
@@ -20,6 +20,13 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_URL=${REDIS_URL}
       - DEBUG=False
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      # 공공데이터 API 키
+      - BUS_API_KEY=${BUS_API_KEY}
+      - SUBWAY_API_KEY=${SUBWAY_API_KEY}
     networks:
       - hadbetter-network
     restart: unless-stopped
@@ -31,7 +38,7 @@ services:
 
   # Celery Beat (스케줄러)
   celery-beat:
-    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    image: hadbetter-backend:local
     container_name: hadbetter-celery-beat
     command: celery -A config beat -l info
     environment:
@@ -47,6 +54,13 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_URL=${REDIS_URL}
       - DEBUG=False
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      # 공공데이터 API 키
+      - BUS_API_KEY=${BUS_API_KEY}
+      - SUBWAY_API_KEY=${SUBWAY_API_KEY}
     networks:
       - hadbetter-network
     restart: unless-stopped

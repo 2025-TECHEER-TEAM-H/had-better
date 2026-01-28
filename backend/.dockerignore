@@ -1,0 +1,36 @@
+# 환경 변수 파일 (docker-compose에서 전달)
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# 테스트/문서
+tests/
+docs/
+*.md
+!README.md
+
+# 기타
+*.log
+.DS_Store
+Thumbs.db
