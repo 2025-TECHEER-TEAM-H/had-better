@@ -338,8 +338,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 도착 판정 기준 (미터)
   const ARRIVAL_THRESHOLD = 20;
-  const OFF_ROUTE_THRESHOLD = 20;        // 경고 시작
-  const OFF_ROUTE_POPUP_THRESHOLD = 100; // 팝업 표시
+  const OFF_ROUTE_THRESHOLD = 100;       // 경고 시작 (100m 초과)
+  const OFF_ROUTE_POPUP_THRESHOLD = 200; // 팝업 표시 (200m 초과)
   const OFF_ROUTE_AUTO_SWITCH = 500;     // 자동 시뮬레이션 전환
 
   // 경로 이탈 레벨 타입
@@ -713,15 +713,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
       // 이탈 레벨 판정
       if (distFromRoute <= OFF_ROUTE_THRESHOLD) {
-        // 정상 범위
+        // 정상 범위 (0~100m)
         setOffRouteLevel('none');
         setIsOffRoute(false);
       } else if (distFromRoute <= OFF_ROUTE_POPUP_THRESHOLD) {
-        // 20m ~ 100m: 경고만 표시
+        // 100m ~ 200m: 경고만 표시
         setOffRouteLevel('warning');
         setIsOffRoute(true);
       } else if (distFromRoute <= OFF_ROUTE_AUTO_SWITCH) {
-        // 100m ~ 500m: 팝업 표시 (한 번만)
+        // 200m ~ 500m: 팝업 표시 (한 번만)
         setOffRouteLevel('popup');
         setIsOffRoute(true);
         if (!hasShownModePopup && !showModeSelectPopup) {
@@ -745,12 +745,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     // 유저의 진행률 계산 (출발지 기준)
     if (departure && arrival && userRouteLine) {
       const totalDistance = turf.length(userRouteLine, { units: 'meters' });
-      const startPoint = turf.point([departure.lon, departure.lat]);
       const userPoint = turf.point(currentLocation);
 
-      // 경로 상에서 가장 가까운 점 찾기
-      const nearestPoint = turf.nearestPointOnLine(userRouteLine, userPoint);
-      const distanceFromStart = turf.distance(startPoint, nearestPoint, { units: 'meters' });
+      // 경로 상에서 가장 가까운 점 찾기 (units: 'meters'로 경로 따라 이동한 거리 반환)
+      const nearestPoint = turf.nearestPointOnLine(userRouteLine, userPoint, { units: 'meters' });
+      // properties.location: 경로 시작점에서 nearestPoint까지 경로를 따라 이동한 거리 (meters)
+      const distanceFromStart = nearestPoint.properties.location ?? 0;
 
       const progress = Math.min(distanceFromStart / totalDistance, 1);
       setPlayerProgress((prev) => {
@@ -2257,6 +2257,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           skipInterpolation={true}  // 부모에서 이미 애니메이션 처리하므로 보간 건너뛰기
           size={64}
           animationSpeed={150}
+          hideStatus={true}  // GPS 기반 이동에서는 정확한 상태 감지가 어려우므로 숨김
         />
       )}
 

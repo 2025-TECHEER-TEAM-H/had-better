@@ -12,6 +12,10 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=dlgusduddl0408@gmail.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--log.level=INFO"
     ports:
       - "80:80"
@@ -19,49 +23,71 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
     networks:
       - hadbetter-network
     restart: unless-stopped
 
   # Django 백엔드 (API 서버)
   backend:
-    image: ${ECR_REGISTRY}/hadbetter-backend:${IMAGE_TAG:-latest}
+    image: hadbetter-backend:local
     container_name: hadbetter-backend
-    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
-      # AWS RDS 연결
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_URL=${REDIS_URL}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - DEBUG=False
+    env_file:
+      - .env.django
     volumes:
       - static_volume:/app/staticfiles
     labels:
       - "traefik.enable=true"
-      # API 라우팅
-      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`)"
+      # HTTP → HTTPS 리다이렉트
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+      # API 라우팅 (HTTPS)
+      - "traefik.http.routers.backend-api-secure.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-api-secure.entrypoints=websecure"
+      - "traefik.http.routers.backend-api-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend-api-secure.service=backend"
+
+      # API HTTP → HTTPS 리다이렉트
+      - "traefik.http.routers.backend-api.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend-api.entrypoints=web"
-      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
-      # SSE 라우팅
-      - "traefik.http.routers.backend-sse.rule=PathPrefix(`/sse`)"
+      - "traefik.http.routers.backend-api.middlewares=redirect-to-https"
+
+      # SSE 라우팅 (HTTPS)
+      - "traefik.http.routers.backend-sse-secure.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/sse`)"
+      - "traefik.http.routers.backend-sse-secure.entrypoints=websecure"
+      - "traefik.http.routers.backend-sse-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend-sse-secure.service=backend"
+
+      # SSE HTTP → HTTPS 리다이렉트
+      - "traefik.http.routers.backend-sse.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/sse`)"
       - "traefik.http.routers.backend-sse.entrypoints=web"
-      - "traefik.http.services.backend-sse.loadbalancer.server.port=8000"
-      # Admin 라우팅
-      - "traefik.http.routers.backend-admin.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.backend-sse.middlewares=redirect-to-https"
+
+      # Admin 라우팅 (HTTPS)
+      - "traefik.http.routers.backend-admin-secure.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/admin`)"
+      - "traefik.http.routers.backend-admin-secure.entrypoints=websecure"
+      - "traefik.http.routers.backend-admin-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend-admin-secure.service=backend"
+
+      # Admin HTTP → HTTPS 리다이렉트
+      - "traefik.http.routers.backend-admin.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.backend-admin.entrypoints=web"
-      - "traefik.http.services.backend-admin.loadbalancer.server.port=8000"
-      # Static 파일 라우팅
-      - "traefik.http.routers.backend-static.rule=PathPrefix(`/static`)"
+      - "traefik.http.routers.backend-admin.middlewares=redirect-to-https"
+
+      # Static 파일 라우팅 (HTTPS)
+      - "traefik.http.routers.backend-static-secure.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/static`)"
+      - "traefik.http.routers.backend-static-secure.entrypoints=websecure"
+      - "traefik.http.routers.backend-static-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend-static-secure.service=backend"
+
+      # Static HTTP → HTTPS 리다이렉트
+      - "traefik.http.routers.backend-static.rule=Host(`api.hadbetter.cloud`) && PathPrefix(`/static`)"
       - "traefik.http.routers.backend-static.entrypoints=web"
-      - "traefik.http.services.backend-static.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-static.middlewares=redirect-to-https"
+
+      # Service 정의 (단일 서비스)
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -76,25 +102,34 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"        # AMQP 포트 (Celery 연결용)
+      - "15672:15672"      # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    ports:
-      # Celery EC2에서 접근할 수 있도록 포트 노출
-      - "5672:5672"
-      - "15672:15672"
+    networks:
+      - hadbetter-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: rabbitmq-diagnostics -q ping
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hadbetter-redis
+    ports:
+      - "6379:6379"
     networks:
       - hadbetter-network
     restart: unless-stopped
 
-networks:
-  hadbetter-network:
-    driver: bridge
-
 volumes:
   rabbitmq_data:
   static_volume:
+  letsencrypt:
+
+networks:
+  hadbetter-network:
+    driver: bridge

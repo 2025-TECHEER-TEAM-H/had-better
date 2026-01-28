@@ -83,6 +83,8 @@ interface MovingCharacterProps {
   onClick?: () => void;
   // 대기 시간 (분) - WAITING_BUS, WAITING_SUBWAY일 때 사용
   waitingTimeMinutes?: number;
+  // 상태 텍스트 숨기기 (GPS 기반 사용자 캐릭터에서 사용)
+  hideStatus?: boolean;
 }
 
 /**
@@ -101,6 +103,7 @@ export function MovingCharacter({
   animationSpeed = 150,
   onClick,
   waitingTimeMinutes,
+  hideStatus = false,
 }: MovingCharacterProps) {
   // 상태
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -320,8 +323,8 @@ export function MovingCharacter({
       }}
       onClick={onClick}
     >
-      {/* 상태 텍스트 표시 */}
-      {(() => {
+      {/* 상태 텍스트 표시 (hideStatus가 true면 숨김) */}
+      {!hideStatus && (() => {
         let statusText = '';
 
         switch (status) {

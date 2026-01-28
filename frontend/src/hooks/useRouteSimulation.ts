@@ -50,7 +50,7 @@ export function useRouteSimulation({
 
   // 상수
   const ARRIVAL_THRESHOLD = 20;
-  const OFF_ROUTE_THRESHOLD = 20;
+  const OFF_ROUTE_THRESHOLD = 100;  // 경고 시작 (100m 초과)
 
   // 유틸리티: 경로 LineString 생성
   const getRouteLineString = useCallback((player: Player) => {
