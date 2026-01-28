@@ -89,6 +89,10 @@ jobs:
             # 작업 디렉토리로 이동
             cd ~/hadbetter
 
+            # 최신 설정 파일 동기화 (docker-compose.yml 등)
+            git fetch origin main
+            git reset --hard origin/main
+
             # ECR 로그인
             aws ecr get-login-password --region ap-northeast-2 | \
               docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
@@ -140,6 +144,10 @@ jobs:
           script: |
             # 작업 디렉토리로 이동
             cd ~/hadbetter
+
+            # 최신 설정 파일 동기화 (docker-compose.yml 등)
+            git fetch origin main
+            git reset --hard origin/main
 
             # ECR 로그인
             aws ecr get-login-password --region ap-northeast-2 | \

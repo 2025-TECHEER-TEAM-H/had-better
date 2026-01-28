@@ -373,7 +373,27 @@ def _handle_walking(
     # 도보 구간 완료 여부 체크
     is_leg_complete = elapsed >= section_time
 
-    # 구간 완료 전에만 위치 업데이트 (완료 시 _finish_bot에서 처리)
+    # 도착점(정류장/역) 좌표
+    end_point = current_leg.get("end", {})
+    end_lon = end_point.get("lon")
+    end_lat = end_point.get("lat")
+
+    # 현재 봇 좌표
+    current_pos = bot_state.get("current_position", {})
+    current_lon = current_pos.get("lon")
+    current_lat = current_pos.get("lat")
+
+    # 봇이 도착점에 있는지 확인 (좌표 비교, 소수점 6자리까지)
+    def coords_match(lon1, lat1, lon2, lat2) -> bool:
+        if not all([lon1, lat1, lon2, lat2]):
+            return False
+        return round(float(lon1), 6) == round(float(lon2), 6) and round(
+            float(lat1), 6
+        ) == round(float(lat2), 6)
+
+    bot_at_destination = coords_match(current_lon, current_lat, end_lon, end_lat)
+
+    # 구간 완료 전에만 위치 업데이트
     if not is_leg_complete:
         # 현재 leg 내 진행률 (0.0 ~ 1.0)
         leg_progress = min(elapsed / section_time, 1.0) if section_time > 0 else 0
@@ -382,30 +402,10 @@ def _handle_walking(
         position = _calculate_walking_position(current_leg, leg_progress)
         if position:
             BotStateManager.update_position(route_id, lon=position[0], lat=position[1])
-    else:
-        logger.info(
-            f"WALKING 구간 완료: route_id={route_id}, "
-            f"위치 업데이트 건너뛰기 (순간이동 방지), "
-            f"현재 위치 유지하여 _finish_bot에서 보간 처리"
-        )
 
     # 전체 경로 기준 진행률 계산
     progress_percent = _calculate_total_progress(
         legs, bot_state["current_leg_index"], elapsed, section_time
-    )
-
-    # 업데이트된 봇 상태 조회 (current_position 포함)
-    updated_bot_state = BotStateManager.get(route_id) or bot_state
-
-    # 첫 업데이트 여부 (elapsed < 10초 = 방금 시작)
-    is_first_update = elapsed < 10
-    next_interval = 5 if is_first_update else 30
-
-    # SSE 발행
-    SSEPublisher.publish_bot_status_update(
-        route_itinerary_id=route_itinerary_id,
-        bot_state={**updated_bot_state, "progress_percent": progress_percent},
-        next_update_in=next_interval,
     )
 
     # 도보 구간 완료
@@ -416,6 +416,36 @@ def _handle_walking(
             _finish_bot(route_id, route_itinerary_id, bot_state, legs)
             return 30
 
+        # 1차 완료: 봇이 아직 도착점에 없음 → 좌표만 업데이트하고 WALKING 유지
+        if not bot_at_destination:
+            if end_lon and end_lat:
+                BotStateManager.update_position(
+                    route_id, lon=float(end_lon), lat=float(end_lat)
+                )
+                logger.info(
+                    f"WALKING 구간 완료 (1차): route_id={route_id}, "
+                    f"도착점 좌표로 위치 업데이트: ({end_lat}, {end_lon}), 상태는 WALKING 유지"
+                )
+
+            # 업데이트된 봇 상태 조회
+            updated_bot_state = BotStateManager.get(route_id) or bot_state
+
+            # SSE 발행: WALKING 상태 + 도착점 좌표 + next_update_in=30
+            SSEPublisher.publish_bot_status_update(
+                route_itinerary_id=route_itinerary_id,
+                bot_state={**updated_bot_state, "progress_percent": progress_percent},
+                next_update_in=30,
+            )
+
+            # 30초 후 다시 호출 (2차에서 상태 전환)
+            return 30
+
+        # 2차 완료: 봇이 도착점에 있음 → 상태 전환
+        logger.info(
+            f"WALKING 구간 완료 (2차): route_id={route_id}, "
+            f"봇이 도착점에 도달, 상태 전환"
+        )
+
         next_leg = legs[next_leg_index]
 
         if next_leg["mode"] == "BUS":
@@ -424,6 +454,23 @@ def _handle_walking(
             BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
         else:
             BotStateManager.transition_to_walking(route_id, next_leg_index)
+
+        # SSE 발행 안 함 - WAITING 핸들러에서 발행
+        # 5초 후 WAITING 핸들러 호출
+        return 5
+
+    # 구간 진행 중: SSE 발행
+    updated_bot_state = BotStateManager.get(route_id) or bot_state
+
+    # 첫 업데이트 여부 (elapsed < 10초 = 방금 시작)
+    is_first_update = elapsed < 10
+    next_interval = 5 if is_first_update else 30
+
+    SSEPublisher.publish_bot_status_update(
+        route_itinerary_id=route_itinerary_id,
+        bot_state={**updated_bot_state, "progress_percent": progress_percent},
+        next_update_in=next_interval,
+    )
 
     return next_interval
 
@@ -852,14 +899,14 @@ def _handle_waiting_bus(
         legs, bot_state["current_leg_index"], 0, current_leg.get("sectionTime", 0)
     )
 
-    # 정류장 위치로 봇 위치 업데이트
-    if start_station:
-        station_lon = start_station.get("lon")
-        station_lat = start_station.get("lat")
-        if station_lon and station_lat:
-            BotStateManager.update_position(
-                route_id, lon=float(station_lon), lat=float(station_lat)
-            )
+    # 정류장 위치로 봇 위치 업데이트 (current_leg의 start 좌표 사용 - WALKING leg의 end와 일치)
+    start = current_leg.get("start", {})
+    start_lon = start.get("lon")
+    start_lat = start.get("lat")
+    if start_lon and start_lat:
+        BotStateManager.update_position(
+            route_id, lon=float(start_lon), lat=float(start_lat)
+        )
 
     # 디버깅: 버스 정보 확인
     logger.info(
@@ -1229,6 +1276,20 @@ def _alight_from_bus(
 ) -> int:
     """버스 하차 처리 공통 함수"""
     end_station = public_leg.get("end_station", {})
+
+    # 버스 하차 정류장 좌표로 위치 업데이트
+    if end_station:
+        end_lon = end_station.get("lon")
+        end_lat = end_station.get("lat")
+        if end_lon and end_lat:
+            BotStateManager.update_position(
+                route_id, lon=float(end_lon), lat=float(end_lat)
+            )
+            logger.info(
+                f"버스 하차 정류장 좌표 설정: route_id={route_id}, "
+                f"station={end_station.get('name', '')}, coord=({end_lat}, {end_lon})"
+            )
+
     SSEPublisher.publish_bot_alighting(
         route_itinerary_id=route_itinerary_id,
         route_id=route_id,
