@@ -338,8 +338,8 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
   // 도착 판정 기준 (미터)
   const ARRIVAL_THRESHOLD = 20;
-  const OFF_ROUTE_THRESHOLD = 20;        // 경고 시작
-  const OFF_ROUTE_POPUP_THRESHOLD = 100; // 팝업 표시
+  const OFF_ROUTE_THRESHOLD = 100;       // 경고 시작 (100m 초과)
+  const OFF_ROUTE_POPUP_THRESHOLD = 200; // 팝업 표시 (200m 초과)
   const OFF_ROUTE_AUTO_SWITCH = 500;     // 자동 시뮬레이션 전환
 
   // 경로 이탈 레벨 타입
@@ -713,15 +713,15 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
 
       // 이탈 레벨 판정
       if (distFromRoute <= OFF_ROUTE_THRESHOLD) {
-        // 정상 범위
+        // 정상 범위 (0~100m)
         setOffRouteLevel('none');
         setIsOffRoute(false);
       } else if (distFromRoute <= OFF_ROUTE_POPUP_THRESHOLD) {
-        // 20m ~ 100m: 경고만 표시
+        // 100m ~ 200m: 경고만 표시
         setOffRouteLevel('warning');
         setIsOffRoute(true);
       } else if (distFromRoute <= OFF_ROUTE_AUTO_SWITCH) {
-        // 100m ~ 500m: 팝업 표시 (한 번만)
+        // 200m ~ 500m: 팝업 표시 (한 번만)
         setOffRouteLevel('popup');
         setIsOffRoute(true);
         if (!hasShownModePopup && !showModeSelectPopup) {
