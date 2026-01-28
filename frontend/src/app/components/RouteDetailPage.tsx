@@ -2257,6 +2257,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
           skipInterpolation={true}  // 부모에서 이미 애니메이션 처리하므로 보간 건너뛰기
           size={64}
           animationSpeed={150}
+          hideStatus={true}  // GPS 기반 이동에서는 정확한 상태 감지가 어려우므로 숨김
         />
       )}
 
