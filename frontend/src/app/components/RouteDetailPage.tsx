@@ -745,12 +745,12 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     // 유저의 진행률 계산 (출발지 기준)
     if (departure && arrival && userRouteLine) {
       const totalDistance = turf.length(userRouteLine, { units: 'meters' });
-      const startPoint = turf.point([departure.lon, departure.lat]);
       const userPoint = turf.point(currentLocation);
 
-      // 경로 상에서 가장 가까운 점 찾기
-      const nearestPoint = turf.nearestPointOnLine(userRouteLine, userPoint);
-      const distanceFromStart = turf.distance(startPoint, nearestPoint, { units: 'meters' });
+      // 경로 상에서 가장 가까운 점 찾기 (units: 'meters'로 경로 따라 이동한 거리 반환)
+      const nearestPoint = turf.nearestPointOnLine(userRouteLine, userPoint, { units: 'meters' });
+      // properties.location: 경로 시작점에서 nearestPoint까지 경로를 따라 이동한 거리 (meters)
+      const distanceFromStart = nearestPoint.properties.location ?? 0;
 
       const progress = Math.min(distanceFromStart / totalDistance, 1);
       setPlayerProgress((prev) => {
