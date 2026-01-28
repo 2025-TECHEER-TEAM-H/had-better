@@ -2644,7 +2644,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                       }`}
                     >
                       <span className="text-lg">🚌</span>
-                      <span className="font-['Pretendard',sans-serif] text-[12px] font-medium whitespace-nowrap">초정밀 버스</span>
+                      <span className="font-['Pretendard',sans-serif] text-[12px] font-medium whitespace-nowrap">실시간 버스</span>
                       <div
                         className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                           isBusLinesEnabled
@@ -2954,7 +2954,7 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
                   }`}
                 >
                   <span className="text-lg">🚌</span>
-                  <span className="text-sm font-medium whitespace-nowrap">초정밀 버스</span>
+                  <span className="text-sm font-medium whitespace-nowrap">실시간 버스</span>
                   <div
                     className={`ml-auto w-10 h-5 rounded-full transition-all relative backdrop-blur-sm ${
                       isBusLinesEnabled
