@@ -5,7 +5,7 @@
   </br>
 </p>
 
-[!Onboarding_image](https://github.com/user-attachments/assets/a0e1f8dc-e02b-4646-857c-620e4498dd7b)
+![Video Project 6](https://github.com/user-attachments/assets/648feda9-1f72-4096-b863-73754245b594)
 
 </br>
 
@@ -85,6 +85,7 @@
 </table>
 
 </br>
+
 
 ### 실시간 경주
 
