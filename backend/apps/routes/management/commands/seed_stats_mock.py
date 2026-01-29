@@ -14,10 +14,9 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.itineraries.models import RouteLeg, RouteItinerary, SearchItineraryHistory
+from apps.itineraries.models import RouteItinerary, RouteLeg, SearchItineraryHistory
 from apps.routes.models import Bot, Route
 from apps.users.models import User
-
 
 # 출발/도착 쌍 정의 (좌표 + 지명)
 ROUTE_PAIRS = [
@@ -47,95 +46,647 @@ ROUTE_PAIRS = [
     },
 ]
 
-# 경로 템플릿 (각 구간에 3개 이상의 경로)
+# 경로 템플릿 (TMap API 실제 응답 기반)
+# legs에 RouteTimeline 렌더링에 필요한 start/end/sectionTime/distance/routeColor 포함
 ROUTE_TEMPLATES = {
     ("강남역 2번출구", "홍대입구역 1번출구"): [
         {
             "label": "2호선",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "SUBWAY", "route": "수도권2호선"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "강남"},
+                    "sectionTime": 155,
+                    "distance": 172,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권2호선",
+                    "routeColor": "009D3E",
+                    "start": {"name": "강남"},
+                    "end": {"name": "홍대입구"},
+                    "sectionTime": 2356,
+                    "distance": 22090,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "222", "stationName": "강남"},
+                            {"stationID": "221", "stationName": "교대"},
+                            {"stationID": "220", "stationName": "서초"},
+                            {"stationID": "219", "stationName": "방배"},
+                            {"stationID": "218", "stationName": "사당"},
+                            {"stationID": "217", "stationName": "낙성대"},
+                            {"stationID": "216", "stationName": "서울대입구"},
+                            {"stationID": "215", "stationName": "봉천"},
+                            {"stationID": "214", "stationName": "신림"},
+                            {"stationID": "213", "stationName": "신대방"},
+                            {"stationID": "212", "stationName": "구로디지털단지"},
+                            {"stationID": "211", "stationName": "대림"},
+                            {"stationID": "234", "stationName": "신도림"},
+                            {"stationID": "235", "stationName": "문래"},
+                            {"stationID": "236", "stationName": "영등포구청"},
+                            {"stationID": "237", "stationName": "당산"},
+                            {"stationID": "238", "stationName": "합정"},
+                            {"stationID": "239", "stationName": "홍대입구"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "홍대입구"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 17,
+                    "distance": 21,
+                },
             ],
-            "base_duration": 1500,
+            "base_duration": 2528,
         },
         {
-            "label": "신분당선 → 2호선",
+            "label": "420 → 2호선",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "SUBWAY", "route": "신분당선"},
-                {"mode": "SUBWAY", "route": "수도권2호선"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "지하철2호선강남역"},
+                    "sectionTime": 403,
+                    "distance": 435,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:420",
+                    "routeColor": "0068B7",
+                    "start": {"name": "지하철2호선강남역"},
+                    "end": {"name": "동대문역사문화공원역9번출구"},
+                    "sectionTime": 1147,
+                    "distance": 8019,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "102894", "stationName": "지하철2호선강남역"},
+                            {"stationID": "102895", "stationName": "라퀴역"},
+                            {"stationID": "102896", "stationName": "잠원역"},
+                            {"stationID": "102897", "stationName": "한남대교남단"},
+                            {"stationID": "102898", "stationName": "한남사거리"},
+                            {"stationID": "102899", "stationName": "순천향대학병원"},
+                            {
+                                "stationID": "102900",
+                                "stationName": "서울소방재난교육센터",
+                            },
+                            {
+                                "stationID": "102901",
+                                "stationName": "국립극장.반얀트리호텔",
+                            },
+                            {"stationID": "102902", "stationName": "장충동.동국대입구"},
+                            {
+                                "stationID": "102903",
+                                "stationName": "동대문역사문화공원역9번출구",
+                            },
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "동대문역사문화공원역9번출구"},
+                    "end": {"name": "동대문역사문화공원"},
+                    "sectionTime": 106,
+                    "distance": 149,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권2호선",
+                    "routeColor": "009D3E",
+                    "start": {"name": "동대문역사문화공원"},
+                    "end": {"name": "홍대입구"},
+                    "sectionTime": 1021,
+                    "distance": 7992,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "205", "stationName": "동대문역사문화공원"},
+                            {"stationID": "204", "stationName": "을지로4가"},
+                            {"stationID": "203", "stationName": "을지로3가"},
+                            {"stationID": "202", "stationName": "을지로입구"},
+                            {"stationID": "201", "stationName": "시청"},
+                            {"stationID": "243", "stationName": "충정로"},
+                            {"stationID": "242", "stationName": "아현"},
+                            {"stationID": "241", "stationName": "이대"},
+                            {"stationID": "240", "stationName": "신촌"},
+                            {"stationID": "239", "stationName": "홍대입구"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "홍대입구"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 17,
+                    "distance": 21,
+                },
             ],
-            "base_duration": 1800,
+            "base_duration": 2694,
         },
         {
-            "label": "472",
+            "label": "740 → 7016",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "BUS", "route": "간선:472"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "강남역.강남역사거리"},
+                    "sectionTime": 137,
+                    "distance": 150,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:740",
+                    "routeColor": "0068B7",
+                    "start": {"name": "강남역.강남역사거리"},
+                    "end": {"name": "공덕역2번출구"},
+                    "sectionTime": 1970,
+                    "distance": 10624,
+                    "passStopList": {
+                        "stationList": [
+                            {
+                                "stationID": "105250",
+                                "stationName": "강남역.강남역사거리",
+                            },
+                            {"stationID": "105251", "stationName": "서초디지향아파트"},
+                            {
+                                "stationID": "105252",
+                                "stationName": "서초르네상스보훈회.전원아파트",
+                            },
+                            {
+                                "stationID": "105253",
+                                "stationName": "지하철2호선교대역4번출구",
+                            },
+                            {"stationID": "105254", "stationName": "교대역10번출구"},
+                            {
+                                "stationID": "105255",
+                                "stationName": "서초역.서울중앙지법등기국",
+                            },
+                            {
+                                "stationID": "105256",
+                                "stationName": "서울중앙지방검찰청",
+                            },
+                            {
+                                "stationID": "105257",
+                                "stationName": "서울지방조달청.서울성모병원",
+                            },
+                            {
+                                "stationID": "105258",
+                                "stationName": "반포한강공원.선비사",
+                            },
+                            {"stationID": "105259", "stationName": "한강중학교"},
+                            {"stationID": "105260", "stationName": "용산구청"},
+                            {"stationID": "105261", "stationName": "삼각지역"},
+                            {"stationID": "105262", "stationName": "전쟁기념관"},
+                            {
+                                "stationID": "105263",
+                                "stationName": "용산꿈나무종합타운",
+                            },
+                            {
+                                "stationID": "105264",
+                                "stationName": "효창공원앞역",
+                            },
+                            {
+                                "stationID": "105265",
+                                "stationName": "용마루고개",
+                            },
+                            {
+                                "stationID": "105266",
+                                "stationName": "공덕사거리",
+                            },
+                            {"stationID": "105267", "stationName": "공덕역2번출구"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "공덕역2번출구"},
+                    "end": {"name": "공덕역2번출구"},
+                    "sectionTime": 0,
+                    "distance": 0,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "지선:7016",
+                    "routeColor": "53B332",
+                    "start": {"name": "공덕역2번출구"},
+                    "end": {"name": "홍대입구역"},
+                    "sectionTime": 636,
+                    "distance": 3050,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "106001", "stationName": "공덕역2번출구"},
+                            {
+                                "stationID": "106002",
+                                "stationName": "대도중학교.서울대원외국어고등학교",
+                            },
+                            {"stationID": "106003", "stationName": "대흥역"},
+                            {"stationID": "106004", "stationName": "광성중고등학교"},
+                            {"stationID": "106005", "stationName": "서강대학교"},
+                            {"stationID": "106006", "stationName": "신이로터리"},
+                            {
+                                "stationID": "106007",
+                                "stationName": "신이사거리.현대백화점",
+                            },
+                            {"stationID": "106008", "stationName": "동교동일거리"},
+                            {"stationID": "106009", "stationName": "홍대입구역"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "홍대입구역"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 85,
+                    "distance": 78,
+                },
             ],
-            "base_duration": 2400,
+            "base_duration": 2828,
         },
     ],
     ("서울역 1번출구", "여의도역 1번출구"): [
         {
             "label": "1호선 → 5호선",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "SUBWAY", "route": "수도권1호선"},
-                {"mode": "SUBWAY", "route": "수도권5호선"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "서울역"},
+                    "sectionTime": 191,
+                    "distance": 216,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권1호선",
+                    "routeColor": "0052A4",
+                    "start": {"name": "서울역"},
+                    "end": {"name": "신길"},
+                    "sectionTime": 780,
+                    "distance": 8209,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "133", "stationName": "서울역"},
+                            {"stationID": "134", "stationName": "남영"},
+                            {"stationID": "135", "stationName": "용산"},
+                            {"stationID": "136", "stationName": "노량진"},
+                            {"stationID": "137", "stationName": "대방"},
+                            {"stationID": "138", "stationName": "신길"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "신길"},
+                    "end": {"name": "신길"},
+                    "sectionTime": 349,
+                    "distance": 371,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권5호선",
+                    "routeColor": "996CAC",
+                    "start": {"name": "신길"},
+                    "end": {"name": "여의도"},
+                    "sectionTime": 120,
+                    "distance": 874,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "531", "stationName": "신길"},
+                            {"stationID": "526", "stationName": "여의도"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "여의도"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 164,
+                    "distance": 147,
+                },
             ],
-            "base_duration": 1200,
+            "base_duration": 1604,
         },
         {
-            "label": "150",
+            "label": "162",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "BUS", "route": "간선:150"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "서울역버스환승센터(4번승강장)"},
+                    "sectionTime": 172,
+                    "distance": 182,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:162",
+                    "routeColor": "0068B7",
+                    "start": {"name": "서울역버스환승센터(4번승강장)"},
+                    "end": {"name": "여의도역"},
+                    "sectionTime": 1397,
+                    "distance": 6856,
+                    "passStopList": {
+                        "stationList": [
+                            {
+                                "stationID": "100001",
+                                "stationName": "서울역버스환승센터(4번승강장)",
+                            },
+                            {"stationID": "100002", "stationName": "갈월동"},
+                            {
+                                "stationID": "100003",
+                                "stationName": "갈월동.서부이촌역10번출구",
+                            },
+                            {
+                                "stationID": "100004",
+                                "stationName": "남영역.민주화운동기념관",
+                            },
+                            {"stationID": "100005", "stationName": "용산경찰서"},
+                            {
+                                "stationID": "100006",
+                                "stationName": "용산꿈나무종합타운.삼효로우체국",
+                            },
+                            {"stationID": "100007", "stationName": "삼효로2가"},
+                            {"stationID": "100008", "stationName": "삼효로3가"},
+                            {
+                                "stationID": "100009",
+                                "stationName": "신번아파트.대교아파트",
+                            },
+                            {"stationID": "100010", "stationName": "KBS별관"},
+                            {
+                                "stationID": "100011",
+                                "stationName": "시강역1번출구.여의도시외",
+                            },
+                            {"stationID": "100012", "stationName": "여의도역"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "여의도역"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 67,
+                    "distance": 54,
+                },
             ],
-            "base_duration": 1800,
+            "base_duration": 1636,
         },
         {
-            "label": "9호선",
+            "label": "1호선 → 163",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "SUBWAY", "route": "수도권9호선"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "서울역"},
+                    "sectionTime": 191,
+                    "distance": 216,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권1호선",
+                    "routeColor": "0052A4",
+                    "start": {"name": "서울역"},
+                    "end": {"name": "대방"},
+                    "sectionTime": 720,
+                    "distance": 7305,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "133", "stationName": "서울역"},
+                            {"stationID": "134", "stationName": "남영"},
+                            {"stationID": "135", "stationName": "용산"},
+                            {"stationID": "136", "stationName": "노량진"},
+                            {"stationID": "137", "stationName": "대방"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "대방"},
+                    "end": {"name": "대방역7번출구"},
+                    "sectionTime": 78,
+                    "distance": 86,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:163",
+                    "routeColor": "0068B7",
+                    "start": {"name": "대방역7번출구"},
+                    "end": {"name": "여의도역"},
+                    "sectionTime": 191,
+                    "distance": 989,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "100020", "stationName": "대방역7번출구"},
+                            {
+                                "stationID": "100021",
+                                "stationName": "시강역1번출구.여의도시외",
+                            },
+                            {"stationID": "100022", "stationName": "여의도역"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "여의도역"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 67,
+                    "distance": 54,
+                },
             ],
-            "base_duration": 1400,
+            "base_duration": 1247,
         },
     ],
     ("잠실역 4번출구", "건대입구역 2번출구"): [
         {
             "label": "2호선",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "SUBWAY", "route": "수도권2호선"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "잠실"},
+                    "sectionTime": 169,
+                    "distance": 135,
+                },
+                {
+                    "mode": "SUBWAY",
+                    "route": "수도권2호선",
+                    "routeColor": "009D3E",
+                    "start": {"name": "잠실"},
+                    "end": {"name": "건대입구"},
+                    "sectionTime": 493,
+                    "distance": 5347,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "216", "stationName": "잠실"},
+                            {"stationID": "215", "stationName": "잠실나루"},
+                            {"stationID": "214", "stationName": "강변"},
+                            {"stationID": "213", "stationName": "구의"},
+                            {"stationID": "212", "stationName": "건대입구"},
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "건대입구"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 145,
+                    "distance": 171,
+                },
             ],
-            "base_duration": 600,
+            "base_duration": 807,
         },
         {
-            "label": "302",
+            "label": "N73",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "BUS", "route": "지선:302"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "잠실역7번출구"},
+                    "sectionTime": 212,
+                    "distance": 228,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:N73",
+                    "routeColor": "0068B7",
+                    "start": {"name": "잠실역7번출구"},
+                    "end": {"name": "건대입구역1번출구"},
+                    "sectionTime": 653,
+                    "distance": 4265,
+                    "passStopList": {
+                        "stationList": [
+                            {"stationID": "200001", "stationName": "잠실역7번출구"},
+                            {
+                                "stationID": "200002",
+                                "stationName": "잠실대교남단",
+                            },
+                            {
+                                "stationID": "200003",
+                                "stationName": "대성인쇄지식산업센터",
+                            },
+                            {"stationID": "200004", "stationName": "아차산사거리"},
+                            {"stationID": "200005", "stationName": "아차산초등학교"},
+                            {"stationID": "200006", "stationName": "건국대학교앞"},
+                            {
+                                "stationID": "200007",
+                                "stationName": "건대입구역1번출구",
+                            },
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "건대입구역1번출구"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 100,
+                    "distance": 141,
+                },
             ],
-            "base_duration": 900,
+            "base_duration": 965,
         },
         {
-            "label": "2234",
+            "label": "303 → N73",
             "legs": [
-                {"mode": "WALK", "route": ""},
-                {"mode": "BUS", "route": "지선:2234"},
-                {"mode": "WALK", "route": ""},
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "출발지"},
+                    "end": {"name": "잠실역.롯데월드몰"},
+                    "sectionTime": 196,
+                    "distance": 171,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:303",
+                    "routeColor": "0068B7",
+                    "start": {"name": "잠실역.롯데월드몰"},
+                    "end": {"name": "잠실대교남단"},
+                    "sectionTime": 532,
+                    "distance": 2538,
+                    "passStopList": {
+                        "stationList": [
+                            {
+                                "stationID": "200010",
+                                "stationName": "잠실역.롯데월드몰",
+                            },
+                            {
+                                "stationID": "200011",
+                                "stationName": "잠실역.잠실대교남단",
+                            },
+                            {
+                                "stationID": "200012",
+                                "stationName": "잠실대교남단",
+                            },
+                            {
+                                "stationID": "200013",
+                                "stationName": "잠실대교남단",
+                            },
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "잠실대교남단"},
+                    "end": {"name": "잠실대교남단"},
+                    "sectionTime": 0,
+                    "distance": 0,
+                },
+                {
+                    "mode": "BUS",
+                    "route": "간선:N73",
+                    "routeColor": "0068B7",
+                    "start": {"name": "잠실대교남단"},
+                    "end": {"name": "건대입구역1번출구"},
+                    "sectionTime": 472,
+                    "distance": 1988,
+                    "passStopList": {
+                        "stationList": [
+                            {
+                                "stationID": "200002",
+                                "stationName": "잠실대교남단",
+                            },
+                            {
+                                "stationID": "200003",
+                                "stationName": "대성인쇄지식산업센터",
+                            },
+                            {"stationID": "200004", "stationName": "아차산사거리"},
+                            {"stationID": "200005", "stationName": "아차산초등학교"},
+                            {"stationID": "200006", "stationName": "건국대학교앞"},
+                            {
+                                "stationID": "200007",
+                                "stationName": "건대입구역1번출구",
+                            },
+                        ]
+                    },
+                },
+                {
+                    "mode": "WALK",
+                    "route": "",
+                    "start": {"name": "건대입구역1번출구"},
+                    "end": {"name": "도착지"},
+                    "sectionTime": 100,
+                    "distance": 141,
+                },
             ],
-            "base_duration": 1100,
+            "base_duration": 1300,
         },
     ],
 }
@@ -244,9 +795,15 @@ class Command(BaseCommand):
                     )
 
                     # 각 참가자 소요시간 (base_duration ±25%)
-                    user_dur = int(user_tmpl["base_duration"] * random.uniform(0.75, 1.25))
-                    bot1_dur = int(bot1_tmpl["base_duration"] * random.uniform(0.75, 1.25))
-                    bot2_dur = int(bot2_tmpl["base_duration"] * random.uniform(0.75, 1.25))
+                    user_dur = int(
+                        user_tmpl["base_duration"] * random.uniform(0.75, 1.25)
+                    )
+                    bot1_dur = int(
+                        bot1_tmpl["base_duration"] * random.uniform(0.75, 1.25)
+                    )
+                    bot2_dur = int(
+                        bot2_tmpl["base_duration"] * random.uniform(0.75, 1.25)
+                    )
 
                     # 순위 결정
                     participants = [
@@ -273,7 +830,14 @@ class Command(BaseCommand):
                             total_walk_distance=500,
                             transfer_count=max(
                                 0,
-                                len([l for l in tmpl["legs"] if l["mode"] != "WALK"]) - 1,
+                                len(
+                                    [
+                                        leg
+                                        for leg in tmpl["legs"]
+                                        if leg["mode"] != "WALK"
+                                    ]
+                                )
+                                - 1,
                             ),
                             total_fare=1250,
                             raw_data={"legs": tmpl["legs"]},
@@ -293,7 +857,11 @@ class Command(BaseCommand):
                         start_time=start_time,
                         end_time=start_time + timedelta(seconds=user_dur),
                         duration=user_dur,
-                        rank=1 if winner_type == "USER" else (2 if user_dur <= bot2_dur else 3),
+                        rank=(
+                            1
+                            if winner_type == "USER"
+                            else (2 if user_dur <= bot2_dur else 3)
+                        ),
                         is_win=(winner_type == "USER"),
                         start_lat=99.0,
                         start_lon=0.0,
@@ -308,7 +876,11 @@ class Command(BaseCommand):
                         start_time=start_time,
                         end_time=start_time + timedelta(seconds=bot1_dur),
                         duration=bot1_dur,
-                        rank=1 if winner_type == "BOT1" else (2 if bot1_dur <= bot2_dur else 3),
+                        rank=(
+                            1
+                            if winner_type == "BOT1"
+                            else (2 if bot1_dur <= bot2_dur else 3)
+                        ),
                         is_win=(winner_type == "BOT1"),
                         start_lat=99.0,
                         start_lon=0.0,
@@ -323,7 +895,11 @@ class Command(BaseCommand):
                         start_time=start_time,
                         end_time=start_time + timedelta(seconds=bot2_dur),
                         duration=bot2_dur,
-                        rank=1 if winner_type == "BOT2" else (2 if bot2_dur <= user_dur else 3),
+                        rank=(
+                            1
+                            if winner_type == "BOT2"
+                            else (2 if bot2_dur <= user_dur else 3)
+                        ),
                         is_win=(winner_type == "BOT2"),
                         start_lat=99.0,
                         start_lon=0.0,

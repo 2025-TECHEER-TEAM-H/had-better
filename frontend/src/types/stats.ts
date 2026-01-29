@@ -1,3 +1,14 @@
+// 경로 구간 상세 (RouteTimeline 렌더링용)
+export interface RouteLegDetail {
+  legs: any[]; // raw_data.legs 배열
+  total_time: number;
+  total_distance: number;
+  total_walk_time: number;
+  total_walk_distance: number;
+  transfer_count: number;
+  path_type: number;
+}
+
 // 경로 승률 정보
 export interface RouteWinRateInfo {
   route_label: string; // "N31", "4호선 → 6호선"
@@ -5,6 +16,7 @@ export interface RouteWinRateInfo {
   avg_duration: number; // 초
   race_count: number;
   wins: number;
+  leg_detail?: RouteLegDetail; // 경로 상세 (펼치기용)
 }
 
 // 시간대별 통계
@@ -39,4 +51,4 @@ export interface RouteStatsDetail {
 }
 
 // 시간대 키 타입
-export type TimeSlotKey = "morning" | "afternoon" | "evening";
+export type TimeSlotKey = 'morning' | 'afternoon' | 'evening';

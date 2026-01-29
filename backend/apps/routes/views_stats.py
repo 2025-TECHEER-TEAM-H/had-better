@@ -7,8 +7,8 @@ API 엔드포인트:
   - departure_name + arrival_name: 시간대별 상세 통계
 """
 
-import re
 import logging
+import re
 from collections import defaultdict
 
 from django.utils import timezone
@@ -17,9 +17,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from apps.itineraries.models import RouteItinerary, SearchItineraryHistory
+
 from .models import Route
 
 logger = logging.getLogger(__name__)
@@ -289,6 +290,8 @@ class RouteStatsView(APIView):
         raw_stats = defaultdict(lambda: defaultdict(dict))
         # 시간대별 경주 세션 수 (route_itinerary_id 기준 중복 제거)
         slot_sessions = defaultdict(set)
+        # 경로별 대표 RouteLeg 데이터 (RouteTimeline 렌더링용)
+        representative_legs = defaultdict(dict)
 
         for route in all_routes:
             # 시간대 분류 (서울 시간 기준)
@@ -320,6 +323,19 @@ class RouteStatsView(APIView):
             # 경주 세션 추적
             slot_sessions[time_slot].add(it_id)
 
+            # 경로별 대표 RouteLeg 저장 (첫 번째 것 사용)
+            if route_label not in representative_legs[time_slot]:
+                leg = route.route_leg
+                representative_legs[time_slot][route_label] = {
+                    "legs": raw_data.get("legs", []),
+                    "total_time": leg.total_time or 0,
+                    "total_distance": leg.total_distance or 0,
+                    "total_walk_time": leg.total_walk_time or 0,
+                    "total_walk_distance": leg.total_walk_distance or 0,
+                    "transfer_count": leg.transfer_count or 0,
+                    "path_type": leg.path_type or 0,
+                }
+
         # raw_stats → 집계 변환
         stats = defaultdict(dict)
         for time_slot, route_data in raw_stats.items():
@@ -350,15 +366,20 @@ class RouteStatsView(APIView):
                 win_rate = round(wins / count * 100, 1) if count > 0 else 0
                 avg_dur = round(data["total_duration"] / count) if count > 0 else 0
 
-                routes_list.append(
-                    {
-                        "route_label": route_label,
-                        "win_rate": win_rate,
-                        "avg_duration": avg_dur,
-                        "race_count": count,
-                        "wins": wins,
-                    }
-                )
+                route_entry = {
+                    "route_label": route_label,
+                    "win_rate": win_rate,
+                    "avg_duration": avg_dur,
+                    "race_count": count,
+                    "wins": wins,
+                }
+
+                # 대표 RouteLeg 데이터 추가 (RouteTimeline 렌더링용)
+                leg_data = representative_legs.get(slot_key, {}).get(route_label)
+                if leg_data:
+                    route_entry["leg_detail"] = leg_data
+
+                routes_list.append(route_entry)
 
                 # 전체 최고 승률 추적 (최소 3전 이상만 신뢰)
                 if win_rate > best_overall_rate and count >= 3:
