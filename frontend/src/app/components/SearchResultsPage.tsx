@@ -664,25 +664,29 @@ export function SearchResultsPage({
         )}
         {/* 왼쪽 사이드바 (400px 고정) */}
         <div className="w-[400px] bg-white/20 backdrop-blur-xl border-r border-white/30 flex flex-col h-full overflow-hidden shadow-2xl">
-          {/* 헤더 */}
-          <div className="relative px-8 pt-6 pb-4 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
-            <button
-              onClick={onClose}
-              className="absolute top-6 right-8 bg-white/40 backdrop-blur-md rounded-[12px] size-[48px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all z-10"
-              title="뒤로가기"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <p className="font-['DNFBitBitv2',sans-serif] font-bold leading-[30px] text-[16px] text-white text-center drop-shadow-md">
-              검색 결과
-            </p>
-            {searchQuery && (
-              <p className="font-['Pretendard',sans-serif] font-medium leading-[20px] text-[12px] text-white/90 text-center mt-2 drop-shadow-md">
-                "{searchQuery}"
-              </p>
-            )}
+          {/* 헤더 - PlaceDetailPage 웹 헤더와 동일한 레이아웃/스타일 */}
+          <div className="px-6 py-5 border-b border-white/30 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 backdrop-blur-lg">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onClose}
+                className="bg-white/40 backdrop-blur-md rounded-[12px] w-[44px] h-[44px] flex items-center justify-center border border-white/50 shadow-lg hover:bg-white/50 active:bg-white/60 transition-all shrink-0"
+                title="뒤로가기"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div className="flex flex-col min-w-0">
+                <p className="font-['DNFBitBitv2',sans-serif] font-bold leading-[22px] text-[16px] text-black">
+                  검색 결과
+                </p>
+                {searchQuery && (
+                  <p className="mt-1 font-['Pretendard',sans-serif] font-medium leading-[20px] text-[14px] text-black/80 truncate">
+                    "{searchQuery}"
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* 검색 결과 리스트 */}

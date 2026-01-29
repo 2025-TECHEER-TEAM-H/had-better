@@ -16,7 +16,7 @@ import { MapPage } from "@/app/pages/MapPage";
 import { RouteDetailPage } from "@/app/pages/RouteDetailPage";
 import { RoutePage } from "@/app/pages/RoutePage";
 import { SearchPageWrapper } from "@/app/pages/SearchPageWrapper";
-import { SubwayPage } from "@/app/pages/SubwayPage";
+import { StatsPage } from "@/app/pages/StatsPage";
 import { createBrowserRouter } from "react-router-dom";
 
 /**
@@ -27,7 +27,7 @@ import { createBrowserRouter } from "react-router-dom";
  * /signup          - 회원가입
  * /search          - 검색 (메인)
  * /map             - 지도
- * /subway          - 지하철 노선도
+ * /stats           - 경주 통계
  * /route           - 경로 선택
  * /route/detail    - 경로 상세
  */
@@ -80,8 +80,8 @@ export const router = createBrowserRouter([
         element: <MapPage />,
       },
       {
-        path: "/subway",
-        element: <SubwayPage />,
+        path: "/stats",
+        element: <StatsPage />,
       },
       {
         path: "/route",

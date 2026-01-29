@@ -11,7 +11,7 @@ import imgWindow2 from "@/assets/window.png";
  * - HAD BETTER 로고 (중앙)
  * - 뒤로가기 버튼 (오른쪽 상단)
  * - 검색창 (옵션)
- * - 네비게이션 탭 (지도, 검색, 지하철, MY)
+ * - 네비게이션 탭 (지도, 검색, 통계, MY)
  *
  * 사용 예시:
  * ```tsx
@@ -29,7 +29,7 @@ import imgWindow2 from "@/assets/window.png";
  * ```
  */
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route";
+type PageType = "map" | "search" | "favorites" | "stats" | "route";
 
 interface AppHeaderProps {
   onBack?: () => void;
@@ -387,20 +387,20 @@ export function AppHeader({
               </p>
             </button>
             <button
-              onClick={() => onNavigate("subway")}
+              onClick={() => onNavigate("stats")}
               className={`w-full content-stretch flex h-[36px] items-center justify-center px-3 py-[5px] relative rounded-[999px] transition-colors active:translate-y-[1px] ${
-                currentPage === "subway" ? "bg-[#4a9960]/20 text-[#2d5f3f]" : "hover:bg-black/5 text-black/80"
+                currentPage === "stats" ? "bg-[#4a9960]/20 text-[#2d5f3f]" : "hover:bg-black/5 text-black/80"
               }`}
               data-name="butenn"
             >
-              {currentPage === "subway" && (
+              {currentPage === "stats" && (
                 <span
                   aria-hidden="true"
                   className="absolute right-2 top-1/2 -translate-y-1/2 size-[6px] rounded-full bg-[#4a9960]"
                 />
               )}
               <p className="css-ew64yg font-['Pretendard','Noto_Sans_KR',sans-serif] font-medium leading-[30px] relative shrink-0 text-[13px] text-current text-center">
-                지하철
+                통계
               </p>
             </button>
             <button
