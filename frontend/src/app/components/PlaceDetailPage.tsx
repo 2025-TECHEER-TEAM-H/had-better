@@ -23,7 +23,7 @@ interface PlaceDetailPageProps {
   onToggleFavorite?: (placeId: string) => void;
   onStartNavigation?: () => void;
   onSearchSubmit?: (query: string) => void;
-  onNavigate?: (page: 'map' | 'search' | 'favorites' | 'subway' | 'route') => void;
+  onNavigate?: (page: 'map' | 'search' | 'favorites' | 'stats' | 'route') => void;
   onOpenDashboard?: () => void;
   onOpenSubway?: () => void;
 }
