@@ -2,6 +2,16 @@
 @import './tailwind.css';
 @import './theme.css';
 
+/* 데스크톱 SearchPage 사이드바 스크롤바 숨기기 (스크롤은 유지) */
+.hb-sidebar-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.hb-sidebar-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge (Chromium) */
+}
+
 /* 지하철역 팝업 스타일 */
 .subway-popup-container .mapboxgl-popup-content {
   padding: 0;
