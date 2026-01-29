@@ -5,8 +5,8 @@
   </br>
 </p>
 
-<img src="https://github.com/user-attachments/assets/648feda9-1f72-4096-b863-73754245b594"
-     width="900" style="height:auto;" />
+![onboarding_readme](https://github.com/user-attachments/assets/482479b6-36a4-4531-a440-02efefc91c63)
+
 
 </br>
 
