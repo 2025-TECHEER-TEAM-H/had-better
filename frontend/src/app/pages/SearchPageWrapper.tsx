@@ -12,6 +12,7 @@ interface LayoutContext {
   onOpenDashboard: () => void;
   onOpenFavorites: () => void;
   onSearchSubmit: (query: string) => void;
+  onOpenSubway?: () => void;
 }
 
 export function SearchPageWrapper() {
@@ -41,7 +42,7 @@ export function SearchPageWrapper() {
       onNavigate={context.onNavigate}
       onOpenDashboard={context.onOpenDashboard}
       onOpenFavorites={context.onOpenFavorites}
-      isSubwayMode={false}
+      onOpenSubway={context.onOpenSubway}
       onSearchSubmit={context.onSearchSubmit}
     />
   );
