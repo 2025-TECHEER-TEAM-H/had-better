@@ -4,7 +4,7 @@
 services:
   # Celery Worker
   celery-worker:
-    image: hadbetter-backend:local
+    image: ${BACKEND_IMAGE:-hadbetter-backend:local}
     container_name: hadbetter-celery-worker
     command: celery -A config worker -l info --concurrency=4
     environment:
@@ -38,7 +38,7 @@ services:
 
   # Celery Beat (스케줄러)
   celery-beat:
-    image: hadbetter-backend:local
+    image: ${BACKEND_IMAGE:-hadbetter-backend:local}
     container_name: hadbetter-celery-beat
     command: celery -A config beat -l info
     environment:
