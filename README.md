@@ -1,11 +1,14 @@
 <p align="center">
   <a href="https://github.com/2025-TECHEER-TEAM-H/had-better">2025-TEECHER-WINTER-BOOTCAMP-TEAM-H
-  </br>HAD - BETTER
+    </br>HAD - BETTER
+  </a>
+  </br>
+  <a>
+    <img src="https://github.com/user-attachments/assets/32f40fdf-60a7-46b3-9a06-ffe5e8c89012"
+     width="900" style="height:auto;" />
   </a>
 </p>
 </br>
-
-![hadbetter_onboarding_image](https://github.com/user-attachments/assets/a56a95d8-f34f-491c-9c11-ba06634a7ce2)
 
 </br>
 </br>
@@ -47,7 +50,7 @@
 </td>
     <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page2" src="https://github.com/user-attachments/assets/b43cc53d-c3ed-47ef-ac1b-d07fc98adc73" />
 </td>
-    <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page3" src="https://github.com/user-attachments/assets/3978a1b0-6084-48c6-8049-c8d454ed1e60" />
+    <td width="33%" style="padding: 10px;"><img width="389" height="837" alt="main-page3" src="https://github.com/user-attachments/assets/f310a35a-5e13-4ba8-8240-94b8ccaa6e3f" />
 </td>
   </tr>
 </table>
@@ -58,7 +61,7 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="route-search1" src="https://github.com/user-attachments/assets/100e84f8-5774-47e0-bcca-e58164571915" />
+    <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="route-search1" src="https://github.com/user-attachments/assets/42d13b57-11ee-481e-aea3-652d5288104f" />
 </td>
     <td width="33%" style="padding: 10px;"><img width="389" height="845" alt="route-search2" src="https://github.com/user-attachments/assets/35f966ed-eefb-4d7b-81fe-8c56b8345cfb" />
 </td>
@@ -73,7 +76,7 @@
 
 <table>
   <tr>
-    <td width="33%" style="padding: 10px;"><img width="389" height="845" alt="route-start1" src="https://github.com/user-attachments/assets/225b0b41-eede-476a-9939-e624847f9e7d" />
+    <td width="33%" style="padding: 10px;"><img width="389" height="845" alt="route-start1" src="https://github.com/user-attachments/assets/b4edb70b-5075-43d0-9c94-e5b32c0c583a" />
 </td>
     <td width="33%" style="padding: 10px;"><img width="388" height="844" alt="route-start2" src="https://github.com/user-attachments/assets/3031ad2d-02d4-4271-9180-502fa7713424" />
 </td>
@@ -107,7 +110,7 @@
 </td>
     <td width="33%" style="padding: 10px;"><img width="390" height="844" alt="route-result2" src="https://github.com/user-attachments/assets/3fad4398-f9a8-4fbb-ac00-10f17eb81ce5" />
 </td>
-    <td width="33%" style="padding: 10px;"><img width="390" height="842" alt="route-result3" src="https://github.com/user-attachments/assets/b0ae193e-740a-4225-a49a-640f31434f96" />
+    <td width="33%" style="padding: 10px;"><img width="390" height="842" alt="route-result3" src="https://github.com/user-attachments/assets/3ec77d12-7af5-4b69-96d1-422a8b53793a" />
 </td>
   </tr>
 </table>
