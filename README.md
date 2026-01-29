@@ -5,7 +5,8 @@
   </br>
 </p>
 
-![Video Project 6](https://github.com/user-attachments/assets/648feda9-1f72-4096-b863-73754245b594)
+<img src="https://github.com/user-attachments/assets/648feda9-1f72-4096-b863-73754245b594"
+     width="900" style="height:auto;" />
 
 </br>
 
