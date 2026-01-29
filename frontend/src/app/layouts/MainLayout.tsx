@@ -184,7 +184,9 @@ export function MainLayout() {
     <div className="size-full bg-white flex lg:h-screen lg:overflow-hidden">
       {/* 앱 화면 - 모바일에서는 전체 화면, 데스크톱에서는 왼쪽 고정 */}
       <div
-        className={`w-full h-full relative flex-shrink-0 z-10 lg:h-screen lg:overflow-y-auto lg:overscroll-contain hb-sidebar-scroll ${isMapPage ? "lg:w-0" : "lg:w-[400px]"}`}
+        className={`w-full h-full relative flex-shrink-0 z-10 lg:h-screen lg:overflow-y-auto lg:overscroll-contain hb-sidebar-scroll ${
+          isMapPage ? "lg:w-0" : "lg:w-[400px]"
+        }`}
       >
         {/* 모바일: 백그라운드 지도 */}
         <div className="lg:hidden absolute inset-0">
