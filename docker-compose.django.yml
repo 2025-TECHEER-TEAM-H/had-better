@@ -30,7 +30,7 @@ services:
 
   # Django 백엔드 (API 서버)
   backend:
-    image: hadbetter-backend:local
+    image: ${BACKEND_IMAGE:-hadbetter-backend:local}
     container_name: hadbetter-backend
     env_file:
       - .env.django

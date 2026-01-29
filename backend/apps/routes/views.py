@@ -14,7 +14,7 @@ import json
 import logging
 
 from django.db import transaction
-from django.http import StreamingHttpResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -931,12 +931,18 @@ eventSource.addEventListener('bot_status_update', (e) => {
     def get(self, request, route_itinerary_id):
         """SSE 스트림 연결"""
         # HttpOnly 쿠키에서 토큰 검증
+        # SSE에서는 content negotiation을 우회하므로 DRF Response 대신 JsonResponse 사용
         token = request.COOKIES.get("access_token")
         if not token:
-            return error_response(
-                code="UNAUTHORIZED",
-                message="인증 토큰이 필요합니다. 다시 로그인해주세요.",
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "인증 토큰이 필요합니다. 다시 로그인해주세요.",
+                    },
+                },
+                status=401,
             )
 
         try:
@@ -945,20 +951,30 @@ eventSource.addEventListener('bot_status_update', (e) => {
             logger.info(f"SSE 인증 성공: user_id={user_id}")
         except (InvalidToken, TokenError) as e:
             logger.warning(f"SSE 인증 실패: {e}")
-            return error_response(
-                code="INVALID_TOKEN",
-                message="유효하지 않은 토큰입니다. 다시 로그인해주세요.",
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": {
+                        "code": "INVALID_TOKEN",
+                        "message": "유효하지 않은 토큰입니다. 다시 로그인해주세요.",
+                    },
+                },
+                status=401,
             )
 
         # route_itinerary 존재 확인
         try:
             RouteItinerary.objects.get(id=route_itinerary_id, deleted_at__isnull=True)
         except RouteItinerary.DoesNotExist:
-            return error_response(
-                code="RESOURCE_NOT_FOUND",
-                message="해당 경로 탐색 결과를 찾을 수 없습니다.",
-                status_code=status.HTTP_404_NOT_FOUND,
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "message": "해당 경로 탐색 결과를 찾을 수 없습니다.",
+                    },
+                },
+                status=404,
             )
 
         async def event_stream():

@@ -99,14 +99,11 @@ jobs:
 
             # 최신 이미지 Pull
             docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
-            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:latest
 
             # 환경 변수 설정
-            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-            export IMAGE_TAG=${IMAGE_TAG}
+            export BACKEND_IMAGE=${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
 
-            # Docker Compose로 재시작 (무중단 배포)
-            docker-compose -f docker-compose.django.yml pull
+            # Docker Compose로 재시작
             docker-compose -f docker-compose.django.yml up -d --no-build
 
             # 이전 이미지 정리
@@ -155,14 +152,11 @@ jobs:
 
             # 최신 이미지 Pull
             docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
-            docker pull ${{ secrets.ECR_REGISTRY }}/hadbetter-backend:latest
 
             # 환경 변수 설정
-            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-            export IMAGE_TAG=${IMAGE_TAG}
+            export BACKEND_IMAGE=${{ secrets.ECR_REGISTRY }}/hadbetter-backend:${IMAGE_TAG}
 
             # Docker Compose로 재시작
-            docker-compose -f docker-compose.celery.yml pull
             docker-compose -f docker-compose.celery.yml up -d --no-build
 
             # 이전 이미지 정리
