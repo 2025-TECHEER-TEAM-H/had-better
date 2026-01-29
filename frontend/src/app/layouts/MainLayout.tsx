@@ -182,10 +182,12 @@ export function MainLayout() {
   };
 
   return (
-    <div className="size-full bg-white flex">
+    <div className="size-full bg-white flex lg:h-screen lg:overflow-hidden">
       {/* 앱 화면 - 모바일에서는 전체 화면, 데스크톱에서는 왼쪽 고정 */}
       <div
-        className={`w-full h-full relative flex-shrink-0 z-10 ${isMapPage ? "lg:w-0" : "lg:w-[400px]"}`}
+        className={`w-full h-full relative flex-shrink-0 z-10 lg:h-screen lg:overflow-y-auto lg:overscroll-contain hb-sidebar-scroll ${
+          isMapPage ? "lg:w-0" : "lg:w-[400px]"
+        }`}
       >
         {/* 모바일: 백그라운드 지도 */}
         <div className="lg:hidden absolute inset-0">
@@ -212,7 +214,7 @@ export function MainLayout() {
       </div>
 
       {/* 데스크톱: 오른쪽 지도 또는 노선도 영역 */}
-      <div className="hidden lg:block flex-1 h-full relative">
+      <div className="hidden lg:block flex-1 h-full lg:h-screen relative">
         {isSubwayPage ? (
           // 인터랙티브 노선도 표시
           <div className="absolute inset-0 bg-white overflow-hidden">
