@@ -49,7 +49,6 @@ export function MainLayout() {
   // 현재 페이지 확인
   const currentPath = location.pathname;
   const isMapPage = currentPath === "/map";
-  const isSubwayPage = currentPath === "/subway";
   const isSearchPage = currentPath === "/search";
   const isRoutePage = currentPath === "/route";
   const isRouteDetailPage = currentPath === "/route/detail";
@@ -78,7 +77,7 @@ export function MainLayout() {
     const pageRoutes: Record<string, string> = {
       map: "/map",
       search: "/search",
-      subway: "/subway",
+      stats: "/stats",
       route: "/route",
       routeDetail: "/route/detail",
     };
@@ -207,6 +206,7 @@ export function MainLayout() {
                 onOpenDashboard: () => setIsDashboardOpen(true),
                 onOpenFavorites: () => setIsFavoritesOpen(true),
                 onSearchSubmit: handleSearchSubmit,
+                onOpenSubway: () => setIsSubwayOverlayOpen(true),
               }}
             />
           </div>
@@ -215,15 +215,8 @@ export function MainLayout() {
 
       {/* 데스크톱: 오른쪽 지도 또는 노선도 영역 */}
       <div className="hidden lg:block flex-1 h-full lg:h-screen relative">
-        {isSubwayPage ? (
-          // 인터랙티브 노선도 표시
-          <div className="absolute inset-0 bg-white overflow-hidden">
-            <SubwayMap key="desktop-subway-map" />
-          </div>
-        ) : (
-          // 지도 표시 - 현재 페이지에 따라 적절한 currentPage 전달
-          <MapView currentPage={mapCurrentPage} />
-        )}
+        {/* 지도 표시 - 현재 페이지에 따라 적절한 currentPage 전달 */}
+        <MapView currentPage={mapCurrentPage} />
 
         {/* 데스크톱: 지도 전체 화면일 때 왼쪽 상단 돋보기 버튼 */}
         {isMapPage && (
@@ -321,7 +314,7 @@ export function MainLayout() {
             >
               <button
                 onClick={() => setIsSubwayOverlayOpen(false)}
-                className="absolute top-4 right-4 bg-white rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-gray-50 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all z-10"
+                className="absolute top-4 left-4 bg-white rounded-[14px] w-[40px] h-[40px] flex items-center justify-center border-[3px] border-black shadow-[4px_4px_0px_0px_black] hover:bg-gray-50 active:shadow-[2px_2px_0px_0px_black] active:translate-x-[2px] active:translate-y-[2px] transition-all z-10"
               >
                 <p className="font-['Press_Start_2P:Regular',sans-serif] text-[16px] text-black">
                   ✕

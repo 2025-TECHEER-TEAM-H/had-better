@@ -7,7 +7,6 @@ import imgGemGreen1 from "@/assets/gem-green.png";
 import imgGemRed1 from "@/assets/gem-red.png";
 import imgSaw1 from "@/assets/saw.png";
 import imgStar1 from "@/assets/star.png";
-import { SubwayMap } from "@/components/SubwayMap";
 import imgWindow2 from "@/assets/window.png";
 import authService from "@/services/authService";
 import placeService, { type SavedPlace, type SearchPlaceHistory } from "@/services/placeService";
@@ -26,14 +25,14 @@ interface LocationWithCoords {
   lon: number;
 }
 
-type PageType = "map" | "search" | "favorites" | "subway" | "route";
+type PageType = "map" | "search" | "favorites" | "stats" | "route";
 
 interface SearchPageProps {
   onBack?: () => void;
   onNavigate?: (page: PageType) => void;
   onOpenDashboard?: () => void;
   onOpenFavorites?: () => void;
-  isSubwayMode?: boolean;
+  onOpenSubway?: () => void;
   onSearchSubmit?: (query: string) => void;
 }
 
@@ -59,7 +58,7 @@ interface FavoriteLocations {
   work: Place[];
 }
 
-export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, isSubwayMode = false, onSearchSubmit }: SearchPageProps) {
+export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorites, onOpenSubway, onSearchSubmit }: SearchPageProps) {
   const navigate = useNavigate();
   const { user, refreshToken, logout: clearAuthState, updateUser } = useAuthStore();
   const { setDepartureArrival, resetRoute } = useRouteStore();
@@ -1276,6 +1275,20 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
               <div className="h-[1px] bg-white/20 mx-2" />
               <button
                 type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  onOpenSubway?.();
+                }}
+                className="w-full px-4 py-3 flex items-center justify-between bg-white/25 hover:bg-white/35 active:bg-white/40 text-gray-800 backdrop-blur-sm shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-all"
+              >
+                <span className="css-4hzbpn font-['Wittgenstein:Bold','Noto_Sans_KR:Bold',sans-serif] text-[13px] text-gray-800">
+                  노선도
+                </span>
+                <span className="text-[16px]">{"\u{1F687}"}</span>
+              </button>
+              <div className="h-[1px] bg-white/20 mx-2" />
+              <button
+                type="button"
                 onClick={handleLogoutClick}
                 className="w-full px-4 py-3 flex items-center justify-between bg-white/25 hover:bg-red-500/20 active:bg-red-500/30 text-gray-800 backdrop-blur-sm shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-all last:rounded-b-[12px]"
               >
@@ -1289,64 +1302,8 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
         </>
       )}
 
-      {isSubwayMode ? (
-        // 지하철 노선도 표시
-        <>
-          {/* SearchPage(검색 탭)과 동일한 헤더 UI 유지: 검색바(목적지 입력) 제거 */}
-          <div className="relative z-20 hb-search-header">
-            <AppHeader
-              onBack={() => {
-                // 지하철 모드에서는 컨텍스트에서 온 기본 뒤로가기 동작 사용
-                onBack?.();
-              }}
-              onNavigate={onNavigate}
-              onOpenDashboard={onOpenDashboard}
-              onMenuClick={handleToggleProfileMenu}
-              title="" /* SearchPage에서만 커스텀 타이틀을 올려 디자인/폰트 통일 */
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onSearchSubmit={async (value) => {
-                const keyword = value.trim();
-                if (!keyword) return;
-
-                // 헤더 입력값을 로컬 상태에도 반영
-                setSearchQuery(keyword);
-
-                if (onSearchSubmit) {
-                  onSearchSubmit(keyword);
-                }
-              }}
-              currentPage="subway"
-              // 지하철 탭에서는 검색 입력 컨테이너를 숨기고(=검색 탭과 동일),
-              // 탭/버튼 기능은 그대로 유지
-              showSearchBar={false}
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 hb-search-header-title text-center"
-              style={{ top: "calc(21px + env(safe-area-inset-top, 0px))", color: "#000" }}
-            >
-              HAD BETTER
-            </div>
-          </div>
-          {/* 모바일: 인터랙티브 노선도 표시, 데스크톱: 오른쪽 패널(MainLayout)에서 표시 */}
-          <div className="absolute inset-0 overflow-hidden z-0 bg-white lg:hidden" style={{ paddingTop: '140px' }}>
-            <SubwayMap
-              onStationSelect={(stationName) => {
-                // 역 선택 시 검색어로 설정
-                setSearchQuery(stationName);
-              }}
-            />
-          </div>
-          {/* 데스크톱: 검색 페이지 배경 + 안내 텍스트 (노선도는 MainLayout 오른쪽 패널에서 표시) */}
-          <div className="hidden lg:flex absolute inset-0 items-center justify-center" style={{ paddingTop: '140px' }}>
-            <p className="font-['Noto_Sans_KR:Regular',sans-serif] text-[14px] text-[#2d5f3f]">
-              노선도 이미지가 나왔습니다
-            </p>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* 새로운 헤더 컴포넌트 */}
+      <>
+          {/* 헤더 */}
           <div className="relative z-20 hb-search-header">
             <AppHeader
               onBack={onBack}
@@ -1959,7 +1916,6 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
             </div>
           </div>
         </>
-      )}
 
       {/* 장소 검색 모달 */}
       <PlaceSearchModal
