@@ -21,6 +21,8 @@ export interface RoutePairSummary {
   arrival_name: string;
   total_races: number;
   user_win_rate: number;
+  departure_coords: { lat: number; lon: number };
+  arrival_coords: { lat: number; lon: number };
 }
 
 // 상세 통계 응답

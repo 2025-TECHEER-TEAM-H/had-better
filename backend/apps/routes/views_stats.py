@@ -181,6 +181,14 @@ class RouteStatsView(APIView):
                     "arrival_name": arr_name,
                     "total_races": total,
                     "user_win_rate": round(stats["user_wins"] / total * 100, 1),
+                    "departure_coords": {
+                        "lat": float(coords[1]),
+                        "lon": float(coords[0]),
+                    },
+                    "arrival_coords": {
+                        "lat": float(coords[3]),
+                        "lon": float(coords[2]),
+                    },
                 }
             )
 

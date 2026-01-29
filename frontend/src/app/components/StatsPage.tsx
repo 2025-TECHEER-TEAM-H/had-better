@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/app/components/AppHeader";
 import { getRoutePairs, getRouteStats } from "@/services/statsService";
+import { useRouteStore } from "@/stores/routeStore";
 import type {
   RoutePairSummary,
   RouteStatsDetail,
@@ -52,6 +53,23 @@ export function StatsPage({
   const [activeTimeSlot, setActiveTimeSlot] = useState<TimeSlotKey>("morning");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { setDepartureArrival } = useRouteStore();
+
+  // 현재 선택된 출발/도착 쌍의 좌표로 경로 탐색 페이지 이동
+  const handleNavigateToRoute = () => {
+    const pair = routePairs.find(
+      (p) =>
+        p.departure_name === selectedPair?.departure &&
+        p.arrival_name === selectedPair?.arrival
+    );
+    if (pair) {
+      setDepartureArrival(
+        { name: pair.departure_name, ...pair.departure_coords },
+        { name: pair.arrival_name, ...pair.arrival_coords }
+      );
+    }
+    onNavigate?.("route");
+  };
 
   // 출발/도착 쌍 목록 로드
   useEffect(() => {
@@ -234,7 +252,7 @@ export function StatsPage({
               경주를 시작해보세요!
             </p>
             <button
-              onClick={() => onNavigate?.("search")}
+              onClick={handleNavigateToRoute}
               className="px-6 py-3 bg-gradient-to-r from-[#81C784] to-[#4CAF50] text-white rounded-xl font-bold text-[14px] shadow-md"
             >
               경로 검색하기
@@ -482,10 +500,10 @@ export function StatsPage({
 
             {/* CTA 버튼 */}
             <button
-              onClick={() => onNavigate?.("search")}
+              onClick={handleNavigateToRoute}
               className="w-full py-4 bg-gradient-to-r from-[#81C784] to-[#4CAF50] rounded-xl text-white font-bold text-[15px] shadow-lg font-['Noto_Sans_KR',sans-serif] active:scale-[0.98] transition-transform"
             >
-              {"\u{1F3C1}"} 경로 검색하기
+              경로 검색하기
             </button>
           </>
         )}
