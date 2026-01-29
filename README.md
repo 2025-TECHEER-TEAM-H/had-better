@@ -3,11 +3,10 @@
     </br>HAD - BETTER
   </a>
   </br>
-  <a>
-    <img src="https://github.com/user-attachments/assets/32f40fdf-60a7-46b3-9a06-ffe5e8c89012"
-     width="900" style="height:auto;" />
-  </a>
 </p>
+
+[!Onboarding_image](https://github.com/user-attachments/assets/a0e1f8dc-e02b-4646-857c-620e4498dd7b)
+
 </br>
 
 </br>
