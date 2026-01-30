@@ -583,34 +583,49 @@ def _handle_riding_bus_fallback(
     section_time = current_leg.get("sectionTime", 600)
     distance = current_leg.get("distance", 0)
 
-    # 짧은 구간 감지: 500m 미만이고 30초 경과 시 즉시 하차
+    # 짧은 구간 감지: 500m 미만이고 30초 경과 시 하차
     if distance < 500 and elapsed >= 30:
+        if bot_state.get("pending_alight"):
+            logger.info(
+                f"짧은 버스 구간 하차 실행 (pending_alight=True): route_id={route_id}"
+            )
+            return _alight_from_bus(
+                route_id, route_itinerary_id, bot_state, public_leg, legs
+            )
+
         logger.warning(
-            f"짧은 버스 구간 감지 (fallback 즉시 하차): "
+            f"짧은 버스 구간 감지 (pending_alight 설정): "
             f"route_id={route_id}, distance={distance}m, elapsed={elapsed}s"
         )
-        SSEPublisher.publish_bot_alighting(
-            route_itinerary_id=route_itinerary_id,
-            route_id=route_id,
-            bot_id=bot_state["bot_id"],
-            station_name=public_leg.get("end_station", {}).get("name", ""),
+        end_station = public_leg.get("end_station", {})
+        end_lon = end_station.get("lon")
+        end_lat = end_station.get("lat")
+        if end_lon and end_lat:
+            BotStateManager.update_position(
+                route_id, lon=float(end_lon), lat=float(end_lat)
+            )
+        BotStateManager.update(route_id, pending_alight=True)
+
+        updated_bot_state = BotStateManager.get(route_id) or bot_state
+        progress_percent = _calculate_total_progress(
+            legs, bot_state["current_leg_index"], elapsed, section_time
         )
-
-        next_leg_index = bot_state["current_leg_index"] + 1
-
-        if next_leg_index >= len(legs):
-            _finish_bot(route_id, route_itinerary_id, bot_state, legs)
-            return 30
-
-        next_leg = legs[next_leg_index]
-
-        if next_leg["mode"] == "WALK":
-            BotStateManager.transition_to_walking(route_id, next_leg_index)
-        elif next_leg["mode"] == "SUBWAY":
-            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
-        elif next_leg["mode"] == "BUS":
-            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
-
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            vehicle_info={
+                "type": "BUS",
+                "route": public_leg.get("bus_route_name"),
+                "vehId": "fallback",
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else None
+                ),
+                "pass_shape": public_leg.get("pass_shape"),
+            },
+            next_update_in=30,
+        )
         return 30
 
     # 전체 경로 기준 진행률 계산
@@ -619,32 +634,46 @@ def _handle_riding_bus_fallback(
     )
 
     if elapsed >= section_time:
-        # 하차 처리 (end_station이 None일 수 있으므로 안전하게 처리)
-        end_station = public_leg.get("end_station") or {}
-        station_name = end_station.get("name", "")
+        # pending_alight 확인
+        if bot_state.get("pending_alight"):
+            logger.info(
+                f"버스 하차 실행 - fallback (pending_alight=True): route_id={route_id}"
+            )
+            return _alight_from_bus(
+                route_id, route_itinerary_id, bot_state, public_leg, legs
+            )
 
-        SSEPublisher.publish_bot_alighting(
-            route_itinerary_id=route_itinerary_id,
-            route_id=route_id,
-            bot_id=bot_state["bot_id"],
-            station_name=station_name,
+        # 하차 대기: 좌표만 하차 정류장으로 업데이트하고 RIDING_BUS 유지
+        end_station = public_leg.get("end_station") or {}
+        end_lon = end_station.get("lon")
+        end_lat = end_station.get("lat")
+        if end_lon and end_lat:
+            BotStateManager.update_position(
+                route_id, lon=float(end_lon), lat=float(end_lat)
+            )
+        BotStateManager.update(route_id, pending_alight=True)
+        logger.info(
+            f"버스 하차 대기 - fallback (pending_alight 설정): route_id={route_id}, "
+            f"station={end_station.get('name', '')}"
         )
 
-        next_leg_index = bot_state["current_leg_index"] + 1
-
-        if next_leg_index >= len(legs):
-            _finish_bot(route_id, route_itinerary_id, bot_state, legs)
-            return 30
-
-        next_leg = legs[next_leg_index]
-
-        if next_leg["mode"] == "WALK":
-            BotStateManager.transition_to_walking(route_id, next_leg_index)
-        elif next_leg["mode"] == "SUBWAY":
-            BotStateManager.transition_to_waiting_subway(route_id, next_leg_index)
-        elif next_leg["mode"] == "BUS":
-            BotStateManager.transition_to_waiting_bus(route_id, next_leg_index)
-
+        updated_bot_state = BotStateManager.get(route_id) or bot_state
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            vehicle_info={
+                "type": "BUS",
+                "route": public_leg.get("bus_route_name"),
+                "vehId": "fallback",
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else None
+                ),
+                "pass_shape": public_leg.get("pass_shape"),
+            },
+            next_update_in=30,
+        )
         return 30
 
     # 탑승 중 SSE 발행 (현재 정류장 추정 추가)
@@ -1183,13 +1212,33 @@ def _handle_riding_bus(
     if not pos:
         # API 응답 없을 때 시간 기반 하차 판정 (leg 기준 100%)
         if leg_progress >= 100:
-            return _alight_from_bus(
-                route_id, route_itinerary_id, bot_state, public_leg, legs
+            if bot_state.get("pending_alight"):
+                logger.info(
+                    f"버스 하차 실행 - API 없음 (pending_alight=True): route_id={route_id}"
+                )
+                return _alight_from_bus(
+                    route_id, route_itinerary_id, bot_state, public_leg, legs
+                )
+
+            # 하차 대기: 좌표만 하차 정류장으로 업데이트
+            end_station = public_leg.get("end_station", {})
+            end_lon = end_station.get("lon")
+            end_lat = end_station.get("lat")
+            if end_lon and end_lat:
+                BotStateManager.update_position(
+                    route_id, lon=float(end_lon), lat=float(end_lat)
+                )
+            BotStateManager.update(route_id, pending_alight=True)
+            logger.info(
+                f"버스 하차 대기 - API 없음 (pending_alight 설정): route_id={route_id}"
             )
 
         SSEPublisher.publish_bot_status_update(
             route_itinerary_id=route_itinerary_id,
-            bot_state={**bot_state, "progress_percent": progress_percent},
+            bot_state={
+                **(BotStateManager.get(route_id) or bot_state),
+                "progress_percent": progress_percent,
+            },
             next_update_in=30,
         )
         return 30
@@ -1242,9 +1291,54 @@ def _handle_riding_bus(
                 logger.info(f"버스 하차 판정 (거리): distance={distance}m")
 
     if should_alight:
-        return _alight_from_bus(
-            route_id, route_itinerary_id, bot_state, public_leg, legs
+        # pending_alight 플래그 확인: 이미 설정되어 있으면 실제 하차 처리
+        if bot_state.get("pending_alight"):
+            logger.info(f"버스 하차 실행 (pending_alight=True): route_id={route_id}")
+            return _alight_from_bus(
+                route_id, route_itinerary_id, bot_state, public_leg, legs
+            )
+
+        # pending_alight 플래그가 없으면: 좌표만 하차 정류장으로 업데이트하고
+        # RIDING_BUS 상태를 유지하여 프론트엔드가 보간 이동할 시간 확보
+        logger.info(
+            f"버스 하차 대기 (pending_alight 설정): route_id={route_id}, "
+            f"end_station={end_station.get('name', '')}"
         )
+
+        end_lon = end_station.get("lon")
+        end_lat = end_station.get("lat")
+        if end_lon and end_lat:
+            BotStateManager.update_position(
+                route_id, lon=float(end_lon), lat=float(end_lat)
+            )
+            logger.info(
+                f"버스 하차 정류장 좌표 설정 (대기): route_id={route_id}, "
+                f"station={end_station.get('name', '')}, coord=({end_lat}, {end_lon})"
+            )
+
+        # pending_alight 플래그 설정
+        BotStateManager.update(route_id, pending_alight=True)
+
+        # RIDING_BUS 상태 유지하며 SSE 발행 (프론트엔드가 하차 정류장으로 보간 이동)
+        updated_bot_state = BotStateManager.get(route_id) or bot_state
+        SSEPublisher.publish_bot_status_update(
+            route_itinerary_id=route_itinerary_id,
+            bot_state={**updated_bot_state, "progress_percent": progress_percent},
+            vehicle_info={
+                "type": "BUS",
+                "route": public_leg.get("bus_route_name"),
+                "vehId": veh_id,
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else {"lon": bus_lon, "lat": bus_lat}
+                ),
+                "stopFlag": stop_flag,
+                "pass_shape": public_leg.get("pass_shape"),
+            },
+            next_update_in=30,
+        )
+        return 30
 
     # 업데이트된 봇 상태 조회 (current_position 포함)
     updated_bot_state = BotStateManager.get(route_id) or bot_state
@@ -1296,6 +1390,9 @@ def _alight_from_bus(
         bot_id=bot_state["bot_id"],
         station_name=end_station.get("name", "") if end_station else "",
     )
+
+    # pending_alight 플래그 제거
+    BotStateManager.update(route_id, pending_alight=False)
 
     next_leg_index = bot_state["current_leg_index"] + 1
 

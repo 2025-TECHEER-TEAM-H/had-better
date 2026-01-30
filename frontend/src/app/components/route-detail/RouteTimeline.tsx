@@ -1,5 +1,5 @@
 import { CharacterColor } from "@/components/MovingCharacter";
-import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes } from "@/types/route";
+import { metersToKilometers, PATH_TYPE_NAMES, secondsToMinutes, UserBusArrivalEvent } from "@/types/route";
 import { Fragment, useEffect, useRef, useState } from "react";
 
 // 마커 이미지 import
@@ -16,6 +16,7 @@ interface RouteTimelineProps {
   totalWalkDistance?: number;
   transferCount?: number;
   pathType?: number;
+  userBusArrival?: UserBusArrivalEvent | null;
 }
 
 export function RouteTimeline({
@@ -28,6 +29,7 @@ export function RouteTimeline({
   totalWalkDistance = 0,
   transferCount = 0,
   pathType,
+  userBusArrival,
 }: RouteTimelineProps) {
   // 각 구간별 정류장 목록 펼침 상태 관리
   const [expandedStops, setExpandedStops] = useState<Set<number>>(new Set());
@@ -469,6 +471,18 @@ export function RouteTimeline({
                           {leg.passStopList?.stationList && ` • ${leg.passStopList.stationList.length}정류장`}
                         </span>
                       </div>
+                      {/* 버스 도착 정보 배지 */}
+                      {leg.mode === 'BUS' && userBusArrival && userBusArrival.status === 'ACTIVE' && leg.route && userBusArrival.bus_name && leg.route.includes(userBusArrival.bus_name) && (
+                        <div className="mt-2 flex items-center gap-2 bg-blue-50/80 border border-blue-200/60 rounded-[6px] px-2.5 py-2">
+                          <span className="text-[14px]">🚌</span>
+                          <span className="font-['Wittgenstein',sans-serif] text-[13px] sm:text-[12px] font-medium text-blue-800">
+                            약 {Math.ceil(userBusArrival.remaining_time / 60)}분 후 도착
+                          </span>
+                          <span className="font-['Wittgenstein',sans-serif] text-[12px] sm:text-[11px] text-blue-600">
+                            ({userBusArrival.arrival_message})
+                          </span>
+                        </div>
+                      )}
                       {/* 정류장 목록 펼치기 버튼 */}
                       {leg.passStopList?.stationList && leg.passStopList.stationList.length > 0 && (
                         <button

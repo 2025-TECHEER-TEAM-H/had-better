@@ -1,5 +1,6 @@
 import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, removeBusLayers, toggleBusLayers, updateAllBusPositions } from "@/components/map/busLayer";
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { useBuildingLayer, restoreBuildingLayers } from "@/hooks/useBuildingLayer";
 import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { useMapStore, type MapStyleType } from "@/stores/mapStore";
 import mapboxgl from "mapbox-gl";
@@ -1481,36 +1482,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
       }
 
       // 3D 건물 상태 유지 (스타일 변경 후에도)
-      if (is3DBuildingsEnabled && map.current && !map.current.getLayer("3d-buildings")) {
-        // 중구 건물 GeoJSON 소스 추가
-        if (!map.current.getSource("junggu-buildings")) {
-          map.current.addSource("junggu-buildings", {
-            type: "geojson",
-            data: "/junggu_buildings.geojson",
-          });
-        }
-        // 건물 레이어 추가
-        map.current.addLayer({
-          id: "3d-buildings",
-          source: "junggu-buildings",
-          type: "fill-extrusion",
-          minzoom: 13,
-          paint: {
-            "fill-extrusion-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "height"],
-              0, "#d4e6d7",
-              10, "#a8d4ae",
-              20, "#7bc47f",
-              50, "#4a9960",
-              100, "#2d5f3f",
-            ],
-            "fill-extrusion-height": ["get", "height"],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.75,
-          },
-        });
+      if (is3DBuildingsEnabled && map.current) {
+        restoreBuildingLayers(map.current, style);
       }
 
       // 지도 로딩 완료
@@ -1521,59 +1494,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     setIsLayerPopoverOpen(false);
   }, [is3DBuildingsEnabled]);
 
-  // 3D 건물 레이어 추가 함수 (중구 GeoJSON 데이터 사용)
-  const add3DBuildingsLayer = useCallback(async () => {
-    if (!map.current) return;
+  // 3D 건물 레이어 (뷰포트 기반 동적 로딩)
+  useBuildingLayer(map.current, is3DBuildingsEnabled, mapStyle);
 
-    // 이미 레이어가 있으면 무시
-    if (map.current.getLayer("3d-buildings")) return;
-
-    // 중구 건물 GeoJSON 소스 추가
-    if (!map.current.getSource("junggu-buildings")) {
-      map.current.addSource("junggu-buildings", {
-        type: "geojson",
-        data: "/junggu_buildings.geojson",
-      });
-    }
-
-    // 건물 레이어 추가 (층수 기반 높이 사용)
-    map.current.addLayer({
-      id: "3d-buildings",
-      source: "junggu-buildings",
-      type: "fill-extrusion",
-      minzoom: 13,
-      paint: {
-        // 높이에 따라 색상 변화 (낮은 건물: 밝은색, 높은 건물: 어두운색)
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["get", "height"],
-          0, "#d4e6d7",    // 매우 낮은 건물 - 연한 녹색
-          10, "#a8d4ae",   // 낮은 건물
-          20, "#7bc47f",   // 중간 건물
-          50, "#4a9960",   // 높은 건물 - 진한 녹색
-          100, "#2d5f3f",  // 매우 높은 건물
-        ],
-        "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 0.75,
-      },
-    });
-  }, []);
-
-  // 3D 건물 레이어 제거 함수
-  const remove3DBuildingsLayer = useCallback(() => {
-    if (!map.current) return;
-    if (map.current.getLayer("3d-buildings")) {
-      map.current.removeLayer("3d-buildings");
-    }
-    // 소스도 제거
-    if (map.current.getSource("junggu-buildings")) {
-      map.current.removeSource("junggu-buildings");
-    }
-  }, []);
-
-  // 3D 건물 토글 핸들러
+  // 3D 건물 토글 핸들러 (pitch 전환만 담당, 로딩은 훅이 처리)
   const handle3DBuildingsToggle = useCallback(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
 
@@ -1581,21 +1505,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(function MapView({
     setIs3DBuildingsEnabled(newState);
 
     if (newState) {
-      add3DBuildingsLayer();
-      // 3D 효과를 위해 pitch 추가
       map.current.easeTo({
         pitch: 45,
         duration: 500,
       });
     } else {
-      remove3DBuildingsLayer();
-      // pitch 초기화
       map.current.easeTo({
         pitch: 0,
         duration: 500,
       });
     }
-  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+  }, [is3DBuildingsEnabled]);
 
   // 팝오버 외부 클릭 감지
   useEffect(() => {
