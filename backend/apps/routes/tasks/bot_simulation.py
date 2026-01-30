@@ -586,7 +586,9 @@ def _handle_riding_bus_fallback(
     # 짧은 구간 감지: 500m 미만이고 30초 경과 시 하차
     if distance < 500 and elapsed >= 30:
         if bot_state.get("pending_alight"):
-            logger.info(f"짧은 버스 구간 하차 실행 (pending_alight=True): route_id={route_id}")
+            logger.info(
+                f"짧은 버스 구간 하차 실행 (pending_alight=True): route_id={route_id}"
+            )
             return _alight_from_bus(
                 route_id, route_itinerary_id, bot_state, public_leg, legs
             )
@@ -615,7 +617,11 @@ def _handle_riding_bus_fallback(
                 "type": "BUS",
                 "route": public_leg.get("bus_route_name"),
                 "vehId": "fallback",
-                "position": {"lon": float(end_lon), "lat": float(end_lat)} if end_lon and end_lat else None,
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else None
+                ),
                 "pass_shape": public_leg.get("pass_shape"),
             },
             next_update_in=30,
@@ -630,7 +636,9 @@ def _handle_riding_bus_fallback(
     if elapsed >= section_time:
         # pending_alight 확인
         if bot_state.get("pending_alight"):
-            logger.info(f"버스 하차 실행 - fallback (pending_alight=True): route_id={route_id}")
+            logger.info(
+                f"버스 하차 실행 - fallback (pending_alight=True): route_id={route_id}"
+            )
             return _alight_from_bus(
                 route_id, route_itinerary_id, bot_state, public_leg, legs
             )
@@ -657,7 +665,11 @@ def _handle_riding_bus_fallback(
                 "type": "BUS",
                 "route": public_leg.get("bus_route_name"),
                 "vehId": "fallback",
-                "position": {"lon": float(end_lon), "lat": float(end_lat)} if end_lon and end_lat else None,
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else None
+                ),
                 "pass_shape": public_leg.get("pass_shape"),
             },
             next_update_in=30,
@@ -1201,7 +1213,9 @@ def _handle_riding_bus(
         # API 응답 없을 때 시간 기반 하차 판정 (leg 기준 100%)
         if leg_progress >= 100:
             if bot_state.get("pending_alight"):
-                logger.info(f"버스 하차 실행 - API 없음 (pending_alight=True): route_id={route_id}")
+                logger.info(
+                    f"버스 하차 실행 - API 없음 (pending_alight=True): route_id={route_id}"
+                )
                 return _alight_from_bus(
                     route_id, route_itinerary_id, bot_state, public_leg, legs
                 )
@@ -1221,7 +1235,10 @@ def _handle_riding_bus(
 
         SSEPublisher.publish_bot_status_update(
             route_itinerary_id=route_itinerary_id,
-            bot_state={**(BotStateManager.get(route_id) or bot_state), "progress_percent": progress_percent},
+            bot_state={
+                **(BotStateManager.get(route_id) or bot_state),
+                "progress_percent": progress_percent,
+            },
             next_update_in=30,
         )
         return 30
@@ -1311,7 +1328,11 @@ def _handle_riding_bus(
                 "type": "BUS",
                 "route": public_leg.get("bus_route_name"),
                 "vehId": veh_id,
-                "position": {"lon": float(end_lon), "lat": float(end_lat)} if end_lon and end_lat else {"lon": bus_lon, "lat": bus_lat},
+                "position": (
+                    {"lon": float(end_lon), "lat": float(end_lat)}
+                    if end_lon and end_lat
+                    else {"lon": bus_lon, "lat": bus_lat}
+                ),
                 "stopFlag": stop_flag,
                 "pass_shape": public_leg.get("pass_shape"),
             },
