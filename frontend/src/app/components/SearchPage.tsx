@@ -157,7 +157,7 @@ export function SearchPage({ onBack, onNavigate, onOpenDashboard, onOpenFavorite
       };
     }
     return {
-      text: "당신은 이미 하드베터의 전설입니다! ✨",
+      text: "당신은 이미 had-better의 전설입니다! ✨",
       color: "#f1c40f"
     };
   };

@@ -67,6 +67,9 @@ tmpclaude-*
 nul
 .bat
 
+# 로그/디버깅 데이터
+log-data/
+
 # Docs 내 제외 폴더
 backend/docs/api-specs/
 backend/docs/daily-work-log/

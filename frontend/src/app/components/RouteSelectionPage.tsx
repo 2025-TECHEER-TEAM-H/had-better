@@ -3,6 +3,7 @@ import imgGemRed1 from "@/assets/gem-red.png";
 import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
 import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, removeBusLayers, toggleBusLayers, updateAllBusPositions } from "@/components/map/busLayer";
 import { addSubwayLayers, removeSubwayLayers, toggleSubwayLayers } from "@/components/map/subwayLayer";
+import { useBuildingLayer, restoreBuildingLayers } from "@/hooks/useBuildingLayer";
 import { useRouteSSE } from "@/hooks/useRouteSSE";
 import { getBusRoutePath, trackBusPositions } from "@/lib/api";
 import { ROUTE_COLORS } from "@/mocks/routeData";
@@ -1292,43 +1293,8 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
       }
 
       // 3D 건물 상태 유지 (스타일 변경 후에도)
-      if (is3DBuildingsEnabled && mapInstance && !mapInstance.getLayer("3d-buildings")) {
-        // 중구 건물 GeoJSON 소스 추가
-        if (!mapInstance.getSource("junggu-buildings")) {
-          mapInstance.addSource("junggu-buildings", {
-            type: "geojson",
-            data: "/junggu_buildings.geojson",
-          });
-        }
-        // 건물 레이어 추가 (스타일별 가변 색상 및 수직 그라데이션 적용)
-        mapInstance.addLayer({
-          id: "3d-buildings",
-          source: "junggu-buildings",
-          type: "fill-extrusion",
-          minzoom: 13,
-          paint: {
-            "fill-extrusion-color": style === "dark"
-              ? [ // 야간 모드: 사이버펑크 네온 스타일
-                  "interpolate", ["linear"], ["get", "height"],
-                  0, "#1a1a2e",
-                  20, "#16213e",
-                  50, "#0f3460",
-                  100, "#e94560"
-                ]
-              : [ // 기본 모드: 깔끔한 파스텔 녹색 스타일
-                  "interpolate", ["linear"], ["get", "height"],
-                  0, "#d4e6d7",
-                  10, "#a8d4ae",
-                  20, "#7bc47f",
-                  50, "#4a9960",
-                  100, "#2d5f3f",
-                ],
-            "fill-extrusion-height": ["get", "height"],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": style === "dark" ? 0.85 : 0.75,
-            "fill-extrusion-vertical-gradient": true, // 입체감을 위한 수직 그라데이션 활성화
-          },
-        });
+      if (is3DBuildingsEnabled && mapInstance) {
+        restoreBuildingLayers(mapInstance, style);
       }
     });
 
@@ -1336,67 +1302,10 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
     setIsLayerPopoverOpen(false);
   }, [is3DBuildingsEnabled]);
 
-  // 3D 건물 레이어 추가 함수
-  const add3DBuildingsLayer = useCallback(async () => {
-    const mapInstance = mapViewRef.current?.map;
-    if (!mapInstance) return;
+  // 3D 건물 레이어 (뷰포트 기반 동적 로딩)
+  useBuildingLayer(mapViewRef.current?.map, is3DBuildingsEnabled, mapStyle);
 
-    // 이미 레이어가 있으면 무시
-    if (mapInstance.getLayer("3d-buildings")) return;
-
-    // 중구 건물 GeoJSON 소스 추가
-    if (!mapInstance.getSource("junggu-buildings")) {
-      mapInstance.addSource("junggu-buildings", {
-        type: "geojson",
-        data: "/junggu_buildings.geojson",
-      });
-    }
-
-    // 건물 레이어 추가 (스타일별 가변 색상 및 수직 그라데이션 적용)
-    mapInstance.addLayer({
-      id: "3d-buildings",
-      source: "junggu-buildings",
-      type: "fill-extrusion",
-      minzoom: 13,
-      paint: {
-        "fill-extrusion-color": mapStyle === "dark"
-          ? [ // 야간 모드: 사이버펑크 네온 스타일
-              "interpolate", ["linear"], ["get", "height"],
-              0, "#1a1a2e",
-              20, "#16213e",
-              50, "#0f3460",
-              100, "#e94560"
-            ]
-          : [ // 기본 모드: 깔끔한 파스텔 녹색 스타일
-              "interpolate", ["linear"], ["get", "height"],
-              0, "#d4e6d7",
-              10, "#a8d4ae",
-              20, "#7bc47f",
-              50, "#4a9960",
-              100, "#2d5f3f",
-            ],
-        "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": mapStyle === "dark" ? 0.85 : 0.75,
-        "fill-extrusion-vertical-gradient": true, // 입체감을 위한 수직 그라데이션 활성화
-      },
-    });
-  }, [mapStyle]);
-
-  // 3D 건물 레이어 제거 함수
-  const remove3DBuildingsLayer = useCallback(() => {
-    const mapInstance = mapViewRef.current?.map;
-    if (!mapInstance) return;
-    if (mapInstance.getLayer("3d-buildings")) {
-      mapInstance.removeLayer("3d-buildings");
-    }
-    // 소스도 제거
-    if (mapInstance.getSource("junggu-buildings")) {
-      mapInstance.removeSource("junggu-buildings");
-    }
-  }, []);
-
-  // 3D 건물 토글 핸들러
+  // 3D 건물 토글 핸들러 (pitch/bearing 전환만 담당, 로딩은 훅이 처리)
   const handle3DBuildingsToggle = useCallback(() => {
     const mapInstance = mapViewRef.current?.map;
     if (!mapInstance || !mapInstance.isStyleLoaded()) return;
@@ -1405,17 +1314,14 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
     setIs3DBuildingsEnabled(newState);
 
     if (newState) {
-      add3DBuildingsLayer();
-
       // 시네마틱 카메라 연출: 눕히면서(pitch) 도착지 방향으로 살짝 회전(bearing)
       mapInstance.easeTo({
         pitch: 60,
         bearing: -20,
         duration: 1000,
-        easing: (t) => t * (2 - t), // smooth out
+        easing: (t) => t * (2 - t),
       });
     } else {
-      remove3DBuildingsLayer();
       // 카메라 초기화
       mapInstance.easeTo({
         pitch: 0,
@@ -1423,7 +1329,7 @@ export function RouteSelectionPage({ onBack, onNavigate }: RouteSelectionPagePro
         duration: 800,
       });
     }
-  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+  }, [is3DBuildingsEnabled]);
 
   // 지하철 노선 토글 핸들러
   const handleSubwayLinesToggle = useCallback(() => {
