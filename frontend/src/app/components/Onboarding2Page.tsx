@@ -64,7 +64,7 @@ export function Onboarding2Page({
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <p className="mb-0">지도 앱이 알려주는 결과,</p>
-          <p>어떤 경로가 진짜 빠른지 직접 학인해 보세요.</p>
+          <p>어떤 경로가 진짜 빠른지 직접 확인해 보세요.</p>
         </motion.div>
 
         {/* 페이지 인디케이터 */}
