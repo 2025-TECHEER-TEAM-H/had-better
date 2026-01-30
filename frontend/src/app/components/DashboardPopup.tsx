@@ -130,7 +130,7 @@ export function DashboardPopup({ isOpen, onClose, onLogout, onNavigate }: Dashbo
     if (totalGames <= 5) return { lv: 1, title: "초보 모험가", color: "#4ade80", icon: "🌱" };
     if (totalGames <= 15) return { lv: 2, title: "프로 환승러", color: "#3498db", icon: "🏃" };
     if (totalGames <= 30) return { lv: 3, title: "대중교통 마스터", color: "#9b59b6", icon: "🚌" };
-    return { lv: 4, title: "하드베터의 전설", color: "#f1c40f", icon: "👑" };
+    return { lv: 4, title: "had-better의 전설", color: "#f1c40f", icon: "👑" };
   };
 
   const levelInfo = getLevelInfo(stats.total_games);

@@ -2,6 +2,7 @@ import { ResultPopup } from "@/app/components/ResultPopup";
 import { MovingCharacter, type CharacterColor } from "@/components/MovingCharacter";
 import { addBusLayers, addBusRoutePath, clearAllBusRoutePaths, clearBusData, updateAllBusPositions } from "@/components/map/busLayer";
 import { addSubwayLayers, removeSubwayLayers } from "@/components/map/subwayLayer";
+import { useBuildingLayer, restoreBuildingLayers } from "@/hooks/useBuildingLayer";
 import { useRouteSSE } from "@/hooks/useRouteSSE";
 import { getBusRoutePath as fetchBusRoutePath, trackBusPositions } from "@/lib/api";
 import { getRouteLegDetail, getRouteResult, updateRouteStatus } from "@/services/routeService";
@@ -1589,34 +1590,9 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         }
       }
 
-      if (is3DBuildingsEnabled && mapInstance && !mapInstance.getLayer("3d-buildings")) {
-        if (!mapInstance.getSource("junggu-buildings")) {
-          mapInstance.addSource("junggu-buildings", {
-            type: "geojson",
-            data: "/junggu_buildings.geojson",
-          });
-        }
-        mapInstance.addLayer({
-          id: "3d-buildings",
-          source: "junggu-buildings",
-          type: "fill-extrusion",
-          minzoom: 13,
-          paint: {
-            "fill-extrusion-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "height"],
-              0, "#d4e6d7",
-              10, "#a8d4ae",
-              20, "#7bc47f",
-              50, "#4a9960",
-              100, "#2d5f3f",
-            ],
-            "fill-extrusion-height": ["get", "height"],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.75,
-          },
-        });
+      // 3D 건물 상태 유지 (스타일 변경 후에도)
+      if (is3DBuildingsEnabled && mapInstance) {
+        restoreBuildingLayers(mapInstance, style);
       }
     });
 
@@ -1624,56 +1600,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     setIsLayerPopoverOpen(false);
   }, [is3DBuildingsEnabled]);
 
-  // 3D 건물 레이어 추가 함수
-  const add3DBuildingsLayer = useCallback(async () => {
-    const mapInstance = mapViewRef.current?.map;
-    if (!mapInstance) return;
+  // 3D 건물 레이어 (뷰포트 기반 동적 로딩)
+  useBuildingLayer(mapViewRef.current?.map, is3DBuildingsEnabled, mapStyle);
 
-    if (mapInstance.getLayer("3d-buildings")) return;
-
-    if (!mapInstance.getSource("junggu-buildings")) {
-      mapInstance.addSource("junggu-buildings", {
-        type: "geojson",
-        data: "/junggu_buildings.geojson",
-      });
-    }
-
-    mapInstance.addLayer({
-      id: "3d-buildings",
-      source: "junggu-buildings",
-      type: "fill-extrusion",
-      minzoom: 13,
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["get", "height"],
-          0, "#d4e6d7",
-          10, "#a8d4ae",
-          20, "#7bc47f",
-          50, "#4a9960",
-          100, "#2d5f3f",
-        ],
-        "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 0.75,
-      },
-    });
-  }, []);
-
-  // 3D 건물 레이어 제거 함수
-  const remove3DBuildingsLayer = useCallback(() => {
-    const mapInstance = mapViewRef.current?.map;
-    if (!mapInstance) return;
-    if (mapInstance.getLayer("3d-buildings")) {
-      mapInstance.removeLayer("3d-buildings");
-    }
-    if (mapInstance.getSource("junggu-buildings")) {
-      mapInstance.removeSource("junggu-buildings");
-    }
-  }, []);
-
-  // 3D 건물 토글 핸들러
+  // 3D 건물 토글 핸들러 (pitch 전환만 담당, 로딩은 훅이 처리)
   const handle3DBuildingsToggle = useCallback(() => {
     const mapInstance = mapViewRef.current?.map;
     if (!mapInstance || !mapInstance.isStyleLoaded()) return;
@@ -1682,19 +1612,17 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
     setIs3DBuildingsEnabled(newState);
 
     if (newState) {
-      add3DBuildingsLayer();
       mapInstance.easeTo({
         pitch: 45,
         duration: 500,
       });
     } else {
-      remove3DBuildingsLayer();
       mapInstance.easeTo({
         pitch: 0,
         duration: 500,
       });
     }
-  }, [is3DBuildingsEnabled, add3DBuildingsLayer, remove3DBuildingsLayer]);
+  }, [is3DBuildingsEnabled]);
 
   // 지하철 노선 토글 핸들러
   const handleSubwayLinesToggle = useCallback(() => {
@@ -1993,9 +1921,10 @@ export function RouteDetailPage({ onBack, onNavigate, onOpenDashboard }: RouteDe
         totalWalkDistance={legData.totalWalkDistance || 0}
         transferCount={legData.transferCount || 0}
         pathType={legData.pathType}
+        userBusArrival={player === 'user' ? userBusArrival : undefined}
       />
     );
-  }, [getPlayerLegData, isLoadingDetails, playerColors]);
+  }, [getPlayerLegData, isLoadingDetails, playerColors, userBusArrival]);
 
   // 차트 데이터 수집용 ref 업데이트
   useEffect(() => {
